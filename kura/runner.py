@@ -1,0 +1,138 @@
+"""Running Windows games: Proton through umu-launcher, plain Wine as fallback."""
+import os
+import re
+import shlex
+import shutil
+
+from contextlib import contextmanager
+
+from .config import HOME, find_tool, settings
+
+_overrides: dict = {}
+
+
+@contextmanager
+def using(overrides: dict):
+    """Apply one game's overrides to everything built inside the block."""
+    global _overrides
+    old, _overrides = _overrides, overrides or {}
+    try:
+        yield
+    finally:
+        _overrides = old
+
+
+def opt(name):
+    """A setting, unless the current game overrides it."""
+    return _overrides[name] if name in _overrides else settings.get(name)
+
+
+def parse_env(text: str) -> dict:
+    out = {}
+    try:
+        parts = shlex.split(text or "")
+    except ValueError:
+        parts = (text or "").split()
+    for part in parts:
+        k, sep, v = part.partition("=")
+        if sep and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", k):
+            out[k] = v
+    return out
+
+
+def user_env() -> dict:
+    """Global extra environment, then the current game's on top."""
+    env = parse_env(settings.get("env"))
+    env.update(parse_env(_overrides.get("env", "")))
+    return env
+
+
+def proton_versions() -> list:
+    """Every Proton build umu can use: [{"label", "value"}], value is a PROTONPATH."""
+    out = [{"label": "GE-Proton (newest, downloaded automatically)", "value": "GE-Proton"},
+           {"label": "UMU-Proton (umu's default build)", "value": ""}]
+    flat = HOME / ".var/app/com.valvesoftware.Steam"
+    roots = [(HOME / ".local/share/Steam/compatibilitytools.d", ""),
+             (HOME / ".steam/steam/compatibilitytools.d", ""),
+             (HOME / ".steam/root/compatibilitytools.d", ""),
+             (flat / ".local/share/Steam/compatibilitytools.d", "Flatpak"),
+             (flat / "data/Steam/compatibilitytools.d", "Flatpak"),
+             (HOME / ".local/share/umu/compatibilitytools", "umu"),
+             ("/usr/share/steam/compatibilitytools.d", "system"),
+             ("/usr/local/share/steam/compatibilitytools.d", "system")]
+    try:
+        from .stores.steam import Steam
+        roots += [(os.path.join(lib, "steamapps", "common"), "Steam") for lib in Steam().library_dirs()]
+    except Exception:
+        pass
+    seen = set()
+    for root, tag in roots:
+        try:
+            names = sorted(os.listdir(root), reverse=True)
+        except OSError:
+            continue
+        for name in names:
+            path = os.path.realpath(os.path.join(root, name))
+            if path in seen or not os.path.isfile(os.path.join(path, "proton")):
+                continue
+            seen.add(path)
+            out.append({"label": f"{name} ({tag})" if tag else name, "value": path})
+    return out
+
+
+class StoreError(Exception):
+    """A user-facing problem (missing tool, not signed in, ...)."""
+
+
+def compat():
+    """Return ("umu", path) or ("wine", path); raise if neither exists."""
+    umu = find_tool("umu-run")
+    if umu:
+        return "umu", umu
+    wine = shutil.which("wine")
+    if wine:
+        return "wine", wine
+    raise StoreError("umu-launcher is not installed (sudo pacman -S umu-launcher)")
+
+
+def prefix_path(store: str, game_id: str, create: bool = False) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{store}-{game_id}")
+    p = settings.games_dir / "prefixes" / safe
+    if create:
+        p.mkdir(parents=True, exist_ok=True)
+    return str(p)
+
+
+def wine_env(store: str, game_id: str, umu_id: str = "umu-default") -> dict:
+    """Environment for umu-run / wine for one game."""
+    env = {"WINEPREFIX": prefix_path(store, game_id, create=True)}
+    kind, _ = compat()
+    if kind == "umu":
+        env["GAMEID"] = umu_id
+        env["STORE"] = {"epic": "egs", "gog": "gog", "amazon": "amazon", "battlenet": "battlenet"}.get(store, "none")
+        proton = (opt("proton") or "").strip()
+        if proton:
+            env["PROTONPATH"] = os.path.expanduser(proton)
+    env.update(user_env())
+    return env
+
+
+def extras() -> list:
+    """Optional wrappers the user switched on in Settings."""
+    out = []
+    if opt("gamemode") and shutil.which("gamemoderun"):
+        out.append("gamemoderun")
+    if opt("mangohud") and shutil.which("mangohud"):
+        out.append("mangohud")
+    return out
+
+
+def wrapper_argv() -> list:
+    """argv prefix that runs a Windows executable."""
+    _, path = compat()
+    return [*extras(), path]
+
+
+def wrapper_string() -> str:
+    """Same as wrapper_argv, as one shell-quoted string for --wrapper flags."""
+    return shlex.join(wrapper_argv())

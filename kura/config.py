@@ -1,0 +1,129 @@
+"""Paths, settings and backend-tool discovery."""
+import json
+import os
+import shutil
+from pathlib import Path
+
+APP = "kura"
+HOME = Path.home()
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / APP
+DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share")) / APP
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / APP
+BIN_DIR = DATA_DIR / "bin"
+LOG_DIR = CACHE_DIR / "logs"
+XDG_CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config"))
+
+for _d in (CONFIG_DIR, DATA_DIR, CACHE_DIR, BIN_DIR, LOG_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
+
+DEFAULTS = {
+    "games_dir": str(HOME / "Games" / APP),
+    "proton": "GE-Proton",  # umu PROTONPATH: "GE-Proton", a path, or "" for UMU-Proton
+    "mangohud": False,
+    "gamemode": False,
+    "steam_api_key": "",
+    "steam_id": "",
+    "steamgriddb_key": "",
+    "env": "",                 # extra environment for every game: KEY=VALUE KEY2=VALUE2
+    "theme_mode": "ryoku",     # "ryoku", a preset name from theme.PRESETS, or "custom"
+    "theme_bg": "#141218",
+    "theme_accent": "#d2bcfd",
+    "card_size": 196,
+    "card_radius": 14,
+    "show_badges": True,
+    "show_titles": False,
+    "dim_uninstalled": True,
+    "merge_duplicates": True,
+}
+
+# Where Heroic keeps its bundled copies of legendary / gogdl / nile.
+_HEROIC_BIN_DIRS = [
+    "/opt/Heroic/resources/app.asar.unpacked/build/bin/x64/linux",
+    "/opt/heroic/resources/app.asar.unpacked/build/bin/x64/linux",
+    "/usr/lib/heroic/resources/app.asar.unpacked/build/bin/x64/linux",
+]
+
+BACKEND_URLS = {
+    "legendary": "https://github.com/Heroic-Games-Launcher/legendary/releases/latest/download/legendary_linux_x86_64",
+    "gogdl": "https://github.com/Heroic-Games-Launcher/heroic-gogdl/releases/latest/download/gogdl_linux_x86_64",
+    "nile": "https://github.com/imLinguin/nile/releases/latest/download/nile_linux_x86_64",
+}
+
+
+class Settings:
+    def __init__(self):
+        self.path = CONFIG_DIR / "settings.json"
+        self.data = dict(DEFAULTS)
+        try:
+            self.data.update(json.loads(self.path.read_text()))
+        except (OSError, ValueError):
+            pass
+
+    def get(self, key):
+        return self.data.get(key, DEFAULTS.get(key))
+
+    def set(self, key, value):
+        self.data[key] = value
+        self.path.write_text(json.dumps(self.data, indent=2))
+
+    @property
+    def games_dir(self) -> Path:
+        return Path(os.path.expanduser(self.get("games_dir")))
+
+
+settings = Settings()
+
+
+def find_tool(name: str) -> str | None:
+    """Locate a backend binary: PATH, Kura's own bin dir, then Heroic's bundle."""
+    found = shutil.which(name)
+    if found:
+        return found
+    for d in [str(BIN_DIR), *_HEROIC_BIN_DIRS]:
+        p = os.path.join(d, name)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
+
+def read_json(path, default=None):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
+
+def write_json(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data))
+    tmp.replace(path)
+
+
+class GameOptions:
+    """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
+    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer")
+
+    def __init__(self):
+        self.path = CONFIG_DIR / "games.json"
+        self.data = read_json(self.path, {}) or {}
+
+    def get(self, key) -> dict:
+        return dict(self.data.get(key, {}))
+
+    def set(self, key, name, value):
+        if name not in self.KEYS:
+            return
+        entry = self.data.setdefault(key, {})
+        if value in ("", None, "default"):
+            entry.pop(name, None)
+        else:
+            entry[name] = value
+        if not entry:
+            self.data.pop(key, None)
+        write_json(self.path, self.data)
+
+
+game_options = GameOptions()
