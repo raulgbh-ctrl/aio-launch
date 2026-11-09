@@ -80,7 +80,7 @@ FocusScope {
         // Store tabs.
         RowLayout {
             spacing: 12
-            Text { text: "Kura"; color: theme.onSurface; font.pixelSize: 30; font.weight: Font.Bold; Layout.rightMargin: 20 }
+            Text { text: "AIO Launch"; color: theme.onSurface; font.pixelSize: 30; font.weight: Font.Bold; Layout.rightMargin: 20 }
             Repeater {
                 model: tv.storeIds
                 Rectangle {

@@ -1,8 +1,8 @@
-"""Controller input through SDL2, turned into key presses for the focused Kura window.
+"""Controller input through SDL2, turned into key presses for the focused AIO Launch window.
 
 Mapping: D-pad / left stick = arrows, A = Return, B = Escape, X = F2 (actions),
 Y = F3 (installed only), LB / RB = PageUp / PageDown (previous / next store),
-Start = F11 (TV mode). Nothing is sent while Kura is not the focused window,
+Start = F11 (TV mode). Nothing is sent while AIO Launch is not the focused window,
 so the pad never steers the library while a game is running.
 """
 import ctypes

@@ -1,4 +1,4 @@
-"""Qt side of Kura: the library model, background jobs and the object QML talks to."""
+"""Qt side of AIO Launch: the library model, background jobs and the object QML talks to."""
 import os
 import re
 import time
@@ -12,7 +12,9 @@ from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 import shlex
 
-from . import covers, runner, theme as themes
+import sys
+
+from . import covers, runner, saves, session, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -182,7 +184,7 @@ class LibraryProxy(QSortFilterProxyModel):
         return model.rep(model.groups[idx.row()]).key if idx.isValid() else ""
 
 
-class Kura(QObject):
+class AioLaunch(QObject):
     storesChanged = Signal()
     refreshingChanged = Signal()
     themeChanged = Signal()
@@ -192,6 +194,7 @@ class Kura(QObject):
     loginReady = Signal(str, str, str)   # store, url, prompt
     loginDone = Signal(str, bool, str)   # store, ok, message
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
+    saveConflict = Signal(str, str, str)          # key, local date, cloud date
 
     _fetched = Signal(str, object, str)
     _worker_toast = Signal(str)
@@ -217,6 +220,17 @@ class Kura(QObject):
         if PALETTE.parent.is_dir():
             self._watch.addPath(str(PALETTE.parent))
             self._watch.directoryChanged.connect(lambda _: QTimer.singleShot(200, self._load_theme))
+        # Other desktops: check the wallpaper now and then (cheap; the colours are cached per image).
+        self._wall_timer = QTimer(self)
+        self._wall_timer.setInterval(20000)
+        self._wall_timer.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and self._load_theme())
+        self._wall_timer.start()
+
+        session.SESSIONS.mkdir(parents=True, exist_ok=True)
+        self._sessions = QFileSystemWatcher([str(session.SESSIONS)], self)
+        self._sessions.directoryChanged.connect(lambda _: QTimer.singleShot(300, self._check_sessions))
+        self._sessions_seen = {}
+        self._check_sessions()
 
         if demo:
             self._load_demo()
@@ -285,7 +299,7 @@ class Kura(QObject):
 
     @Slot()
     def refreshLocal(self):
-        """Cheap rescan when the window regains focus (Steam / Battle.net change outside Kura)."""
+        """Cheap rescan when the window regains focus (Steam / Battle.net change outside AIO Launch)."""
         if time.time() - self._last_local > 30 and not self._pending:
             self._last_local = time.time()
             self.refresh("steam")
@@ -399,6 +413,8 @@ class Kura(QObject):
         result = p.startDetached()
         return result[0] if isinstance(result, tuple) else bool(result)
 
+    cloudSaveStores = Property("QVariantList", lambda s: list(saves.SUPPORTED), constant=True)
+
     def _guard(self, key):
         g = self.model.find(key)
         if not g:
@@ -475,22 +491,86 @@ class Kura(QObject):
 
     @Slot(str)
     def play(self, key):
+        self._play(key, "download")
+
+    @Slot(str, str)
+    def resolveConflict(self, key, choice):
+        """After a save conflict: "cloud", "local", or "skip" (play without syncing)."""
+        self._play(key, {"cloud": "force-download", "local": "force-upload"}.get(choice, "skip"))
+
+    @Slot(str)
+    def syncNow(self, key):
+        g = self.model.find(key)
+        if not g or self.demo:
+            return
+
+        def work():
+            res = saves.sync(g, "both")
+            if res["status"] == "conflict":
+                return lambda: self.saveConflict.emit(key, res["local"], res["cloud"])
+            return lambda: self.toast.emit(f"{g.title}: {res['message']}")
+        self.toast.emit(f"Syncing saves for {g.title}…")
+        self._bg(work)
+
+    def _play(self, key, mode):
         g, store = self._guard(key)
         if not g:
             return
         opts = self._options_for(g)
-        try:
+        sync = saves.enabled_for(g) and mode != "skip"
+        if sync:
+            self.toast.emit(f"Syncing saves for {g.title}…")
+
+        def work():
+            if sync:
+                res = saves.sync(g, mode)
+                if res["status"] == "conflict":
+                    return lambda: self.saveConflict.emit(key, res["local"], res["cloud"])
+                if res["status"] == "error":
+                    self._worker_toast.emit(f"{g.title}: {res['message']} (launching anyway)")
             with runner.using(opts):
                 cmd = store.launch(g)
             if opts.get("args") and g.store in ("epic", "gog", "amazon"):
                 cmd.argv += shlex.split(opts["args"])
-        except (StoreError, ValueError) as e:
-            self.toast.emit(str(e))
-            return
-        if self._detach(cmd.argv, cmd.env, cmd.cwd, key):
-            self.toast.emit(f"Launching {g.title}")
+            return lambda: self._start(g, cmd, saves.enabled_for(g))
+        self._bg(work)
+
+    def _start(self, g, cmd, sync):
+        log = str(LOG_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", g.key) + ".log"))
+        if g.store in saves.SUPPORTED:
+            job = CACHE_DIR / f"sessions/job-{os.getpid()}-{int(time.time() * 1000)}.json"
+            write_json(job, {"game": g.to_dict(), "argv": cmd.argv, "env": cmd.env, "cwd": cmd.cwd,
+                             "log": log, "sync": sync})
+            pkg_root = str(Path(__file__).resolve().parent.parent)
+            env = dict(cmd.env)
+            env["PYTHONPATH"] = pkg_root + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else "")
+            ok = self._detach([sys.executable, "-m", "aiolaunch.session", str(job)], env, "", g.key + ".session")
         else:
-            self.toast.emit(f"Could not start {g.title} (log: {LOG_DIR})")
+            ok = self._detach(cmd.argv, cmd.env, cmd.cwd, g.key)
+        self.toast.emit(f"Launching {g.title}" if ok else f"Could not start {g.title} (log: {LOG_DIR})")
+
+    def _check_sessions(self):
+        for f in session.SESSIONS.glob("*.json"):
+            if f.name.startswith("job-"):
+                continue
+            data = read_json(f) or {}
+            stamp = (data.get("state"), data.get("since"))
+            if self._sessions_seen.get(f.name) == stamp:
+                continue
+            self._sessions_seen[f.name] = stamp
+            if data.get("state") == "uploading":
+                self.toast.emit(f"Uploading saves for {data.get('title') or 'your game'}…")
+            elif data.get("state") == "done":
+                res = data.get("sync") or {}
+                title = data.get("title", "")
+                if res.get("status") == "ok":
+                    self.toast.emit(f"{title}: {res.get('message')}")
+                elif res.get("status") in ("error", "conflict"):
+                    self.toast.emit(f"{title}: saves not uploaded ({res.get('message')})")
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
     @Slot(str)
     def install(self, key):

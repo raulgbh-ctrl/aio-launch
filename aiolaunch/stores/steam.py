@@ -28,7 +28,7 @@ class Steam(Store):
     id = "steam"
     name = "Steam"
     color = "#66c0f4"
-    dlc_note = "Steam only tells Kura which DLC is installed; the rest is listed as available even if you own it."
+    dlc_note = "Steam only tells AIO Launch which DLC is installed; the rest is listed as available even if you own it."
     external_installs = True
     login_kind = "external"
 

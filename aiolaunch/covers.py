@@ -2,7 +2,7 @@
 
 Sources, in order: SteamGridDB (when an API key is set in Settings), then
 Steam's store search matched against Steam's library art. Results, including
-misses, are remembered in ~/.cache/kura/cover_lookup.json.
+misses, are remembered in ~/.cache/aiolaunch/cover_lookup.json.
 """
 import json
 import re

@@ -31,7 +31,7 @@ class Gog(Store):
     dlc_note = ""
 
     def problem(self):
-        return "" if find_tool("gogdl") else "gogdl not found, needed to install games (run: kura --fetch-backends)"
+        return "" if find_tool("gogdl") else "gogdl not found, needed to install games (run: aiolaunch --fetch-backends)"
 
     # --- auth ------------------------------------------------------------
     def _creds(self):
@@ -200,7 +200,7 @@ class Gog(Store):
         path = os.path.realpath(game.install_path or "")
         base = os.path.realpath(self.base_dir())
         if not path.startswith(base + os.sep) or not os.path.isdir(path):
-            raise StoreError("Refusing to delete a folder outside Kura's GOG directory")
+            raise StoreError("Refusing to delete a folder outside AIO Launch's GOG directory")
         shutil.rmtree(path)
         return None
 
@@ -212,7 +212,7 @@ class Gog(Store):
         tasks = [t for t in info.get("playTasks", []) if t.get("type") == "FileTask" and t.get("path")]
         task = next((t for t in tasks if t.get("isPrimary")), tasks[0] if tasks else None)
         if not task:
-            raise StoreError("This game has no launch task Kura understands")
+            raise StoreError("This game has no launch task AIO Launch understands")
         exe = _resolve(path, task["path"])
         cwd = _resolve(path, task.get("workingDir") or "") if task.get("workingDir") else os.path.dirname(exe)
         args = shlex.split(task.get("arguments") or "", posix=False)

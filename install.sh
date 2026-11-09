@@ -1,10 +1,10 @@
 #!/bin/sh
-# Kura installer for Linux. Installs for the current user only (no root needed
-# for Kura itself); system packages are optional and asked about first.
+# AIO Launch installer for Linux. Installs for the current user only (no root needed
+# for AIO Launch itself); system packages are optional and asked about first.
 #
 #   ./install.sh              install or update
-#   ./install.sh --uninstall  remove Kura (keeps settings, sign-ins and games)
-#   ./install.sh --purge      remove Kura and its settings/cache (never your games)
+#   ./install.sh --uninstall  remove AIO Launch (keeps settings, sign-ins and games)
+#   ./install.sh --purge      remove AIO Launch and its settings/cache (never your games)
 #
 # Options: --yes (no questions, say yes)   --no-system (never call sudo)
 #          --venv (always use a private Python environment)
@@ -13,13 +13,13 @@ set -eu
 
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PREFIX=${PREFIX:-$HOME/.local}
-LIB=$PREFIX/lib/kura
+LIB=$PREFIX/lib/aiolaunch
 BIN=$PREFIX/bin
 APPS=$PREFIX/share/applications
 ICONS=$PREFIX/share/icons/hicolor/scalable/apps
-CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/kura
-DATA=${XDG_DATA_HOME:-$HOME/.local/share}/kura
-CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/kura
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/aiolaunch
+DATA=${XDG_DATA_HOME:-$HOME/.local/share}/aiolaunch
+CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/aiolaunch
 
 MODE=install; YES=0; SYSTEM=1; FORCE_VENV=0; DEV=0
 for arg in "$@"; do
@@ -48,9 +48,9 @@ ask() {  # ask "question" -> 0 for yes
 
 # ---------------------------------------------------------------- uninstall
 if [ "$MODE" != install ]; then
-    say "Removing Kura"
+    say "Removing AIO Launch"
     rm -rf "$LIB"
-    rm -f "$BIN/kura" "$APPS/kura.desktop" "$ICONS/kura.svg"
+    rm -f "$BIN/aiolaunch" "$APPS/aiolaunch.desktop" "$ICONS/aiolaunch.svg"
     have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
         rm -rf "$CONFIG" "$DATA" "$CACHE"
@@ -63,8 +63,8 @@ if [ "$MODE" != install ]; then
 fi
 
 # ---------------------------------------------------------------- checks
-[ "$(uname -s)" = Linux ] || die "Kura only runs on Linux."
-[ -f "$SRC/kura/__main__.py" ] || die "Run this from the Kura folder (kura/__main__.py not found next to install.sh)."
+[ "$(uname -s)" = Linux ] || die "AIO Launch only runs on Linux."
+[ -f "$SRC/aiolaunch/__main__.py" ] || die "Run this from the AIO Launch folder (aiolaunch/__main__.py not found next to install.sh)."
 have python3 || die "python3 is required. Install it with your package manager and run this again."
 python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' \
     || die "Python 3.10 or newer is required (found $(python3 -V 2>&1))."
@@ -77,7 +77,7 @@ done
 sys_install() {  # sys_install "what it is for" pkg...
     what=$1; shift
     case $PM in
-        pacman)  cmd="sudo pacman -S --needed $*" ;;
+        pacman)  cmd="sudo pacman -S --needed $([ "$YES" = 1 ] && echo --noconfirm) $*" ;;
         apt-get) cmd="sudo apt-get install -y $*" ;;
         dnf)     cmd="sudo dnf install -y $*" ;;
         zypper)  cmd="sudo zypper install -y $*" ;;
@@ -95,7 +95,7 @@ sys_install() {  # sys_install "what it is for" pkg...
 # ---------------------------------------------------------------- Python side
 say "Checking Python libraries"
 uses_system_python() {
-    probe=$(mktemp "${TMPDIR:-/tmp}/kura-probe.XXXXXX.qml") || return 1
+    probe=$(mktemp "${TMPDIR:-/tmp}/aiolaunch-probe.XXXXXX.qml") || return 1
     printf 'import QtQuick\nimport QtQuick.Controls.Basic\nimport QtQuick.Layouts\nimport QtQuick.Dialogs\nimport QtQuick.Effects\nItem {}\n' > "$probe"
     QT_QPA_PLATFORM=offscreen python3 - "$probe" <<'EOF' >/dev/null 2>&1
 import sys
@@ -142,67 +142,108 @@ else
 fi
 
 # ---------------------------------------------------------------- files
-say "Installing Kura into $PREFIX"
+say "Installing AIO Launch into $PREFIX"
 mkdir -p "$LIB" "$BIN" "$APPS" "$ICONS"
 if [ "$DEV" = 1 ]; then
     CODE=$SRC
-    rm -rf "$LIB/kura"
+    rm -rf "$LIB/aiolaunch"
     note "Development mode: running straight from $SRC"
 else
     CODE=$LIB
-    rm -rf "$LIB/kura"
-    cp -R "$SRC/kura" "$LIB/kura"
-    find "$LIB/kura" -name __pycache__ -type d -prune -exec rm -rf {} +
+    rm -rf "$LIB/aiolaunch"
+    cp -R "$SRC/aiolaunch" "$LIB/aiolaunch"
+    find "$LIB/aiolaunch" -name __pycache__ -type d -prune -exec rm -rf {} +
     cp "$SRC/install.sh" "$LIB/install.sh"
 fi
 
-cat > "$BIN/kura" <<EOF
+cat > "$BIN/aiolaunch" <<EOF
 #!/bin/sh
-# Kura launcher, written by install.sh
-PYTHONPATH="$CODE\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m kura "\$@"
+# AIO Launch launcher, written by install.sh
+PYTHONPATH="$CODE\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m aiolaunch "\$@"
 EOF
-chmod +x "$BIN/kura"
+chmod +x "$BIN/aiolaunch"
 
-cp "$SRC/kura/kura.svg" "$ICONS/kura.svg"
-cat > "$APPS/kura.desktop" <<EOF
+cp "$SRC/aiolaunch/aiolaunch.svg" "$ICONS/aiolaunch.svg"
+cat > "$APPS/aiolaunch.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Kura
+Name=AIO Launch
 GenericName=Game Library
 Comment=One library for Steam, Epic, GOG, Amazon and Battle.net
-Exec=$BIN/kura
-Icon=kura
+Exec=$BIN/aiolaunch
+Icon=aiolaunch
 Categories=Game;
 Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
-StartupWMClass=kura
+StartupWMClass=aiolaunch
 Actions=tv;
 
 [Desktop Action tv]
 Name=TV mode
-Exec=$BIN/kura --tv
+Exec=$BIN/aiolaunch --tv
 EOF
 have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
 have gtk-update-icon-cache && gtk-update-icon-cache -q "$PREFIX/share/icons/hicolor" >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------- optional pieces
 say "Checking the things games need"
+fetch_umu() {  # portable umu-launcher (one Python zipapp) into AIO Launch's own bin folder
+    mkdir -p "$DATA/bin"
+    python3 - "$DATA/bin/umu-run" <<'EOF'
+import io, json, os, sys, tarfile, urllib.request
+dest = sys.argv[1]
+api = "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
+req = urllib.request.Request(api, headers={"User-Agent": "aiolaunch-installer"})
+release = json.load(urllib.request.urlopen(req, timeout=30))
+asset = next(a for a in release["assets"] if a["name"].endswith("-zipapp.tar"))
+data = urllib.request.urlopen(asset["browser_download_url"], timeout=120).read()
+with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+    member = next(m for m in tar.getmembers() if m.isfile() and os.path.basename(m.name) == "umu-run")
+    payload = tar.extractfile(member).read()
+with open(dest + ".part", "wb") as f:
+    f.write(payload)
+os.chmod(dest + ".part", 0o755)
+os.replace(dest + ".part", dest)
+print(release["tag_name"])
+EOF
+}
+
+flatpak_steam() {
+    have flatpak || return 1
+    cmd="flatpak install --user -y flathub com.valvesoftware.Steam"
+    ask "Install Steam from Flathub for your user? ($cmd)" || { note "Skipped. To add Steam later: $cmd"; return 0; }
+    flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+        && $cmd && return 0
+    note "That did not work; you can run it yourself later: $cmd"
+}
+
 if have steam || [ -d "$HOME/.var/app/com.valvesoftware.Steam" ]; then
     note "Steam: found"
 else
     case $PM in
-        pacman) sys_install "Steam" steam || true ;;
-        apt-get) sys_install "Steam" steam-installer || true ;;
-        *) note "Steam is not installed. Get it from your distribution or Flathub (com.valvesoftware.Steam)." ;;
+        pacman)  sys_install "Steam" steam || {
+                     pacman -Si steam >/dev/null 2>&1 || note "pacman cannot find 'steam': enable the [multilib] repository in /etc/pacman.conf, run 'sudo pacman -Syu', then run this installer again."
+                 } ;;
+        apt-get) sys_install "Steam" steam-installer || flatpak_steam || true ;;
+        *) flatpak_steam || note "Steam is not installed. Get it from your distribution, or install Flatpak and run this again." ;;
     esac
 fi
-if have umu-run; then
+if have umu-run || [ -x "$DATA/bin/umu-run" ]; then
     note "umu-launcher (Proton for non-Steam games): found"
 else
-    case $PM in
-        pacman) sys_install "umu-launcher (runs Windows games through Proton)" umu-launcher || true ;;
-        *) note "umu-launcher is not installed; Epic, GOG, Amazon and Battle.net games need it."
-           note "See https://github.com/Open-Wine-Components/umu-launcher/releases for packages." ;;
-    esac
+    got=1
+    [ "$PM" = pacman ] && [ "$SYSTEM" = 1 ] && sys_install "umu-launcher (runs Windows games through Proton)" umu-launcher && got=0
+    if [ "$got" != 0 ]; then
+        if ask "Download a portable umu-launcher into $DATA/bin instead (no root needed)?"; then
+            if version=$(fetch_umu 2>/dev/null); then
+                note "umu-launcher $version installed to $DATA/bin/umu-run"
+            else
+                note "Download failed. Epic, GOG, Amazon and Battle.net games need umu-launcher:"
+                note "https://github.com/Open-Wine-Components/umu-launcher/releases"
+            fi
+        else
+            note "Skipped. Epic, GOG, Amazon and Battle.net games will not start without umu-launcher."
+        fi
+    fi
 fi
 if python3 -c 'import ctypes, ctypes.util, sys; sys.exit(0 if ctypes.util.find_library("SDL2") else 1)' 2>/dev/null \
    || [ -e /usr/lib/libSDL2-2.0.so.0 ] || [ -e /usr/lib64/libSDL2-2.0.so.0 ] || [ -e /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 ]; then
@@ -217,22 +258,35 @@ else
     esac
 fi
 
+# Qt from pip (the private environment) needs this small library on X11 sessions; desktops
+# that ship their own Qt 6 have it, minimal Debian/Fedora installs sometimes do not.
+if [ "$PYTHON" != python3 ] && [ "${XDG_SESSION_TYPE:-}" != wayland ] \
+   && ! ls /usr/lib/libxcb-cursor.so.0 /usr/lib64/libxcb-cursor.so.0 /usr/lib/*/libxcb-cursor.so.0 >/dev/null 2>&1; then
+    case $PM in
+        pacman)  sys_install "the X11 cursor library Qt needs" xcb-util-cursor || true ;;
+        apt-get) sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
+        dnf)     sys_install "the X11 cursor library Qt needs" xcb-util-cursor || true ;;
+        zypper)  sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
+        *) note "If AIO Launch does not open on X11, install your distribution's libxcb-cursor package." ;;
+    esac
+fi
+
 say "Store backends for Epic, GOG and Amazon"
 if [ "$(uname -m)" != x86_64 ]; then
     note "Skipped: prebuilt backends are only fetched for x86_64 here."
 elif ask "Download legendary, gogdl and nile from their GitHub releases into $DATA/bin?"; then
-    "$BIN/kura" --fetch-backends | sed 's/^/    /' || note "Download failed; run 'kura --fetch-backends' later."
+    "$BIN/aiolaunch" --fetch-backends | sed 's/^/    /' || note "Download failed; run 'aiolaunch --fetch-backends' later."
 else
-    note "Skipped. Run 'kura --fetch-backends' whenever you want them."
+    note "Skipped. Run 'aiolaunch --fetch-backends' whenever you want them."
 fi
 
 # ---------------------------------------------------------------- done
-say "Kura is installed"
-"$BIN/kura" --status | sed 's/^/    /' || true
+say "AIO Launch is installed"
+"$BIN/aiolaunch" --status | sed 's/^/    /' || true
 echo
-note "Start it from your app menu, or run: kura        (TV mode: kura --tv)"
+note "Start it from your app menu, or run: aiolaunch        (TV mode: aiolaunch --tv)"
 case ":$PATH:" in
     *":$BIN:"*) ;;
-    *) note "Note: $BIN is not on your PATH. Add it, or start Kura from the app menu." ;;
+    *) note "Note: $BIN is not on your PATH. Add it, or start AIO Launch from the app menu." ;;
 esac
 note "To remove it later: sh $( [ "$DEV" = 1 ] && echo "$SRC" || echo "$LIB" )/install.sh --uninstall"

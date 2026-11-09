@@ -1,5 +1,6 @@
 """Epic Games Store through the legendary CLI."""
 import json
+import os
 
 from ..config import XDG_CONFIG, find_tool, read_json, settings
 from ..runner import StoreError, wine_env, wrapper_string
@@ -21,7 +22,7 @@ class Epic(Store):
         return t
 
     def problem(self):
-        return "" if find_tool("legendary") else "legendary not found (run: kura --fetch-backends)"
+        return "" if find_tool("legendary") else "legendary not found (run: aiolaunch --fetch-backends)"
 
     def _user(self):
         return read_json(XDG_CONFIG / "legendary/user.json") or {}
@@ -110,10 +111,21 @@ class Epic(Store):
         return Command([self.tool(), "-y", "uninstall", game.id])
 
     def launch(self, game):
-        return Command(
-            [self.tool(), "launch", game.id, "--no-wine", "--wrapper", wrapper_string()],
-            env=wine_env(self.id, game.id),
-        )
+        """Blocking: asks legendary for the launch details so AIO Launch can run (and wait for) the game itself."""
+        env = wine_env(self.id, game.id)
+        base = [self.tool(), "launch", game.id, "--no-wine", "--wrapper", wrapper_string(), "--json"]
+        r = run(base, timeout=90, env=env)
+        if r.returncode != 0:  # offline, or Epic unreachable: legendary can still start most games
+            r = run(base + ["--offline"], timeout=60, env=env)
+        try:
+            p = json.loads(r.stdout)
+        except ValueError:
+            raise StoreError(_tail(r) or "legendary could not prepare the launch")
+        exe = os.path.join(p.get("game_directory", ""), p.get("game_executable", ""))
+        argv = [*p.get("launch_command", []), exe, *p.get("game_parameters", []),
+                *p.get("user_parameters", []), *p.get("egl_parameters", [])]
+        env.update({k: str(v) for k, v in (p.get("environment") or {}).items()})
+        return Command(argv, env=env, cwd=p.get("working_directory") or p.get("game_directory", ""))
 
 
 def _images(meta):

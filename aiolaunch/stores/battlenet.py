@@ -1,7 +1,7 @@
 """Battle.net: runs Blizzard's own launcher under Proton and lists what it installed.
 
 Blizzard has no public library API, so games are installed inside the
-Battle.net app. Kura installs/starts that app and reads its product database
+Battle.net app. AIO Launch installs/starts that app and reads its product database
 to show each installed game as its own tile.
 """
 import os
@@ -79,7 +79,7 @@ class BattleNet(Store):
         return bool(self.launcher_exe())
 
     def account(self):
-        return "sign in inside the app" if self.launcher_exe() else ""
+        return "app installed; sign in inside it" if self.launcher_exe() else ""
 
     def login_begin(self):
         exe = self.launcher_exe()
@@ -109,7 +109,7 @@ class BattleNet(Store):
             raise StoreError("Install Battle.net games from inside the Battle.net app")
         setup = str(CACHE_DIR / "Battle.net-Setup.exe")
         script = 'curl -fL --retry 3 -o "$1" "$2" && shift 2 && exec "$@"'
-        return Command(["sh", "-c", script, "kura", setup, SETUP_URL, *wrapper_argv(), setup],
+        return Command(["sh", "-c", script, "aiolaunch", setup, SETUP_URL, *wrapper_argv(), setup],
                        env=self.env())
 
     def uninstall(self, game):

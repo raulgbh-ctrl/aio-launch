@@ -1,4 +1,4 @@
-"""Kura: one library for Steam, Epic, GOG, Amazon and Battle.net."""
+"""AIO Launch: one library for Steam, Epic, GOG, Amazon and Battle.net."""
 import argparse
 import os
 import signal
@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def fetch_backends():
-    """Download the legendary / gogdl / nile release binaries into Kura's data dir."""
+    """Download the legendary / gogdl / nile release binaries into AIO Launch's data dir."""
     import requests
     from .config import BACKEND_URLS, BIN_DIR, find_tool
     for name, url in BACKEND_URLS.items():
@@ -30,23 +30,27 @@ def fetch_backends():
 
 
 def status():
-    from .app import Kura  # noqa: F401  (imports every store)
+    from .app import AioLaunch  # noqa: F401  (imports every store)
     from .stores.amazon import Amazon
     from .stores.battlenet import BattleNet
     from .stores.epic import Epic
     from .stores.gog import Gog
     from .stores.steam import Steam
     for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet()):
-        state = s.problem() or ("signed in" + (f" as {s.account()}" if s.account() else "")
-                                if s.logged_in() else "ready, not signed in")
+        if s.problem():
+            state = s.problem()
+        elif s.id == "battlenet":
+            state = s.account() or "ready; install the Battle.net app from its tile"
+        else:
+            state = ("signed in" + (f" as {s.account()}" if s.account() else "")) if s.logged_in() else "ready, not signed in"
         print(f"{s.name:14} {state}")
     return 0
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="kura", description=__doc__)
+    ap = argparse.ArgumentParser(prog="aiolaunch", description=__doc__)
     ap.add_argument("--fetch-backends", action="store_true",
-                    help="download the legendary, gogdl and nile CLIs into ~/.local/share/kura/bin")
+                    help="download the legendary, gogdl and nile CLIs into ~/.local/share/aiolaunch/bin")
     ap.add_argument("--status", action="store_true", help="print what each store backend needs and exit")
     ap.add_argument("--tv", action="store_true", help="start full screen in TV mode (controller friendly)")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
@@ -62,7 +66,7 @@ def main():
     from PySide6.QtNetwork import QNetworkAccessManager, QNetworkDiskCache
     from PySide6.QtQml import QQmlApplicationEngine, QQmlNetworkAccessManagerFactory
 
-    from .app import Kura
+    from .app import AioLaunch
     from .config import CACHE_DIR
     from .gamepad import Gamepad
 
@@ -78,26 +82,26 @@ def main():
             return nam
 
     app = QGuiApplication(sys.argv[:1])
-    app.setApplicationName("Kura")
-    app.setDesktopFileName("kura")
+    app.setApplicationName("AIO Launch")
+    app.setDesktopFileName("aiolaunch")
     here = Path(__file__).parent
-    app.setWindowIcon(QIcon(str(here / "kura.svg")))
+    app.setWindowIcon(QIcon(str(here / "aiolaunch.svg")))
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    kura = Kura(demo=args.demo)
+    aiolaunch = AioLaunch(demo=args.demo)
     engine = QQmlApplicationEngine()
     factory = CachingFactory()
     engine.setNetworkAccessManagerFactory(factory)
     ctx = engine.rootContext()
-    ctx.setContextProperty("app", kura)
-    ctx.setContextProperty("library", kura.proxy)
+    ctx.setContextProperty("app", aiolaunch)
+    ctx.setContextProperty("library", aiolaunch.proxy)
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
     ctx.setContextProperty("startTv", args.tv)
     engine.load(QUrl.fromLocalFile(str(here / "qml" / "Main.qml")))
     if not engine.rootObjects():
         return 1
-    app.aboutToQuit.connect(kura.shutdown)
+    app.aboutToQuit.connect(aiolaunch.shutdown)
     code = app.exec()
     del engine
     return code

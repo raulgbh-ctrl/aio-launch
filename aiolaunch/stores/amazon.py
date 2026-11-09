@@ -24,7 +24,7 @@ class Amazon(Store):
         return t
 
     def problem(self):
-        return "" if find_tool("nile") else "nile not found (run: kura --fetch-backends)"
+        return "" if find_tool("nile") else "nile not found (run: aiolaunch --fetch-backends)"
 
     def _user(self):
         return read_json(NILE_DIR / "current_user.json") or {}

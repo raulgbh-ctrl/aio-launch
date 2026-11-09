@@ -4,7 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-APP = "kura"
+APP = "aiolaunch"
 HOME = Path.home()
 CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / APP
 DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share")) / APP
@@ -13,8 +13,24 @@ BIN_DIR = DATA_DIR / "bin"
 LOG_DIR = CACHE_DIR / "logs"
 XDG_CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config"))
 
-for _d in (CONFIG_DIR, DATA_DIR, CACHE_DIR, BIN_DIR, LOG_DIR):
-    _d.mkdir(parents=True, exist_ok=True)
+def _migrate_from_kura():
+    """The app used to be called Kura: move its folders over once, and keep games where they are."""
+    import shutil
+    moved_config = False
+    for new in (CONFIG_DIR, DATA_DIR, CACHE_DIR):
+        old = new.with_name("kura")
+        if old.is_dir() and not new.exists():
+            shutil.move(str(old), str(new))
+            moved_config |= new == CONFIG_DIR
+    old_games = HOME / "Games" / "kura"
+    settings_file = CONFIG_DIR / "settings.json"
+    if old_games.is_dir():
+        data = read_json(settings_file, {}) or {}
+        if "games_dir" not in data:
+            data["games_dir"] = str(old_games)  # installed games and prefixes stay put
+            write_json(settings_file, data)
+
+
 
 DEFAULTS = {
     "games_dir": str(HOME / "Games" / APP),
@@ -34,6 +50,7 @@ DEFAULTS = {
     "show_titles": False,
     "dim_uninstalled": True,
     "merge_duplicates": True,
+    "cloud_saves": True,
 }
 
 # Where Heroic keeps its bundled copies of legendary / gogdl / nile.
@@ -71,11 +88,10 @@ class Settings:
         return Path(os.path.expanduser(self.get("games_dir")))
 
 
-settings = Settings()
 
 
 def find_tool(name: str) -> str | None:
-    """Locate a backend binary: PATH, Kura's own bin dir, then Heroic's bundle."""
+    """Locate a backend binary: PATH, AIO Launch's own bin dir, then Heroic's bundle."""
     found = shutil.which(name)
     if found:
         return found
@@ -104,7 +120,7 @@ def write_json(path, data):
 
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
-    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer")
+    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves")
 
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"
@@ -126,4 +142,10 @@ class GameOptions:
         write_json(self.path, self.data)
 
 
+
+
+_migrate_from_kura()
+for _d in (CONFIG_DIR, DATA_DIR, CACHE_DIR, BIN_DIR, LOG_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
+settings = Settings()
 game_options = GameOptions()

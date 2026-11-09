@@ -10,7 +10,7 @@ ApplicationWindow {
     minimumWidth: 760
     minimumHeight: 480
     visible: true
-    title: "Kura"
+    title: "AIO Launch"
     color: theme.background
 
     readonly property var theme: app.theme
@@ -103,8 +103,8 @@ ApplicationWindow {
                     Layout.margins: 8
                     Layout.bottomMargin: 16
                     spacing: 10
-                    Image { source: "../kura.svg"; sourceSize: Qt.size(30, 30) }
-                    Text { text: "Kura"; color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Bold }
+                    Image { source: "../aiolaunch.svg"; sourceSize: Qt.size(30, 30) }
+                    Text { text: "AIO Launch"; color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Bold }
                 }
 
                 component NavItem: Rectangle {
@@ -496,6 +496,65 @@ ApplicationWindow {
         }
     }
 
+    // -------------------------------------------------------------------- save conflict
+    Connections {
+        target: app
+        function onSaveConflict(key, local, cloud) {
+            conflict.key = key
+            conflict.title = app.game(key).title || ""
+            conflict.local = local
+            conflict.cloud = cloud
+            conflict.open()
+        }
+    }
+    KDialog {
+        id: conflict
+        theme: win.theme
+        property string key: ""
+        property string title: ""
+        property string local: ""
+        property string cloud: ""
+        heading: "Which saves should " + title + " use?"
+        onOpened: useCloud.forceActiveFocus()
+        width: Math.min(win.width - 60, 560)
+        closePolicy: Popup.CloseOnEscape
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                text: "Saves changed both on this PC and in the cloud since the last sync, probably because you played on another computer. The one you don't pick is replaced."
+            }
+            KButton {
+                id: useCloud
+                theme: win.theme; primary: true; Layout.fillWidth: true
+                KeyNavigation.down: keepLocal
+                Keys.onReturnPressed: clicked()
+                text: "Use the cloud save" + (conflict.cloud ? "  (" + conflict.cloud + ")" : "")
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "cloud") }
+            }
+            KButton {
+                id: keepLocal
+                theme: win.theme; Layout.fillWidth: true
+                KeyNavigation.up: useCloud
+                KeyNavigation.down: skipSync
+                Keys.onReturnPressed: clicked()
+                text: "Keep this PC's save" + (conflict.local ? "  (" + conflict.local + ")" : "")
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "local") }
+            }
+            KButton {
+                id: skipSync
+                theme: win.theme; Layout.fillWidth: true
+                KeyNavigation.up: keepLocal
+                Keys.onReturnPressed: clicked()
+                text: "Play without syncing this time"
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "skip") }
+            }
+        }
+    }
+
     // -------------------------------------------------------------------- DLC
     KDialog {
         id: dlc
@@ -649,7 +708,7 @@ ApplicationWindow {
                 wrapMode: Text.WordWrap
                 color: theme.outline
                 font.pixelSize: 12
-                text: "Sign-ins happen in your browser or in the store's own client. Kura never sees your passwords; it only keeps the session tokens the stores hand back."
+                text: "Sign-ins happen in your browser or in the store's own client. AIO Launch never sees your passwords; it only keeps the session tokens the stores hand back."
             }
         }
     }
@@ -720,7 +779,7 @@ ApplicationWindow {
         default property alias body: slot.data
         Layout.fillWidth: true
         spacing: 5
-        Text { text: label; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { visible: label !== ""; text: label; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
         ColumnLayout { id: slot; Layout.fillWidth: true }
         Text {
             visible: hint !== ""
@@ -814,12 +873,12 @@ ApplicationWindow {
                     spacing: 16
                     Row2 {
                         label: "Theme"
-                        hint: "Follow desktop uses your Ryoku wallpaper colours and updates when they change."
+                        hint: "Follow wallpaper picks AIO Launch's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway."
                         Flow {
                             Layout.fillWidth: true
                             spacing: 8
                             Chip {
-                                label: "Follow desktop"
+                                label: "Follow wallpaper"
                                 active: app.settingsMap.theme_mode === "ryoku"
                                 onPicked: app.setSetting("theme_mode", "ryoku")
                             }
@@ -935,8 +994,13 @@ ApplicationWindow {
                     }
                     Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
                     Row2 {
+                        label: ""
+                        hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."
+                        Toggle { label: "Sync cloud saves"; settingKey: "cloud_saves" }
+                    }
+                    Row2 {
                         label: "Steam Web API key (optional)"
-                        hint: "Without a key Kura shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
+                        hint: "Without a key AIO Launch shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
                         KField {
                             theme: win.theme; Layout.fillWidth: true
                             echoMode: TextInput.PasswordEchoOnEdit
@@ -976,6 +1040,7 @@ ApplicationWindow {
             optProton.select(opts.proton === undefined ? "default" : opts.proton)
             optHud.select(opts.mangohud === undefined ? "default" : opts.mangohud)
             optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
+            optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
             optEnv.text = opts.env || ""
             optArgs.text = opts.args || ""
             optCover.text = opts.cover || ""
@@ -1030,6 +1095,22 @@ ApplicationWindow {
                 label: "Launch arguments"
                 KField { id: optArgs; theme: win.theme; Layout.fillWidth: true; placeholderText: "-windowed -skipintro"
                          onEditingFinished: app.setGameOption(gameOpts.key, "args", text) }
+            }
+            RowLayout {
+                visible: app.cloudSaveStores.includes(gameOpts.game.store)
+                spacing: 14
+                Row2 {
+                    label: "Cloud saves"
+                    KCombo { id: optSaves; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "cloud_saves", currentValue) }
+                }
+                KButton {
+                    theme: win.theme
+                    Layout.alignment: Qt.AlignBottom
+                    text: "Sync saves now"
+                    enabled: !!gameOpts.game.installed
+                    onClicked: app.syncNow(gameOpts.key)
+                }
             }
             Row2 {
                 label: "Custom cover"

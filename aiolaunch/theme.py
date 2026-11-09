@@ -1,4 +1,6 @@
-"""Colour palettes: follow the Ryoku desktop, a preset, or the user's own two colours."""
+"""Colour palettes: follow the desktop wallpaper, a preset, or the user's own two colours."""
+import os
+
 from .config import HOME, read_json, settings
 
 RYOKU_PALETTE = HOME / ".cache/ryoku/colors.json"
@@ -75,6 +77,29 @@ def build(bg, accent):
 FALLBACK = build(*PRESETS["Midnight"])
 
 
+_wall_cache = {}
+
+
+def from_wallpaper():
+    """Theme built from the desktop wallpaper, or None when it cannot be found."""
+    from . import wallpaper
+    source, path = wallpaper.find()
+    if not path:
+        return None
+    try:
+        key = (path, os.path.getmtime(path))
+    except OSError:
+        return None
+    if key not in _wall_cache:
+        picked = wallpaper.colours(path)
+        _wall_cache.clear()
+        _wall_cache[key] = build(*picked) if picked else None
+    theme = _wall_cache[key]
+    if theme:
+        theme = dict(theme, wallpaper=path, wallpaperSource=source)
+    return theme
+
+
 def current():
     mode = settings.get("theme_mode")
     if mode == "custom":
@@ -83,8 +108,11 @@ def current():
             return build(bg, accent)
     if mode in PRESETS:
         return build(*PRESETS[mode])
-    theme = dict(FALLBACK)
+    # Follow the wallpaper. On Ryoku the desktop already turns it into a full palette, so use that.
     ryoku = read_json(RYOKU_PALETTE) or {}
-    theme.update({k: v for k, v in ryoku.items() if valid(v)})
-    theme["dark"] = luminance(theme["background"]) < 0.5
-    return theme
+    if ryoku.get("background") and ryoku.get("primary"):
+        theme = dict(FALLBACK)
+        theme.update({k: v for k, v in ryoku.items() if valid(v)})
+        theme["dark"] = luminance(theme["background"]) < 0.5
+        return theme
+    return from_wallpaper() or dict(FALLBACK)
