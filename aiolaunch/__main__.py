@@ -47,18 +47,74 @@ def status():
     return 0
 
 
+def play(key):
+    """Start one game in the foreground: download saves, run it, upload saves.
+    Steam (and Game Mode) treat the game as running for as long as this process lives."""
+    import shlex
+    from . import runner, saves, session
+    from .config import CACHE_DIR, LOG_DIR, game_options, read_json
+    from .stores.amazon import Amazon
+    from .stores.base import Game
+    from .stores.battlenet import BattleNet
+    from .stores.epic import Epic
+    from .stores.gog import Gog
+    stores = {s.id: s for s in (Epic(), Gog(), Amazon(), BattleNet())}
+    cached = {d["store"] + ":" + d["id"]: d for d in read_json(CACHE_DIR / "library.json") or []}
+    if key not in cached or cached[key]["store"] not in stores:
+        session.notify("AIO Launch", f"Game not found: {key}. Open AIO Launch once to refresh the library.")
+        return 1
+    game = Game.from_dict(cached[key])
+    store = stores[game.store]
+    opts = game_options.get("battlenet:battlenet-app" if game.store == "battlenet" else key)
+    sync = saves.enabled_for(game)
+    if sync:
+        res = saves.sync(game, "download")
+        if res["status"] == "conflict":
+            sync = False  # never overwrite either side without asking; the app asks next time
+            session.notify(f"{game.title}: saves not synced",
+                           "Cloud and local saves both changed. Open AIO Launch to choose which to keep.")
+    try:
+        with runner.using(opts):
+            cmd = store.launch(game)
+    except Exception as e:
+        session.notify(f"{game.title} did not start", str(e))
+        return 1
+    if opts.get("args"):
+        cmd.argv += shlex.split(opts["args"])
+    log = str(LOG_DIR / (key.replace(":", "_") + ".log"))
+    return session.run(game, cmd.argv, cmd.env, cmd.cwd, log, sync)
+
+
 def main():
     ap = argparse.ArgumentParser(prog="aiolaunch", description=__doc__)
     ap.add_argument("--fetch-backends", action="store_true",
                     help="download the legendary, gogdl and nile CLIs into ~/.local/share/aiolaunch/bin")
     ap.add_argument("--status", action="store_true", help="print what each store backend needs and exit")
     ap.add_argument("--tv", action="store_true", help="start full screen in TV mode (controller friendly)")
+    ap.add_argument("--play", metavar="GAME",
+                    help="start a game and wait for it to close (used by the shortcuts added to Steam)")
+    ap.add_argument("--add-to-steam", action="store_true",
+                    help="add AIO Launch to Steam (Game Mode) with artwork; closes and reopens Steam if needed")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
     args = ap.parse_args()
     if args.fetch_backends:
         return fetch_backends()
     if args.status:
         return status()
+    if args.play:
+        return play(args.play)
+    if args.add_to_steam:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtGui import QGuiApplication
+        _app = QGuiApplication(sys.argv[:1])  # needed to draw the artwork
+        from . import steamshortcut, theme
+        try:
+            n = steamshortcut.add_with_restart(theme.current())
+        except Exception as e:
+            print(f"Not added: {e}")
+            return 1
+        print(f"Added AIO Launch to Steam for {n} account(s). It opens in TV mode from Game Mode.")
+        return 0
 
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
     from PySide6.QtCore import QUrl

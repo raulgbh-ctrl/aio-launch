@@ -316,6 +316,17 @@ else
     note "Skipped. Run 'aiolaunch --fetch-backends' whenever you want them."
 fi
 
+# ---------------------------------------------------------------- Steam / Game Mode
+if ls "$HOME"/.local/share/Steam/userdata/[0-9]* "$HOME"/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata/[0-9]* >/dev/null 2>&1; then
+    say "Steam library"
+    if ask "Add AIO Launch itself to Steam so it shows in Game Mode? (Steam closes and reopens if it is open)"; then
+        "$BIN/aiolaunch" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
+    else
+        note "Skipped. You can do it later in Settings > Library."
+    fi
+    note "To put your installed games into Steam with their artwork: Settings > Library > Add games to Steam."
+fi
+
 # ---------------------------------------------------------------- done
 say "AIO Launch is installed"
 "$BIN/aiolaunch" --status | sed 's/^/    /' || true

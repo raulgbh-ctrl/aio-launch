@@ -51,6 +51,7 @@ DEFAULTS = {
     "dim_uninstalled": True,
     "merge_duplicates": True,
     "cloud_saves": True,
+    "steam_games": False,      # keep installed games in Steam (Game Mode) automatically
     "performance": "auto",     # "auto", "light" or "full"
 }
 

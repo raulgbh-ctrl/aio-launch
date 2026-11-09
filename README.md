@@ -52,6 +52,7 @@ Code: `aiolaunch/stores/*.py` is one file per store; `aiolaunch/app.py` is the Q
 ## Features
 
 - **Hide games**: Hide on a game's panel (or in TV mode's actions); hidden games live under "Hidden games" in the sidebar, where Unhide brings them back.
+- **Games in Steam / Game Mode**: Settings > Library > Add games to Steam puts every installed Epic, GOG, Amazon and Battle.net game into Steam as a non-Steam game, with its cover, banner, background and logo (SteamGridDB if you added a key, otherwise Steam's store art, otherwise the store's own). Each runs through `aiolaunch --play`, so Proton settings and cloud saves still apply. "Keep installed games in Steam automatically" adds new installs and removes uninstalled or hidden games whenever Steam is closed. "Add AIO Launch" adds the app itself, opening in TV mode.
 - **Merged duplicates**: a game owned on several stores is one tile; its panel asks which launcher to use and remembers it (Settings > Library to turn off).
 - **DLC**: the DLC button on a game lists DLC for Steam (installed / available), Epic (owned) and GOG (owned / available).
 - **Covers**: store art first, then SteamGridDB (API key in Settings > Library), then Steam's store matched by title. Per-game custom cover under Options.

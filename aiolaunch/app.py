@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, proton, runner, saves, session, theme as themes
+from . import covers, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -230,6 +230,8 @@ class AioLaunch(QObject):
         self._after.connect(lambda fn: fn())
 
         self._theme = themes.current()
+        self._shortcut = {"accounts": 0, "added": 0, "steam": False, "running": False, "gameMode": False,
+                          "busy": False, "games": 0, "gamesInSteam": 0, "inSync": False, "progress": ""}
         self._ge = {"latest": "", "installed": (proton.installed_ge() or [""])[0], "busy": False,
                     "progress": 0.0, "error": "", "upToDate": False}
         self._watch = QFileSystemWatcher(self)
@@ -361,6 +363,9 @@ class AioLaunch(QObject):
         self.refreshingChanged.emit()
         self.storesChanged.emit()
         self.gameChanged.emit("")
+        if not self._pending:
+            self.checkSteamShortcut()
+            self._auto_steam()
 
     # --- sign-in ---------------------------------------------------------
     def _bg(self, fn):
@@ -610,6 +615,96 @@ class AioLaunch(QObject):
         self._detach([*client, f"steam://install/{proton.PROTON_EXPERIMENTAL_APPID}"], {}, "", "steam-proton")
         self.toast.emit("Steam is installing Proton Experimental; it appears in this list when done")
 
+    steamShortcutChanged = Signal()
+
+    def _shortcut_status(self):
+        return self._shortcut
+
+    steamShortcut = Property("QVariantMap", _shortcut_status, notify=steamShortcutChanged)
+
+    def _steam_candidates(self):
+        return [g for g in self.model.games if steamgames.eligible(g)
+                and not game_options.get(g.key).get("hidden")]
+
+    def _set_shortcut(self, **values):
+        self._shortcut = dict(self._shortcut, **values)
+        self.steamShortcutChanged.emit()
+
+    @Slot()
+    def checkSteamShortcut(self):
+        wanted = {g.key for g in self._steam_candidates()}
+
+        def work():
+            st = steamshortcut.status()
+            have = steamgames.in_steam_keys()
+            return lambda: self._set_shortcut(**st, games=len(wanted), gamesInSteam=len(wanted & have),
+                                              inSync=bool(st["accounts"]) and have == wanted)
+        self._bg(work)
+
+    def _steam_job(self, fn, start_msg):
+        """Run fn (which edits Steam's files) with Steam closed; reopen Steam if it was open."""
+        if self.demo:
+            self.toast.emit("Demo mode: Steam is not changed")
+            return
+        if steamshortcut.in_game_mode():
+            self.toast.emit("Switch to Desktop Mode to change Steam's library")
+            return
+        self._set_shortcut(busy=True, progress="")
+        self.toast.emit(("Closing Steam… " if steamshortcut.steam_running() else "") + start_msg)
+
+        def work():
+            was_running = steamshortcut.steam_running()
+            try:
+                if was_running and not steamshortcut.close_steam():
+                    raise RuntimeError("Steam did not close; quit it yourself and try again")
+                msg = fn()
+            except Exception as e:
+                msg = str(e)
+            finally:
+                if was_running:
+                    steamshortcut.start_steam()
+            return lambda: (self._set_shortcut(busy=False, progress=""), self.toast.emit(msg), self.checkSteamShortcut())
+        self._bg(work)
+
+    @Slot()
+    def addGamesToSteam(self):
+        """Add every installed (not hidden) Epic, GOG, Amazon and Battle.net game to Steam with artwork."""
+        games = self._steam_candidates()
+
+        def report(n, total):
+            self._after.emit(lambda: self._set_shortcut(progress=f"{n} of {total}"))
+
+        def fn():
+            added, removed = steamgames.sync_games(games, progress=report)
+            parts = [f"{added} games are in Steam with artwork"] + ([f"{removed} removed"] if removed else [])
+            return ", ".join(parts) + ". Find them in Game Mode under Non-Steam."
+        self._steam_job(fn, f"Adding {len(games)} games to Steam and fetching their artwork…")
+
+    @Slot()
+    def addToSteam(self):
+        """Add AIO Launch itself (opens in TV mode)."""
+        theme = dict(self._theme)
+        self._steam_job(lambda: f"AIO Launch is in Steam ({steamshortcut.add(theme)} account(s))",
+                        "Adding AIO Launch to Steam…")
+
+    def _auto_steam(self):
+        """With the setting on: bring Steam's list in line with installed games, only while Steam is closed."""
+        if self.demo or not settings.get("steam_games") or self._shortcut.get("busy"):
+            return
+        games = self._steam_candidates()
+
+        def work():
+            if steamshortcut.steam_running() or steamshortcut.in_game_mode() or not steamshortcut.accounts():
+                return None
+            if steamgames.in_steam_keys() == {g.key for g in games}:
+                return None
+            try:
+                added, removed = steamgames.sync_games(games)
+            except Exception:
+                return None
+            return lambda: (self.toast.emit(f"Steam library updated ({added} games)"), self.checkSteamShortcut())
+        self._bg(work)
+
     @Slot()
     def rescanProtons(self):
         self.protonsChanged.emit()
@@ -808,6 +903,8 @@ class AioLaunch(QObject):
             self.settingsChanged.emit()
             if key.startswith("theme_"):
                 self._load_theme()
+            if key == "steam_games" and value:
+                self._auto_steam()
             if key == "merge_duplicates":
                 self.model.set_games(self.model.games)
                 self.storesChanged.emit()

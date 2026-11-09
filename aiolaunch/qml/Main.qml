@@ -1078,6 +1078,74 @@ ApplicationWindow {
                             onEditingFinished: app.setSetting("games_dir", text.trim())
                         }
                     }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: steamCol.implicitHeight + 28
+                        radius: 12
+                        color: theme.surfaceContainerHigh
+                        readonly property var st: app.steamShortcut
+                        ColumnLayout {
+                            id: steamCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                            spacing: 8
+                            RowLayout {
+                                spacing: 10
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text { text: "Your games in Steam & Game Mode"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: 12
+                                        color: theme.onSurfaceVariant
+                                        readonly property var st: parent.parent.parent.parent.st
+                                        text: st.busy ? "Working… " + (st.progress || "")
+                                              : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
+                                              : st.accounts === 0 ? "Sign in to Steam once, then come back here."
+                                              : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
+                                              : st.inSync ? "All " + st.games + " installed games are in Steam with cover, banner, background and logo."
+                                              : st.gamesInSteam + " of " + st.games + " installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode."
+                                                + (st.running ? " Steam is closed and reopened to do this." : "")
+                                    }
+                                }
+                                KButton {
+                                    theme: win.theme
+                                    readonly property var st: parent.parent.parent.st
+                                    primary: !st.inSync
+                                    enabled: !st.busy && st.accounts > 0 && st.games > 0 && !st.gameMode
+                                    text: st.inSync ? "Refresh in Steam" : "Add games to Steam"
+                                    onClicked: app.addGamesToSteam()
+                                }
+                            }
+                            Toggle { label: "Keep installed games in Steam automatically"; settingKey: "steam_games" }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: 11
+                                color: theme.outline
+                                text: "Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there."
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                            RowLayout {
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 12
+                                    color: theme.onSurfaceVariant
+                                    text: "Also add AIO Launch itself, so the whole library opens in TV mode from Game Mode."
+                                }
+                                KButton {
+                                    theme: win.theme
+                                    readonly property var st: parent.parent.parent.st
+                                    enabled: !st.busy && st.accounts > 0 && !st.gameMode
+                                    text: "Add AIO Launch"
+                                    onClicked: app.addToSteam()
+                                }
+                            }
+                        }
+                        Component.onCompleted: app.checkSteamShortcut()
+                    }
                     Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
                     Row2 {
                         label: ""
