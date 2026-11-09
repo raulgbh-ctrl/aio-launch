@@ -121,7 +121,7 @@ def write_json(path, data):
 
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
-    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves")
+    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden")
 
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"

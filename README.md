@@ -51,6 +51,7 @@ Code: `aiolaunch/stores/*.py` is one file per store; `aiolaunch/app.py` is the Q
 
 ## Features
 
+- **Hide games**: Hide on a game's panel (or in TV mode's actions); hidden games live under "Hidden games" in the sidebar, where Unhide brings them back.
 - **Merged duplicates**: a game owned on several stores is one tile; its panel asks which launcher to use and remembers it (Settings > Library to turn off).
 - **DLC**: the DLC button on a game lists DLC for Steam (installed / available), Epic (owned) and GOG (owned / available).
 - **Covers**: store art first, then SteamGridDB (API key in Settings > Library), then Steam's store matched by title. Per-game custom cover under Options.

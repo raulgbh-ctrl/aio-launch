@@ -37,6 +37,7 @@ FocusScope {
             else out.push({ label: "Install from " + c.storeName, act: "install", key: c.key })
         }
         for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
+        out.push({ label: cur.hidden ? "Unhide game" : "Hide game", act: cur.hidden ? "unhide" : "hide", key: cur.key })
         out.push({ label: "Close", act: "close", key: "" })
         return out
     }
@@ -223,6 +224,7 @@ FocusScope {
             else if (a.act === "install") { app.preferCopy(a.key); app.install(a.key) }
             else if (a.act === "cancel") app.cancel(a.key)
             else if (a.act === "uninstall") app.uninstall(a.key)
+            else if (a.act === "hide" || a.act === "unhide") app.setHidden(a.key, a.act === "hide")
             hide()
         }
         visible: false

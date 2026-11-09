@@ -153,8 +153,8 @@ ApplicationWindow {
                 NavItem {
                     label: "All games"
                     count: app.totalCount
-                    active: library.storeFilter === ""
-                    onPicked: library.storeFilter = ""
+                    active: library.storeFilter === "" && !library.showHidden
+                    onPicked: { library.showHidden = false; library.storeFilter = "" }
                 }
                 Repeater {
                     model: app.storesInfo
@@ -164,8 +164,8 @@ ApplicationWindow {
                         dot: modelData.color
                         dim: !modelData.loggedIn && modelData.count === 0
                         count: modelData.refreshing ? "…" : modelData.count
-                        active: library.storeFilter === modelData.id
-                        onPicked: library.storeFilter = modelData.id
+                        active: library.storeFilter === modelData.id && !library.showHidden
+                        onPicked: { library.showHidden = false; library.storeFilter = modelData.id }
                     }
                 }
 
@@ -194,6 +194,13 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
+                NavItem {
+                    visible: app.hiddenCount > 0 || library.showHidden
+                    label: "Hidden games"
+                    count: app.hiddenCount
+                    active: library.showHidden
+                    onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
+                }
                 NavItem { label: "TV mode"; count: "F11"; onPicked: win.tv = true }
                 NavItem { label: "Accounts"; onPicked: accounts.open() }
                 NavItem { label: "Settings"; onPicked: prefs.open() }
@@ -286,7 +293,8 @@ ApplicationWindow {
                         color: theme.onSurface
                         font.pixelSize: 20
                         font.weight: Font.DemiBold
-                        text: app.refreshing ? "Loading your libraries…"
+                        text: library.showHidden ? "No hidden games"
+                              : app.refreshing ? "Loading your libraries…"
                               : app.totalCount === 0 ? "No games here yet" : "Nothing matches"
                     }
                     Text {
@@ -295,7 +303,7 @@ ApplicationWindow {
                         wrapMode: Text.WordWrap
                         color: theme.onSurfaceVariant
                         font.pixelSize: 14
-                        visible: !app.refreshing
+                        visible: !app.refreshing && !library.showHidden
                         text: app.totalCount === 0
                               ? "Connect your stores to see every game you own in one place."
                               : "Try a different search, store, or turn off Installed only."
@@ -304,7 +312,7 @@ ApplicationWindow {
                         theme: win.theme
                         primary: true
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !app.refreshing && app.totalCount === 0
+                        visible: !app.refreshing && app.totalCount === 0 && !library.showHidden
                         text: "Connect stores"
                         onClicked: accounts.open()
                     }
@@ -481,6 +489,11 @@ ApplicationWindow {
                         theme: win.theme
                         text: "Options"
                         onClicked: gameOpts.show(win.selectedKey)
+                    }
+                    KButton {
+                        theme: win.theme
+                        text: win.selected.hidden ? "Unhide" : "Hide"
+                        onClicked: { app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() }
                     }
                     KButton {
                         id: confirmRemove

@@ -73,6 +73,9 @@ class LibraryModel(QAbstractListModel):
             copies.sort(key=lambda g: order.index(g.store))
         self.groups = list(groups.values())
 
+    def is_hidden(self, group):
+        return any(game_options.get(g.key).get("hidden") for g in group)
+
     def group_of(self, key):
         return next((grp for grp in self.groups if any(g.key == key for g in grp)), [])
 
@@ -122,6 +125,7 @@ class LibraryModel(QAbstractListModel):
                         "storeColor": self.stores[c.store].color, "installed": c.installed}
                        for c in group] if len(group) > 1 else []
         d["hasDlc"] = g.store in ("steam", "epic", "gog")
+        d["hidden"] = self.is_hidden(group or [g])
         return d
 
     def set_games(self, games):
@@ -150,14 +154,17 @@ class LibraryProxy(QSortFilterProxyModel):
 
     def __init__(self, model):
         super().__init__()
-        self._store, self._installed, self._search = "", False, ""
+        self._store, self._installed, self._search, self._hidden = "", False, "", False
         self.setSourceModel(model)
         self.setSortCaseSensitivity(Qt.CaseInsensitive)
         self.setDynamicSortFilter(True)
         self.sort(0)
 
     def filterAcceptsRow(self, row, parent):
-        group = self.sourceModel().groups[row]
+        model = self.sourceModel()
+        group = model.groups[row]
+        if model.is_hidden(group) != self._hidden:
+            return False
         if self._store:
             group = [g for g in group if g.store == self._store]
         if self._installed:
@@ -176,6 +183,12 @@ class LibraryProxy(QSortFilterProxyModel):
     storeFilter = Property(str, lambda s: s._store, lambda s, v: s._set("_store", v), notify=filterChanged)
     installedOnly = Property(bool, lambda s: s._installed, lambda s, v: s._set("_installed", v), notify=filterChanged)
     search = Property(str, lambda s: s._search, lambda s, v: s._set("_search", v.strip().lower()), notify=filterChanged)
+    # False: the normal library (hidden games left out). True: only the hidden games.
+    showHidden = Property(bool, lambda s: s._hidden, lambda s, v: s._set("_hidden", v), notify=filterChanged)
+
+    def refilter(self):
+        self.invalidateFilter()
+        self.filterChanged.emit()
 
     @Slot(int, result=str)
     def keyAt(self, row):
@@ -274,7 +287,8 @@ class AioLaunch(QObject):
     def _stores_info(self):
         out = []
         for s in self.stores.values():
-            mine = [g for g in self.model.games if g.store == s.id]
+            mine = [g for g in self.model.games if g.store == s.id
+                    and not game_options.get(g.key).get("hidden")]
             try:
                 logged, account, problem = s.logged_in(), s.account(), s.problem()
             except Exception as e:  # a broken config file must not take the UI down
@@ -287,7 +301,7 @@ class AioLaunch(QObject):
 
     storesInfo = Property("QVariantList", _stores_info, notify=storesChanged)
     refreshing = Property(bool, lambda s: bool(s._pending), notify=refreshingChanged)
-    totalCount = Property(int, lambda s: len(s.model.groups), notify=storesChanged)
+    totalCount = Property(int, lambda s: len(s.model.groups) - s._hidden_count(), notify=storesChanged)
 
     @Slot()
     @Slot(str)
@@ -469,6 +483,23 @@ class AioLaunch(QObject):
             if prefer in installed:
                 return prefer
         return ""
+
+    @Slot(str, bool)
+    def setHidden(self, key, hidden):
+        """Hide or show a game; every store's copy of it goes together."""
+        group = self.model.group_of(key)
+        for g in group:
+            game_options.set(g.key, "hidden", True if hidden else None)
+        self.proxy.refilter()
+        self.storesChanged.emit()
+        self.gameChanged.emit(key)
+        title = group[0].title if group else "Game"
+        self.toast.emit(f"{title} hidden. Find it under Hidden games." if hidden else f"{title} is back in your library")
+
+    def _hidden_count(self):
+        return sum(1 for grp in self.model.groups if self.model.is_hidden(grp))
+
+    hiddenCount = Property(int, _hidden_count, notify=storesChanged)
 
     @Slot(str)
     def preferCopy(self, key):
