@@ -69,6 +69,18 @@ have python3 || die "python3 is required. Install it with your package manager a
 python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' \
     || die "Python 3.10 or newer is required (found $(python3 -V 2>&1))."
 
+# Immutable systems (SteamOS on the Steam Deck, Fedora Silverblue/Bazzite, …) keep system files
+# read-only: never try the package manager there, install everything into the home folder.
+IMMUTABLE=0
+OS_ID=$(sed -n 's/^ID=//p' /etc/os-release 2>/dev/null | tr -d '"')
+case $OS_ID in steamos|bazzite|silverblue|kinoite|aurora|bluefin|chimeraos) IMMUTABLE=1 ;; esac
+[ -e /run/ostree-booted ] && IMMUTABLE=1
+[ "${AIOLAUNCH_IMMUTABLE:-}" = 1 ] && IMMUTABLE=1   # for testing
+if [ "$IMMUTABLE" = 1 ]; then
+    SYSTEM=0
+    note "This system's files are read-only (${OS_ID:-immutable}), so everything goes into your home folder."
+fi
+
 PM=
 for candidate in pacman apt-get dnf zypper; do
     if have "$candidate"; then PM=$candidate; break; fi
@@ -83,6 +95,10 @@ sys_install() {  # sys_install "what it is for" pkg...
         zypper)  cmd="sudo zypper install -y $*" ;;
         *)       note "$what: install it with your package manager ($*)."; return 1 ;;
     esac
+    if [ "${IMMUTABLE:-0}" = 1 ]; then
+        note "$what: not installable on this read-only system; skipped."
+        return 1
+    fi
     if [ "$SYSTEM" = 1 ] && have sudo && ask "Install $what now? ($cmd)"; then
         $cmd && return 0
         note "That did not work; you can run it yourself later: $cmd"
@@ -122,7 +138,7 @@ if [ "$FORCE_VENV" = 0 ] && uses_system_python; then
     note "Using the system's PySide6 (Qt 6) and requests."
     rm -rf "$LIB/venv"
 else
-    if [ "$FORCE_VENV" = 0 ] && [ "$PM" = pacman ]; then
+    if [ "$FORCE_VENV" = 0 ] && [ "$PM" = pacman ] && [ "$SYSTEM" = 1 ]; then
         sys_install "Qt for Python" pyside6 python-requests || true
     fi
     if [ "$FORCE_VENV" = 0 ] && uses_system_python; then
@@ -171,7 +187,7 @@ Name=AIO Launch
 GenericName=Game Library
 Comment=One library for Steam, Epic, GOG, Amazon and Battle.net
 Exec=$BIN/aiolaunch
-Icon=aiolaunch
+Icon=$ICONS/aiolaunch.svg
 Categories=Game;
 Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
 StartupWMClass=aiolaunch
@@ -269,6 +285,26 @@ if [ "$PYTHON" != python3 ] && [ "${XDG_SESSION_TYPE:-}" != wayland ] \
         zypper)  sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
         *) note "If AIO Launch does not open on X11, install your distribution's libxcb-cursor package." ;;
     esac
+fi
+
+# Built-in sign-in window (Qt's web engine). Optional: without it, sign-in opens the normal browser.
+if ! "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
+    if [ "$PYTHON" = python3 ]; then
+        case $PM in
+            pacman)  sys_install "the built-in sign-in window (Qt web engine)" qt6-webengine || true ;;
+            apt-get) sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6.qtwebenginequick || true ;;
+            dnf)     sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6 qt6-qtwebengine || true ;;
+            zypper)  sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6 qt6-webengine || true ;;
+            *) note "Optional: install Qt's web engine for the built-in sign-in window." ;;
+        esac
+    elif ask "Add the built-in sign-in window? (downloads about 150 MB more)"; then
+        "$PYTHON" -m pip install --quiet "PySide6-Addons==$("$PYTHON" -c 'import PySide6; print(PySide6.__version__)')" \
+            && note "Built-in sign-in window: added" || note "Could not add it; sign-in will use your browser instead."
+    else
+        note "Skipped. Sign-in will open your normal browser and ask you to paste a code."
+    fi
+else
+    note "Built-in sign-in window: available"
 fi
 
 say "Store backends for Epic, GOG and Amazon"

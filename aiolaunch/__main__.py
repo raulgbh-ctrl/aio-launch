@@ -81,6 +81,15 @@ def main():
             nam.setCache(cache)
             return nam
 
+    # The built-in sign-in window needs Qt's web engine, set up before the app object exists.
+    web_login = False
+    try:
+        from PySide6.QtWebEngineQuick import QtWebEngineQuick
+        QtWebEngineQuick.initialize()
+        web_login = True
+    except ImportError:
+        pass
+
     app = QGuiApplication(sys.argv[:1])
     app.setApplicationName("AIO Launch")
     app.setDesktopFileName("aiolaunch")
@@ -89,6 +98,7 @@ def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     aiolaunch = AioLaunch(demo=args.demo)
+    aiolaunch.web_login = web_login
     engine = QQmlApplicationEngine()
     factory = CachingFactory()
     engine.setNetworkAccessManagerFactory(factory)
@@ -98,6 +108,7 @@ def main():
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
     ctx.setContextProperty("startTv", args.tv)
+    ctx.setContextProperty("webLogin", web_login)
     engine.load(QUrl.fromLocalFile(str(here / "qml" / "Main.qml")))
     if not engine.rootObjects():
         return 1

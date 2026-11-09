@@ -40,7 +40,7 @@ ApplicationWindow {
         return {}
     }
 
-    onActiveChanged: if (active) app.refreshLocal()
+    onActiveChanged: if (active) app.windowActivated()
 
     Connections {
         target: app
@@ -52,6 +52,10 @@ ApplicationWindow {
             }
         }
         function onToast(message) { toasts.append({ message: message }) }
+        function onLoginWeb(store, name, url) {
+            loginWindow.active = true
+            loginWindow.item.begin(store, name, url)
+        }
         function onLoginReady(store, url, prompt) {
             login.store = store; login.url = url; login.prompt = prompt
             login.error = ""; login.busy = false
@@ -245,7 +249,7 @@ ApplicationWindow {
                     readonly property int columns: Math.max(2, Math.floor(width / app.settingsMap.card_size))
                     cellWidth: Math.floor(width / columns)
                     cellHeight: Math.round(cellWidth * 1.46)
-                    cacheBuffer: cellHeight * 2
+                    cacheBuffer: app.light ? 0 : cellHeight * 2
                     keyNavigationEnabled: true
                     highlightFollowsCurrentItem: true
                     boundsBehavior: Flickable.StopAtBounds
@@ -940,6 +944,18 @@ ApplicationWindow {
                     Toggle { label: "Show store badges on covers"; settingKey: "show_badges" }
                     Toggle { label: "Always show game titles"; settingKey: "show_titles" }
                     Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
+                    Row2 {
+                        label: "Performance"
+                        hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
+                        KCombo {
+                            id: perfBox
+                            theme: win.theme; Layout.fillWidth: true
+                            model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
+                                    { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
+                            Component.onCompleted: select(app.settingsMap.performance)
+                            onActivated: app.setSetting("performance", currentValue)
+                        }
+                    }
                 }
 
                 // ---- Compatibility
@@ -947,7 +963,7 @@ ApplicationWindow {
                     spacing: 16
                     Row2 {
                         label: "Default Proton version"
-                        hint: "Used for Epic, GOG, Amazon and Battle.net. Builds found in Steam's compatibilitytools.d folders are listed. Steam games use the version set inside Steam."
+                        hint: "Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam."
                         KCombo {
                             id: protonBox
                             theme: win.theme; Layout.fillWidth: true
@@ -955,6 +971,63 @@ ApplicationWindow {
                             onModelChanged: select(app.settingsMap.proton)
                             Component.onCompleted: select(app.settingsMap.proton)
                             onActivated: app.setSetting("proton", currentValue)
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: geCol.implicitHeight + 28
+                        radius: 12
+                        color: theme.surfaceContainerHigh
+                        Component.onCompleted: app.checkGe()
+                        ColumnLayout {
+                            id: geCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                            spacing: 8
+                            RowLayout {
+                                spacing: 10
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text { text: "GE-Proton"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: 12
+                                        color: app.geStatus.error ? theme.error : theme.onSurfaceVariant
+                                        text: app.geStatus.error ? app.geStatus.error
+                                              : app.geStatus.busy ? "Downloading " + Math.floor(app.geStatus.progress) + "%  (about 570 MB)"
+                                              : (app.geStatus.installed ? "Installed: " + app.geStatus.installed.replace("-x86_64", "") : "Not downloaded yet")
+                                                + (app.geStatus.latest ? (app.geStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.geStatus.latest) : "")
+                                    }
+                                }
+                                KButton {
+                                    theme: win.theme
+                                    primary: !app.geStatus.upToDate
+                                    enabled: !app.geStatus.busy
+                                    text: app.geStatus.upToDate ? "Check again" : "Download latest"
+                                    onClicked: app.geStatus.upToDate ? app.checkGe() : app.downloadGe()
+                                }
+                            }
+                            Rectangle {
+                                visible: !!app.geStatus.busy
+                                Layout.fillWidth: true
+                                height: 5; radius: 3
+                                color: theme.surfaceContainerHighest
+                                Rectangle { height: parent.height; radius: 3; color: theme.primary; width: parent.width * (app.geStatus.progress || 0) / 100 }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                            RowLayout {
+                                spacing: 10
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 12
+                                    color: theme.onSurfaceVariant
+                                    text: "Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them."
+                                }
+                                KButton { theme: win.theme; text: "Get from Steam"; onClicked: app.getSteamProton() }
+                                KButton { theme: win.theme; text: "Rescan"; onClicked: app.rescanProtons() }
+                            }
                         }
                     }
                     Row2 {
@@ -1134,6 +1207,17 @@ ApplicationWindow {
         onAccepted: {
             app.setGameOption(gameOpts.key, "cover", selectedFile.toString())
             optCover.text = app.gameOptions(gameOpts.key).cover || ""
+        }
+    }
+
+    // -------------------------------------------------------------------- built-in sign-in window
+    Loader {
+        id: loginWindow
+        active: false
+        source: typeof webLogin !== "undefined" && webLogin ? "LoginWindow.qml" : ""
+        Connections {
+            target: loginWindow.item
+            function onFallback() { app.loginBegin(loginWindow.item.store, true) }
         }
     }
 

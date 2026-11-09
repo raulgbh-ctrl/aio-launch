@@ -55,7 +55,7 @@ FocusScope {
     Image {
         id: backdrop
         anchors.fill: parent
-        source: tv.visible ? (tv.cur.cover || "") : ""
+        source: tv.visible && !app.light ? (tv.cur.cover || "") : ""
         asynchronous: true
         fillMode: Image.PreserveAspectCrop
         sourceSize.width: 200
@@ -64,7 +64,7 @@ FocusScope {
     MultiEffect {
         anchors.fill: parent
         source: backdrop
-        visible: GraphicsInfo.api !== GraphicsInfo.Software && backdrop.status === Image.Ready
+        visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software && backdrop.status === Image.Ready
         blurEnabled: true
         blur: 1.0
         blurMax: 64
@@ -126,7 +126,7 @@ FocusScope {
             cacheBuffer: cellHeight * 2
             keyNavigationEnabled: true
             boundsBehavior: Flickable.StopAtBounds
-            highlightMoveDuration: 160
+            highlightMoveDuration: app.light ? 0 : 160
             preferredHighlightBegin: cellHeight * 0.15
             preferredHighlightEnd: height - cellHeight * 0.15
             highlightRangeMode: GridView.ApplyRange

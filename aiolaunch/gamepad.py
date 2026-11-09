@@ -23,6 +23,7 @@ BUTTONS = {
 }
 REPEATING = {Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right}
 STICK_ON, STICK_OFF = 18000, 12000
+ACTIVE_MS, IDLE_MS = 16, 1000  # 60 checks a second while in use, one a second otherwise
 FIRST_REPEAT, NEXT_REPEAT = 0.38, 0.11
 
 
@@ -42,9 +43,16 @@ class Gamepad(QObject):
             self._sdl = None
             return
         self._timer = QTimer(self)
-        self._timer.setInterval(16)
         self._timer.timeout.connect(self._poll)
-        self._timer.start()
+        self._timer.start(IDLE_MS)
+        QGuiApplication.instance().focusWindowChanged.connect(lambda _w: self._pace())
+
+    def _pace(self):
+        """Fast polling only while a controller is plugged in and this app has focus."""
+        fast = bool(self._pads) and QGuiApplication.focusWindow() is not None
+        interval = ACTIVE_MS if fast else IDLE_MS
+        if self._timer.interval() != interval:
+            self._timer.setInterval(interval)
 
     def _load(self):
         name = ctypes.util.find_library("SDL2") or "libSDL2-2.0.so.0"
@@ -80,11 +88,13 @@ class Gamepad(QObject):
                     iid = sdl.SDL_JoystickInstanceID(sdl.SDL_GameControllerGetJoystick(handle))
                     self._pads[iid] = handle
                     self.connectedChanged.emit()
+                    self._pace()
             elif kind == DEVICE_REMOVED:
                 handle = self._pads.pop(which, None)
                 if handle:
                     sdl.SDL_GameControllerClose(handle)
                     self.connectedChanged.emit()
+                    self._pace()
                 self._held.clear()
                 self._stick.clear()
             elif kind in (BUTTON_DOWN, BUTTON_UP):

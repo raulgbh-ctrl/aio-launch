@@ -49,8 +49,8 @@ def user_env() -> dict:
 
 def proton_versions() -> list:
     """Every Proton build umu can use: [{"label", "value"}], value is a PROTONPATH."""
-    out = [{"label": "GE-Proton (newest, downloaded automatically)", "value": "GE-Proton"},
-           {"label": "UMU-Proton (umu's default build)", "value": ""}]
+    out = [{"label": "GE-Proton, always the latest (updates itself)", "value": "GE-Proton"},
+           {"label": "UMU-Proton (umu-launcher's own build)", "value": ""}]
     flat = HOME / ".var/app/com.valvesoftware.Steam"
     roots = [(HOME / ".local/share/Steam/compatibilitytools.d", ""),
              (HOME / ".steam/steam/compatibilitytools.d", ""),
@@ -76,7 +76,9 @@ def proton_versions() -> list:
             if path in seen or not os.path.isfile(os.path.join(path, "proton")):
                 continue
             seen.add(path)
-            out.append({"label": f"{name} ({tag})" if tag else name, "value": path})
+            kind = "Steam" if tag == "Steam" else "GE" if name.startswith("GE-Proton") else tag
+            label = name.replace("-x86_64", "")
+            out.append({"label": f"{label}  ·  {kind}" if kind else label, "value": path})
     return out
 
 

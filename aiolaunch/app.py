@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, runner, saves, session, theme as themes
+from . import covers, proton, runner, saves, session, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -192,6 +192,7 @@ class AioLaunch(QObject):
     toast = Signal(str)
     gameChanged = Signal(str)
     loginReady = Signal(str, str, str)   # store, url, prompt
+    loginWeb = Signal(str, str, str)     # store, store name, url (built-in sign-in window)
     loginDone = Signal(str, bool, str)   # store, ok, message
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
@@ -206,7 +207,7 @@ class AioLaunch(QObject):
         self.stores = {s.id: s for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet())}
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
-        self.pool = ThreadPoolExecutor(6)
+        self.pool = ThreadPoolExecutor(min(4, os.cpu_count() or 2))
         self.procs: dict[str, QProcess] = {}
         self.logs: dict[str, list] = {}
         self._pending = set()
@@ -216,15 +217,19 @@ class AioLaunch(QObject):
         self._after.connect(lambda fn: fn())
 
         self._theme = themes.current()
+        self._ge = {"latest": "", "installed": (proton.installed_ge() or [""])[0], "busy": False,
+                    "progress": 0.0, "error": "", "upToDate": False}
         self._watch = QFileSystemWatcher(self)
         if PALETTE.parent.is_dir():
             self._watch.addPath(str(PALETTE.parent))
             self._watch.directoryChanged.connect(lambda _: QTimer.singleShot(200, self._load_theme))
-        # Other desktops: check the wallpaper now and then (cheap; the colours are cached per image).
-        self._wall_timer = QTimer(self)
-        self._wall_timer.setInterval(20000)
-        self._wall_timer.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and self._load_theme())
-        self._wall_timer.start()
+        # Follow-wallpaper: react to the files desktops rewrite when the wallpaper changes (no polling).
+        from . import wallpaper
+        self._wall_watch = QFileSystemWatcher(wallpaper.watch_paths(), self)
+        self._wall_pending = QTimer(self, singleShot=True, interval=800)
+        self._wall_pending.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and self._load_theme())
+        self._wall_watch.fileChanged.connect(lambda _: self._wall_pending.start())
+        self._wall_watch.directoryChanged.connect(lambda _: self._wall_pending.start())
 
         session.SESSIONS.mkdir(parents=True, exist_ok=True)
         self._sessions = QFileSystemWatcher([str(session.SESSIONS)], self)
@@ -298,6 +303,13 @@ class AioLaunch(QObject):
         self.storesChanged.emit()
 
     @Slot()
+    def windowActivated(self):
+        """Cheap catch-up when the window gets focus: wallpaper (for desktops without a watched file)."""
+        if settings.get("theme_mode") == "ryoku":
+            self._wall_pending.start()
+        self.refreshLocal()
+
+    @Slot()
     def refreshLocal(self):
         """Cheap rescan when the window regains focus (Steam / Battle.net change outside AIO Launch)."""
         if time.time() - self._last_local > 30 and not self._pending:
@@ -350,8 +362,12 @@ class AioLaunch(QObject):
                 self._after.emit(done)
         self.pool.submit(work)
 
+    web_login = False  # set by __main__ when Qt's web engine is available
+
     @Slot(str)
-    def loginBegin(self, store_id):
+    @Slot(str, bool)
+    def loginBegin(self, store_id, browser=False):
+        """browser=True forces the old open-in-browser-and-paste flow."""
         store = self.stores[store_id]
 
         def work():
@@ -361,7 +377,9 @@ class AioLaunch(QObject):
                     self._detach(info["command"], info.get("env", {}), "", f"{store_id}-client")
                     self.toast.emit(f"Opening {store.name}; sign in there, then press Refresh")
                 return start
-            return lambda: self.loginReady.emit(store_id, info["url"], info["prompt"])
+            if self.web_login and not browser:
+                return lambda: self.loginWeb.emit(store_id, store.name, info["url"])
+            return lambda: (self.loginReady.emit(store_id, info["url"], info["prompt"]))
         self._bg(work)
 
     @Slot(str, str)
@@ -414,6 +432,21 @@ class AioLaunch(QObject):
         return result[0] if isinstance(result, tuple) else bool(result)
 
     cloudSaveStores = Property("QVariantList", lambda s: list(saves.SUPPORTED), constant=True)
+
+    def _light(self):
+        """Light mode skips per-cover GPU effects, blur and animations, for older PCs."""
+        mode = settings.get("performance")
+        if mode in ("light", "full"):
+            return mode == "light"
+        try:
+            ram_gb = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
+        except (ValueError, OSError):
+            ram_gb = 8
+        from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+        software = QQuickWindow.graphicsApi() == QSGRendererInterface.GraphicsApi.Software
+        return software or (os.cpu_count() or 2) <= 2 or ram_gb < 6
+
+    light = Property(bool, _light, notify=settingsChanged)
 
     def _guard(self, key):
         g = self.model.find(key)
@@ -487,7 +520,68 @@ class AioLaunch(QObject):
             versions.append({"label": f"Custom: {current}", "value": current})
         return versions
 
-    protonVersions = Property("QVariantList", _proton_versions, notify=settingsChanged)
+    protonsChanged = Signal()
+    protonVersions = Property("QVariantList", _proton_versions, notify=protonsChanged)
+    geStatusChanged = Signal()
+
+    def _ge_status(self):
+        return self._ge
+
+    geStatus = Property("QVariantMap", _ge_status, notify=geStatusChanged)
+
+    def _set_ge(self, **values):
+        self._ge = dict(self._ge, **values)
+        self.geStatusChanged.emit()
+
+    @Slot()
+    def checkGe(self):
+        """Look up the newest GE-Proton (one small GitHub request)."""
+        def work():
+            try:
+                tag, _, _ = proton.latest_ge()
+            except Exception as e:
+                return lambda: self._set_ge(error=f"Could not check: {type(e).__name__}")
+            have = proton.installed_ge()
+            return lambda: self._set_ge(latest=tag, installed=have[0] if have else "", error="",
+                                        upToDate=bool(have) and have[0].startswith(tag))
+        self._bg(work)
+
+    @Slot()
+    def downloadGe(self):
+        if self._ge.get("busy"):
+            return
+        self._set_ge(busy=True, progress=0.0, error="")
+
+        def report(pct):
+            self._after.emit(lambda: self._set_ge(progress=pct))
+
+        def work():
+            try:
+                name, fresh = proton.download_ge(report)
+            except Exception as e:
+                return lambda: (self._set_ge(busy=False, error=str(e)[:160]), self.toast.emit("GE-Proton download failed"))
+
+            def done():
+                self._set_ge(busy=False, installed=name, upToDate=True, progress=100.0)
+                self.protonsChanged.emit()
+                self.toast.emit(f"{name} installed" if fresh else f"{name} is already the newest")
+            return done
+        self._bg(work)
+
+    @Slot()
+    def getSteamProton(self):
+        """Ask Steam to install Proton Experimental; it then shows up in the list."""
+        steam = self.stores["steam"]
+        client = steam.client()
+        if not client:
+            self.toast.emit("Steam is not installed")
+            return
+        self._detach([*client, f"steam://install/{proton.PROTON_EXPERIMENTAL_APPID}"], {}, "", "steam-proton")
+        self.toast.emit("Steam is installing Proton Experimental; it appears in this list when done")
+
+    @Slot()
+    def rescanProtons(self):
+        self.protonsChanged.emit()
 
     @Slot(str)
     def play(self, key):

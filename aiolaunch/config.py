@@ -51,6 +51,7 @@ DEFAULTS = {
     "dim_uninstalled": True,
     "merge_duplicates": True,
     "cloud_saves": True,
+    "performance": "auto",     # "auto", "light" or "full"
 }
 
 # Where Heroic keeps its bundled copies of legendary / gogdl / nile.

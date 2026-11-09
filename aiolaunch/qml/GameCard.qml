@@ -32,13 +32,13 @@ Item {
         anchors.margins: 8
         radius: card.cornerRadius
         color: theme.surfaceContainerHigh
-        scale: card.lit ? 1.03 : 1.0
-        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        scale: card.lit && !app.light ? 1.03 : 1.0
+        Behavior on scale { enabled: !app.light; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
         Item {
             id: art
             anchors.fill: parent
-            layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
+            layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
             layer.effect: MultiEffect {
                 maskEnabled: true
                 maskSource: mask
@@ -74,9 +74,9 @@ Item {
                 source: card.cover
                 asynchronous: true
                 fillMode: Image.PreserveAspectCrop
-                sourceSize.width: 400
+                sourceSize.width: app.light ? 280 : 400
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.55) : 0
-                Behavior on opacity { NumberAnimation { duration: 200 } }
+                Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
                 onStatusChanged: {
                     if (status === Image.Error && card.coverFallback && source != card.coverFallback)
                         source = card.coverFallback

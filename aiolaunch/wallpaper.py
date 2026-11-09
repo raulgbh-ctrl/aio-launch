@@ -90,6 +90,21 @@ def _candidates():
             yield "Xfce", _out(["xfconf-query", "-c", "xfce4-desktop", "-p", prop])
 
 
+def watch_paths():
+    """Files and folders that change when the wallpaper changes, on the common desktops."""
+    paths = [HOME / ".local/state/ryoku/stage-walls.json", HOME / ".config/dconf/user",
+             HOME / ".config/plasma-org.kde.plasma.desktop-appletsrc", HOME / ".config/hypr/hyprpaper.conf",
+             HOME / ".config/waypaper/config.ini", HOME / ".config/nitrogen/bg-saved.cfg", HOME / ".fehbg",
+             HOME / ".config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"]
+    out = []
+    for p in paths:
+        if p.exists():
+            out.append(str(p))
+        if p.parent.is_dir():
+            out.append(str(p.parent))  # editors often replace the file, which drops a file watch
+    return sorted(set(out))
+
+
 def find():
     """Return (source, absolute path) of the current wallpaper, or ("", "")."""
     for source, path in _candidates():
