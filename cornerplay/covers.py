@@ -2,7 +2,8 @@
 
 Covers: the store's own art first; for games whose store has none, SteamGridDB
 (when an API key is set in Settings), then Steam's store search matched against
-Steam's library art. Results, including misses, are remembered in
+Steam's library art, then Lutris's game database (IGDB box art; no key needed), which
+covers games Steam does not sell, such as World of Warcraft and the other Blizzard titles. Results, including misses, are remembered in
 ~/.cache/cornerplay/cover_lookup.json.
 
 Every game also gets backup covers, wide banner ("hero") art and logos, so the UI can
@@ -29,6 +30,8 @@ MISS_TTL = 3 * 86400     # ...and misses after three days
 STEAM_ASSETS = "https://shared.akamai.steamstatic.com/store_item_assets/"
 STEAM_CDN = "https://cdn.cloudflare.steamstatic.com/steam/apps"
 SGDB = "https://www.steamgriddb.com/api/v2"
+LUTRIS = "https://lutris.net/api/games"
+IGDB_IMG = "https://images.igdb.com/igdb/image/upload/t_720p/"  # 540x720 box art
 _lock = threading.Lock()
 _NOISE = re.compile(r"\b(game of the year|goty|definitive|complete|deluxe|standard|ultimate|remastered|"
                     r"enhanced|gold|edition|the)\b")
@@ -70,6 +73,21 @@ def _steam(title: str):
     return steam_art(match["id"])
 
 
+def _lutris(title: str):
+    """IGDB box art via Lutris's game list: URL, "" for a definite miss, None when the call failed."""
+    r = requests.get(LUTRIS, params={"search": title}, timeout=15)
+    if r.status_code != 200:
+        return None
+    want = norm(title)
+    hit = next((g for g in r.json().get("results") or []
+                if norm(g.get("name", "")) == want and g.get("coverart")), None)
+    if not hit:
+        return ""
+    # ".../media/igdb/cover_big/co2l7z.jpg": the same picture from IGDB, larger.
+    m = re.search(r"/igdb/[^/]+/([A-Za-z0-9_]+)\.(?:jpg|png)$", hit["coverart"])
+    return IGDB_IMG + m.group(1) + ".jpg" if m else hit["coverart"]
+
+
 def _steamgriddb(title: str, key: str):
     h = {"Authorization": "Bearer " + key}
     r = requests.get(f"{SGDB}/search/autocomplete/{quote(title, safe='')}", headers=h, timeout=15)
@@ -101,6 +119,9 @@ def _lookup(title: str, key: str, appid=None):
     if not found:
         steam = _steam(title)
         found = steam if steam is not None else found
+    if not found:
+        lutris = _lutris(title)
+        found = lutris if lutris is not None else found
     return found
 
 
@@ -134,6 +155,8 @@ def fill(games) -> str:
 
     def fresh(k):
         stamp = cache.get(k + "#t", 0)
+        if k in cache and not cache[k] and not cache.get(k + "#lutris"):
+            return False  # a miss from before Lutris was asked
         return k in cache and now - stamp < (LOOKUP_TTL if cache[k] else MISS_TTL)
 
     missing = sorted({g.title for g in todo if not fresh(cache_key(g.title))})
@@ -143,6 +166,7 @@ def fill(games) -> str:
                 if url is not None:  # None = lookup failed, try again next refresh
                     cache[cache_key(title)] = url
                     cache[cache_key(title) + "#t"] = now
+                    cache[cache_key(title) + "#lutris"] = 1
         with _lock:
             merged = read_json(CACHE_FILE) or {}
             merged.update(cache)
