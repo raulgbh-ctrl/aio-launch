@@ -5,6 +5,7 @@ Battle.net app. AIO Launch installs/starts that app and reads its product databa
 to show each installed game as its own tile.
 """
 import os
+from pathlib import Path
 
 from ..config import CACHE_DIR
 from ..runner import StoreError, compat, prefix_path, wine_env, wrapper_argv
@@ -12,6 +13,8 @@ from .base import Command, Game, Store
 
 SETUP_URL = "https://downloader.battle.net/download/getInstaller?os=win&installer=Battle.net-Setup.exe"
 LAUNCHER_ID = "battlenet-app"
+# The Battle.net app's own tile: a cover drawn for AIO Launch (art/battlenet-cover.png).
+LAUNCHER_COVER = (Path(__file__).resolve().parent.parent / "art" / "battlenet-cover.png").as_uri()
 UMU_ID = "umu-battlenet"
 
 # product code (as in product.db) -> (title, code for `Battle.net.exe --exec="launch CODE"`)
@@ -90,7 +93,8 @@ class BattleNet(Store):
     def fetch(self):
         exe = self.launcher_exe()
         games = [Game(store=self.id, id=LAUNCHER_ID, title="Battle.net", installed=bool(exe),
-                      install_path=os.path.dirname(exe) if exe else "")]
+                      install_path=os.path.dirname(exe) if exe else "",
+                      cover=LAUNCHER_COVER, cover_fallback=LAUNCHER_COVER)]
         if exe:
             db = os.path.join(self.prefix(), "drive_c/ProgramData/Battle.net/Agent/product.db")
             for uid, code, path in read_product_db(db):

@@ -19,7 +19,7 @@ from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, setti
 from .runner import StoreError
 from .stores.amazon import Amazon
 from .stores.base import Game, PartialResult
-from .stores.battlenet import BattleNet
+from .stores.battlenet import LAUNCHER_COVER, BattleNet
 from .stores.epic import Epic
 from .stores.gog import Gog
 from .stores.steam import Steam
@@ -1356,7 +1356,8 @@ class AioLaunch(QObject):
                  ("gog", "292030", "The Witcher 3: Wild Hunt", True)]
         games = []
         for store, appid, title, inst in rows:
-            art = "" if store == "battlenet" else f"{cdn}/{appid}/library_600x900.jpg"
+            art = (LAUNCHER_COVER if appid == "battlenet-app" else
+                   "" if store == "battlenet" else f"{cdn}/{appid}/library_600x900.jpg")
             games.append(Game(store=store, id=appid, title=title, cover=art,
                               cover_fallback=art and f"{cdn}/{appid}/header.jpg", installed=inst))
         hints = {"pro": 2357570, "fenris": 2344520}
