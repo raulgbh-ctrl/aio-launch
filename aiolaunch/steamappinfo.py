@@ -7,12 +7,14 @@ names, and no network is needed. Parsed once per change of the file and remember
 ~/.cache/aiolaunch/steam_appinfo.json.
 """
 import os
+import re
 import struct
 
 from .config import CACHE_DIR, read_json, write_json
 
 CACHE = CACHE_DIR / "steam_appinfo.json"
 MAGICS = {0x07564427: 27, 0x07564428: 28, 0x07564429: 29}
+VERSION = 2  # bump when the remembered fields change
 
 
 def _parse(data):
@@ -68,7 +70,12 @@ def _parse(data):
             pos += size
             continue
         common = (info.get("appinfo") or info).get("common") or {}
-        apps[str(appid)] = {"name": str(common.get("name", "")), "type": str(common.get("type", "")).lower()}
+        extended = (info.get("appinfo") or info).get("extended") or {}
+        # Regional editions ("Borderlands 2 RU") point their manual at the main game's id.
+        manual = re.search(r"/manual/(\d+)", str(extended.get("GameManualURL", "")))
+        variant_of = manual.group(1) if manual and manual.group(1) != str(appid) else ""
+        apps[str(appid)] = {"name": str(common.get("name", "")), "type": str(common.get("type", "")).lower(),
+                            "variant_of": variant_of}
         pos += size
     return apps
 
@@ -80,7 +87,7 @@ def apps(root):
         st = os.stat(path)
     except OSError:
         return {}
-    stamp = [path, st.st_mtime, st.st_size]
+    stamp = [path, st.st_mtime, st.st_size, VERSION]
     cached = read_json(CACHE) or {}
     if cached.get("stamp") == stamp:
         return cached.get("apps") or {}

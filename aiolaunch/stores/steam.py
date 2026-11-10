@@ -215,8 +215,12 @@ class Steam(Store):
             self._add_played(games, steamid)
             return
         for appid, app in known.items():
-            if app.get("type") == "game" and app.get("name") and appid not in games and appid not in TOOL_IDS:
-                games[appid] = self._game(appid, app["name"])
+            if app.get("type") != "game" or not app.get("name") or appid in games or appid in TOOL_IDS:
+                continue
+            main = app.get("variant_of", "")
+            if main and (known.get(main) or {}).get("type") == "game":
+                continue  # a regional edition of a game that is listed already (Borderlands 2 RU)
+            games[appid] = self._game(appid, app["name"])
 
     def _add_played(self, games, steamid):
         """Games this account has played, though not installed here: listed without a Web API key."""
