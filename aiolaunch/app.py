@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, gamecolour, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, details, gamecolour, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -332,6 +332,7 @@ class AioLaunch(QObject):
         self._pending = set()
         self._updates_seen = set()
         self._colour_pending = set()
+        self._details_pending = set()
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         self._worker_toast.connect(self.toast)
@@ -451,6 +452,26 @@ class AioLaunch(QObject):
     uiIcons = Property("QVariantMap", lambda s: s._ui_icons, constant=True)
 
     gameColourReady = Signal(str, str)  # key, accent ("" = no clear colour)
+    detailsReady = Signal(str, "QVariantMap")  # key, {description, genres, developer, year}
+
+    @Slot(str, result="QVariantMap")
+    def gameDetails(self, key):
+        """Description, genres, developer and year; {} until known (detailsReady follows)."""
+        g = self.model.find(key)
+        if not g or g.id == "battlenet-app":
+            return {}
+        d = details.cached(key)
+        if d is not None:
+            return d
+        if key not in self._details_pending:
+            self._details_pending.add(key)
+            appid = _appid(g)
+
+            def work():
+                d = details.fetch(g, appid)
+                return lambda: (self._details_pending.discard(key), self.detailsReady.emit(key, d))
+            self._bg(work)
+        return {}
 
     @Slot(str, result=str)
     def gameColour(self, key):

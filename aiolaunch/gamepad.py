@@ -22,6 +22,10 @@ BUTTONS = {
     11: Qt.Key_Up, 12: Qt.Key_Down, 13: Qt.Key_Left, 14: Qt.Key_Right,
 }
 REPEATING = {Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right}
+# SDL_GameControllerType -> which button glyphs to show. Unknown pads (and the Steam Deck,
+# which Steam presents as an Xbox pad) get Xbox glyphs.
+STYLES = {3: "playstation", 4: "playstation", 7: "playstation",
+          5: "nintendo", 11: "nintendo", 12: "nintendo", 13: "nintendo"}
 STICK_ON, STICK_OFF = 18000, 12000
 ACTIVE_MS, IDLE_MS = 16, 1000  # 60 checks a second while in use, one a second otherwise
 FIRST_REPEAT, NEXT_REPEAT = 0.38, 0.11
@@ -33,6 +37,7 @@ START_DELAY_MS = 300  # SDL_Init scans every input device (~150 ms); do it after
 class Gamepad(QObject):
     connectedChanged = Signal()
     availableChanged = Signal()
+    styleChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -42,6 +47,7 @@ class Gamepad(QObject):
         self._stick = {}   # (pad, axis) -> key currently held by that stick axis
         self._event = ctypes.create_string_buffer(128)
         self._timer = None
+        self._style = "xbox"
         QTimer.singleShot(START_DELAY_MS, self._start)
 
     def _start(self):
@@ -79,6 +85,12 @@ class Gamepad(QObject):
         sdl.SDL_JoystickInstanceID.argtypes = [ctypes.c_void_p]
         sdl.SDL_JoystickInstanceID.restype = ctypes.c_int32
         sdl.SDL_GameControllerClose.argtypes = [ctypes.c_void_p]
+        try:  # SDL 2.0.12 and newer
+            sdl.SDL_GameControllerGetType.argtypes = [ctypes.c_void_p]
+            sdl.SDL_GameControllerGetType.restype = ctypes.c_int
+            self._get_type = sdl.SDL_GameControllerGetType
+        except AttributeError:
+            self._get_type = None
         sdl.SDL_SetHint(b"SDL_NO_SIGNAL_HANDLERS", b"1")
         sdl.SDL_SetHint(b"SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", b"1")
         if sdl.SDL_Init(INIT_GAMECONTROLLER) != 0:
@@ -87,6 +99,7 @@ class Gamepad(QObject):
 
     available = Property(bool, lambda s: s._sdl is not None, notify=availableChanged)
     connected = Property(bool, lambda s: bool(s._pads), notify=connectedChanged)
+    style = Property(str, lambda s: s._style, notify=styleChanged)  # "xbox", "playstation" or "nintendo"
 
     # --- SDL events ------------------------------------------------------
     def _poll(self):
@@ -99,6 +112,11 @@ class Gamepad(QObject):
                 if handle:
                     iid = sdl.SDL_JoystickInstanceID(sdl.SDL_GameControllerGetJoystick(handle))
                     self._pads[iid] = handle
+                    if self._get_type:  # the pad plugged in last decides the glyphs
+                        style = STYLES.get(self._get_type(handle), "xbox")
+                        if style != self._style:
+                            self._style = style
+                            self.styleChanged.emit()
                     self.connectedChanged.emit()
                     self._pace()
             elif kind == DEVICE_REMOVED:

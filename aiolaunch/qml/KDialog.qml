@@ -7,7 +7,10 @@ Popup {
     property string heading: ""
     property string headingIcon: ""   // optional icon before the heading
     parent: Overlay.overlay
-    anchors.centerIn: parent
+    // Centred, plus a small rise that the opening animation brings to 0 (it slides up).
+    property real rise: 0
+    x: Math.round((parent ? parent.width - width : 0) / 2)
+    y: Math.round((parent ? parent.height - height : 0) / 2 + rise)
     modal: true
     focus: true
     padding: 24
@@ -43,12 +46,13 @@ Popup {
     }
     enter: Transition {
         enabled: !app.light
-        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
-        NumberAnimation { property: "scale"; from: 0.95; to: 1; duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 180; easing.type: Easing.OutCubic }
+        NumberAnimation { property: "rise"; from: 36; to: 0; duration: 280; easing.type: Easing.OutCubic }
+        NumberAnimation { property: "scale"; from: 0.97; to: 1; duration: 280; easing.type: Easing.OutCubic }
     }
     exit: Transition {
         enabled: !app.light
-        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 110 }
-        NumberAnimation { property: "scale"; from: 1; to: 0.97; duration: 110 }
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 120 }
+        NumberAnimation { property: "rise"; from: 0; to: 18; duration: 120 }
     }
 }

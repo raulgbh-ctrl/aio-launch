@@ -87,7 +87,8 @@ class Epic(Store):
                     installed=bool(inst), install_path=(inst or {}).get("install_path", ""),
                     extra={"dlcs": [{"id": d.get("app_name", ""), "title": (d.get("app_title") or "").strip()}
                                     for d in g.get("dlcs") or []],
-                           "store_heroes": [hero] if hero else [], "store_logos": [logo] if logo else []},
+                           "store_heroes": [hero] if hero else [], "store_logos": [logo] if logo else [],
+                           "description": ((g.get("metadata") or {}).get("description") or "")[:600]},
                 )
         for app, inst in installed.items():
             if app not in games and not inst.get("is_dlc"):

@@ -63,7 +63,8 @@ Code: `aiolaunch/stores/*.py` is one file per store; `aiolaunch/app.py` is the Q
 - **Store logos**: from [Simple Icons](https://simpleicons.org) (CC0), in `aiolaunch/icons/`. The logos are trademarks of their owners and are only used to show which store a game belongs to.
 - **Themes**: follow the Ryoku desktop palette, presets, or your own accent + background; cover size, corner radius, badges (Settings > Appearance).
 - **Proton**: default version in Settings > Compatibility; per-game Proton, MangoHud, GameMode, env vars and launch arguments under a game's Options.
-- **TV mode / controller** (`aiolaunch/gamepad.py`, SDL2): D-pad or stick = move, A = play, X = actions, Y = installed only, LB/RB = store, B = back, Start = toggle TV mode.
+- **TV mode / controller** (`aiolaunch/gamepad.py`, SDL2): D-pad or stick = move, A = play, X = actions, Y = installed only, LB/RB = store, B = back, Start = toggle TV mode. The on-screen hints use the connected pad's own glyphs: Xbox (also the Steam Deck), PlayStation, or Nintendo (labelled by position).
+- **About each game**: description, genres, developer and release year in the game panel and in TV mode, from GOG for GOG games, from Steam's store for any game matched to Steam, or the store's own text (`details.py`, cached for a month).
 
 ## Status and licence
 

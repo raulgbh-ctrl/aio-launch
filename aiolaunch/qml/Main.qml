@@ -632,8 +632,11 @@ ApplicationWindow {
         Connections {
             target: app
             function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
+            function onDetailsReady(key, d) { if (key === win.selectedKey) detail.info = d }
         }
-        onOpened: accent = app.gameColour(win.selectedKey)
+        // Description, genres, developer and year (see details.py); filled in when they arrive.
+        property var info: ({})
+        onOpened: { accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey) }
         width: Math.min(win.width - 60, 860)
         // The game's wide art runs across the top; the cover and title start inside its faded lower part.
         readonly property int bannerH: Math.round(width * 0.34)
@@ -741,6 +744,47 @@ ApplicationWindow {
                     elide: Text.ElideMiddle
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: app.openFolder(win.selected.installPath) }
+                }
+
+                // Genres, developer · year, and a short description.
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: (detail.info.genres || []).length > 0
+                    Repeater {
+                        model: detail.info.genres || []
+                        Rectangle {
+                            required property string modelData
+                            height: 24; radius: 12
+                            width: genreText.implicitWidth + 20
+                            color: "transparent"
+                            border.width: 1
+                            border.color: detail.tint.primary
+                            Text { id: genreText; anchors.centerIn: parent; text: modelData; color: detail.tint.primary; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    text: [detail.info.developer || "", detail.info.year || ""].filter(x => x).join("  ·  ")
+                    color: theme.outline
+                    font.pixelSize: 12
+                }
+                Text {
+                    id: detailAbout
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    text: detail.info.description || ""
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 13
+                    lineHeight: 1.25
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 5
+                    elide: Text.ElideRight
+                    opacity: text ? 1 : 0
+                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
                 }
 
                 // The same game owned on several stores: choose which copy to use.
@@ -1777,7 +1821,7 @@ ApplicationWindow {
                 required property string message
                 required property int index
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(toastText.implicitWidth + 58, win.width - 80)
+                width: Math.min(toastText.implicitWidth + 64, win.width - 80)
                 height: Math.max(44, toastText.height + 24)
                 radius: 14
                 color: theme.surfaceContainerHighest
@@ -1792,15 +1836,27 @@ ApplicationWindow {
                     NumberAnimation { target: toast; property: "opacity"; to: 1; duration: app.light ? 0 : 200; easing.type: Easing.OutCubic }
                     NumberAnimation { target: toastShift; property: "y"; to: 0; duration: app.light ? 0 : 260; easing.type: Easing.OutCubic }
                 }
+                // An icon picked from what the message says.
+                readonly property bool bad: /fail|could not|not (uploaded|synced|added|found|started)|rejected|error/i.test(message)
+                readonly property string icon: bad ? "x"
+                    : /^launching/i.test(message) ? "play"
+                    : /update available|updates available/i.test(message) ? "arrow-up"
+                    : /^removed|uninstall/i.test(message) ? "trash-2"
+                    : /save|sync|upload|cloud/i.test(message) ? "cloud"
+                    : /hidden/i.test(message) ? "eye-off"
+                    : /cancel/i.test(message) ? "x"
+                    : /installed|updated|added|is back|copied|in steam|ready/i.test(message) ? "check"
+                    : "gamepad-2"
                 Rectangle {
-                    x: 12; anchors.verticalCenter: parent.verticalCenter
-                    width: 4; height: parent.height - 20; radius: 2
-                    color: theme.primary
+                    x: 10; anchors.verticalCenter: parent.verticalCenter
+                    width: 26; height: 26; radius: 13
+                    color: Qt.alpha(toast.bad ? theme.error : theme.primary, 0.18)
+                    Icon { anchors.centerIn: parent; name: toast.icon; size: 15; color: toast.bad ? theme.error : theme.primary }
                 }
                 Text {
                     id: toastText
-                    x: 28; anchors.verticalCenter: parent.verticalCenter
-                    width: Math.min(implicitWidth, win.width - 138)
+                    x: 46; anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, win.width - 144)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3
                     elide: Text.ElideRight

@@ -20,7 +20,17 @@ FocusScope {
         const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
         return Object.assign({}, tv.theme, { primary: c.toString(), onPrimary: lum > 0.55 ? "#1b1b1f" : "#ffffff" })
     }
-    onCurChanged: gameAccent = cur.key ? app.gameColour(cur.key) : ""
+    // Description and genres, asked for once the focus rests (no store requests while scrolling past).
+    property var info: ({})
+    property string infoKey: ""
+    Timer { id: infoTimer; interval: 350; onTriggered: tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({}) }
+    onCurChanged: {
+        if ((cur.key || "") === infoKey) return  // same game, just refreshed
+        infoKey = cur.key || ""
+        gameAccent = cur.key ? app.gameColour(cur.key) : ""
+        info = ({})
+        infoTimer.restart()
+    }
     readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
 
     function sync() { cur = app.game(library.keyAt(grid.currentIndex)) }
@@ -64,6 +74,7 @@ FocusScope {
         target: app
         function onGameChanged(key) { tv.sync(); if (panel.visible) panel.rows = tv.buildActions() }
         function onGameColourReady(key, colour) { if (key === tv.cur.key) tv.gameAccent = colour }
+        function onDetailsReady(key, d) { if (key === tv.infoKey) tv.info = d }
     }
 
     // One of the two full-screen art images that take turns (see stage).
@@ -271,6 +282,35 @@ FocusScope {
                     color: theme.onSurfaceVariant
                     font.pixelSize: 17
                 }
+                Row {
+                    spacing: 8
+                    visible: (tv.info.genres || []).length > 0
+                    Repeater {
+                        model: tv.info.genres || []
+                        Rectangle {
+                            required property string modelData
+                            height: 28; radius: 14
+                            width: tvGenre.implicitWidth + 24
+                            color: Qt.alpha(theme.background, 0.45)
+                            border.width: 1
+                            border.color: tv.tint.primary
+                            Text { id: tvGenre; anchors.centerIn: parent; text: modelData; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 760
+                    visible: text !== "" && tv.height >= 640
+                    text: tv.info.description || ""
+                    color: theme.onSurface
+                    opacity: 0.82
+                    font.pixelSize: 16
+                    lineHeight: 1.25
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                }
             }
         }
 
@@ -340,17 +380,40 @@ FocusScope {
             }
         }
 
-        // Button hints.
-        Text {
-            Layout.fillWidth: true
-            visible: tv.width >= 1100
-            horizontalAlignment: Text.AlignRight
-            elide: Text.ElideLeft
-            color: theme.outline
-            font.pixelSize: 15
-            text: pad.connected
-                  ? "Ⓐ Play    Ⓧ Actions    Ⓨ Installed only    LB / RB Store    Ⓑ Exit"
-                  : "Enter Play    F2 Actions    F3 Installed only    PgUp / PgDn Store    Esc Exit"
+        // Button hints: the connected controller's own glyphs, or keyboard keys.
+        Row {
+            Layout.alignment: Qt.AlignRight
+            visible: tv.width >= 900
+            spacing: 22
+            Repeater {
+                model: pad.connected
+                       ? [{ b: ["a"], t: "Play" }, { b: ["x"], t: "Actions" }, { b: ["y"], t: "Installed only" },
+                          { b: ["lb", "rb"], t: "Store" }, { b: ["b"], t: "Back" }]
+                       : [{ k: "Enter", t: "Play" }, { k: "F2", t: "Actions" }, { k: "F3", t: "Installed only" },
+                          { k: "PgUp / PgDn", t: "Store" }, { k: "Esc", t: "Back" }]
+                Row {
+                    required property var modelData
+                    spacing: 8
+                    Repeater {
+                        model: modelData.b || []
+                        PadButton { required property string modelData; button: modelData; style: pad.style; size: 26 }
+                    }
+                    Rectangle {  // keycap
+                        visible: !!modelData.k
+                        height: 26; radius: 6
+                        width: keyText.implicitWidth + 16
+                        color: Qt.alpha(theme.surfaceContainerHighest, 0.9)
+                        border.width: 1; border.color: theme.outlineVariant
+                        Text { id: keyText; anchors.centerIn: parent; text: modelData.k || ""; color: theme.onSurface; font.pixelSize: 12; font.weight: Font.DemiBold }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.t
+                        color: theme.onSurfaceVariant
+                        font.pixelSize: 15
+                    }
+                }
+            }
         }
     }
 
