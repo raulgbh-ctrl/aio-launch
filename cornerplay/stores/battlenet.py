@@ -7,7 +7,7 @@ to show each installed game as its own tile.
 import os
 from pathlib import Path
 
-from ..config import CACHE_DIR
+from ..config import CACHE_DIR, CONFIG_DIR, read_json, write_json
 from ..runner import StoreError, compat, prefix_path, wine_env, wrapper_argv
 from .base import Command, Game, Store
 
@@ -47,6 +47,63 @@ STEAM_APPIDS = {"pro": 2357570, "fenris": 2344520, "osi": 2536520, "auks": 19380
                 "odin": 2000950, "zeus": 1985810, "wlby": 1378990}
 NOT_GAMES = {"agent", "bna", "battle.net", "battlenet"}
 
+# Owned games, read from the Blizzard account site by a hidden page in the app (qml/BlizzardSync.qml)
+# while the user is signed in there. Blizzard's titleId -> (title, launch code); from Playnite's table.
+OWNED_FILE = CONFIG_DIR / "blizzard_owned.json"
+TITLE_IDS = {
+    5730135: ("World of Warcraft", "WoW"), 17459: ("Diablo III", "D3"), 21298: ("StarCraft II", "S2"),
+    21297: ("StarCraft: Remastered", "S1"), 1465140039: ("Hearthstone", "WTCG"),
+    1214607983: ("Heroes of the Storm", "Hero"), 5272175: ("Overwatch 2", "Pro"),
+    1447645266: ("Call of Duty: Black Ops 4", "VIPR"), 1329875278: ("Call of Duty: Modern Warfare", "ODIN"),
+    22323: ("Warcraft III: Reforged", "W3"), 1279351378: ("Call of Duty: MW2 Campaign Remastered", "LAZR"),
+    1514493267: ("Call of Duty: Black Ops Cold War", "ZEUS"), 1464615513: ("Crash Bandicoot 4", "WLBY"),
+    5198665: ("Diablo II: Resurrected", "OSI"), 1381257807: ("Blizzard Arcade Collection", "RTRO"),
+    1179603525: ("Call of Duty: Vanguard", "FORE"), 1095647827: ("Diablo Immortal", "ANBS"),
+    1096108883: ("Call of Duty", "AUKS"), 4613486: ("Diablo IV", "Fen"), 1146246220: ("Diablo", "D1"),
+    5714258: ("Warcraft: Remastered", "W1R"), 5714514: ("Warcraft II: Remastered", "W2R"),
+    1463898673: ("Warcraft: Orcs & Humans", "W1"), 1462911566: ("Warcraft II: Battle.net Edition", "W2"),
+    4674137: ("Warcraft Rumble", "GRY"), 1095911763: ("Doom: The Dark Ages", "ARIS"),
+    1396920146: ("Sea of Thieves", "SCOR"), 4280907: ("The Outer Worlds 2", "ARK"),
+    1279414849: ("Tony Hawk's Pro Skater 3 + 4", "LBRA"), 1095849281: ("Avowed", "AQUA"),
+}
+# Launch code -> Steam app, for box art (same games as STEAM_APPIDS, keyed by launch code).
+STEAM_BY_LAUNCH = {"Pro": 2357570, "Fen": 2344520, "OSI": 2536520, "AUKS": 1938090,
+                   "ODIN": 2000950, "ZEUS": 1985810, "WLBY": 1378990}
+
+
+def owned():
+    """The owned-games list the account site last gave, or None when no Blizzard account is linked."""
+    data = read_json(OWNED_FILE)
+    return data if isinstance(data, dict) else None
+
+
+def save_owned(raw):
+    """Keep what the account site returned: {"games": [gameAccounts…], "classic": [classicGames…]}."""
+    import time
+    games = []
+    for a in raw.get("games") or []:
+        try:
+            tid = int(a.get("titleId") or 0)
+        except (TypeError, ValueError):
+            tid = 0
+        known = TITLE_IDS.get(tid)
+        name = (known[0] if known else "") or (a.get("localizedGameName") or "").strip()
+        if name:
+            games.append({"title_id": tid, "title": name, "launch": known[1] if known else ""})
+    for c in raw.get("classic") or []:
+        name = (c.get("localizedGameName") or "").strip()
+        if name:
+            games.append({"title_id": 0, "title": name, "launch": "", "classic": True})
+    write_json(OWNED_FILE, {"t": time.time(), "games": games})
+    return games
+
+
+def forget_owned():
+    try:
+        OWNED_FILE.unlink()
+    except OSError:
+        pass
+
 
 class BattleNet(Store):
     id = "battlenet"
@@ -77,11 +134,15 @@ class BattleNet(Store):
     def env(self):
         return wine_env(self.id, "launcher", UMU_ID)
 
-    # Signing in happens inside the Battle.net app itself.
+    # Signing in to play happens inside the Battle.net app itself; the Blizzard account link
+    # (Accounts > Battle.net > Link account) is only there to list the games you own.
     def logged_in(self):
-        return bool(self.launcher_exe())
+        return bool(self.launcher_exe() or owned())
 
     def account(self):
+        linked = owned()
+        if linked:
+            return f"Blizzard account linked · {len(linked.get('games') or [])} games owned"
         return "app installed; sign in inside it" if self.launcher_exe() else ""
 
     def login_begin(self):
@@ -106,11 +167,31 @@ class BattleNet(Store):
                                   install_path=path,
                                   extra={"launch": launch, **({"steam_appid": STEAM_APPIDS[code.lower()]}
                                                               if code.lower() in STEAM_APPIDS else {})}))
+        # Games the Blizzard account owns but this PC has not installed.
+        have = {(g.extra.get("launch") or "").lower() for g in games} | {g.title.lower() for g in games}
+        for o in (owned() or {}).get("games") or []:
+            launch, title = o.get("launch", ""), o.get("title", "")
+            if (launch and launch.lower() in have) or title.lower() in have:
+                continue
+            have |= {launch.lower(), title.lower()} - {""}
+            extra = {"launch": launch, "owned_only": True}
+            if launch in STEAM_BY_LAUNCH:
+                extra["steam_appid"] = STEAM_BY_LAUNCH[launch]
+            games.append(Game(store=self.id, id="owned-" + (launch or str(o.get("title_id") or title)),
+                              title=title, installed=False, extra=extra))
         return games
 
     def install(self, game):
         if game.id != LAUNCHER_ID:
-            raise StoreError("Install Battle.net games from inside the Battle.net app")
+            exe = self.launcher_exe()
+            if not exe:
+                raise StoreError("Install the Battle.net app first (its tile is in the library), then install "
+                                 + game.title + " from there")
+            # Opens the Battle.net app on this game's page, where its Install button is.
+            argv = [*wrapper_argv(), exe]
+            if game.extra.get("launch"):
+                argv.append("--game=" + game.extra["launch"].lower())
+            return Command(argv, env=self.env(), cwd=os.path.dirname(exe))
         setup = str(CACHE_DIR / "Battle.net-Setup.exe")
         script = 'curl -fL --retry 3 -o "$1" "$2" && shift 2 && exec "$@"'
         return Command(["sh", "-c", script, "cornerplay", setup, SETUP_URL, *wrapper_argv(), setup],

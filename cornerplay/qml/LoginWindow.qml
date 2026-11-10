@@ -12,6 +12,8 @@ Window {
     property string storeName: ""
     property string startUrl: ""
     property bool done: false
+    // A profile that outlives the window (Blizzard: kept so Refresh can read the games later).
+    property var keptProfile: null
     signal fallback()
 
     width: 520
@@ -33,14 +35,21 @@ Window {
         if (done) return
         done = true
         status.text = "Signing in…"
-        app.loginFinish(store, payload)
+        if (store === "blizzard") app.blizzardSync()  // reads the games; app.blizzardOwned closes this
+        else app.loginFinish(store, payload)
     }
 
     // Each store ends its login on a recognisable page; that page carries the code.
     function inspect(url) {
         if (done) return
         const u = url.toString()
-        if (store === "gog" && u.indexOf("on_login_success") !== -1 && u.indexOf("code=") !== -1)
+        if (store === "blizzard") {
+            // Signed in once the account site itself (not its login or OAuth pages) has loaded.
+            if (u.indexOf("https://account.battle.net/") === 0 && u.indexOf("oauth2") === -1
+                    && u.indexOf("login") === -1 && !view.loading)
+                finish(u)
+        }
+        else if (store === "gog" && u.indexOf("on_login_success") !== -1 && u.indexOf("code=") !== -1)
             finish(u)
         else if (store === "amazon" && u.indexOf("openid.oa2.authorization_code=") !== -1)
             finish(u)
@@ -125,7 +134,7 @@ Window {
             id: view
             Layout.fillWidth: true
             Layout.fillHeight: true
-            profile: privateProfile
+            profile: w.keptProfile || privateProfile
             onUrlChanged: w.inspect(url)
             onLoadingChanged: info => { if (info.status === WebEngineView.LoadSucceededStatus) w.inspect(info.url) }
             // Links that try to open new windows (help pages, sign-up) go to the normal browser.

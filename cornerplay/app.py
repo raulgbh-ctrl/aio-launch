@@ -19,6 +19,7 @@ from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, setti
 from .runner import StoreError
 from .stores.amazon import Amazon
 from .stores.base import Game, PartialResult
+from .stores import battlenet
 from .stores.battlenet import LAUNCHER_COVER, BattleNet
 from .stores.epic import Epic
 from .stores.gog import Gog
@@ -347,6 +348,8 @@ class AioLaunch(QObject):
     loginDone = Signal(str, bool, str)   # store, ok, message
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
+    blizzardSync = Signal()      # QML's hidden page reads the Blizzard account's games (BlizzardSync.qml)
+    blizzardForget = Signal()    # QML clears the Blizzard sign-in it keeps
 
     _fetched = Signal(str, object, str)
     _worker_toast = Signal(str)
@@ -600,16 +603,68 @@ class AioLaunch(QObject):
 
     @Slot()
     @Slot(str)
-    def refresh(self, store_id=""):
+    @Slot(str, bool)
+    def refresh(self, store_id="", force=False):
+        """force (the Refresh button): skip the stores' own caches so new purchases show at once."""
         if self.demo:
             return
         for s in ([self.stores[store_id]] if store_id else self.stores.values()):
             if s.id in self._pending:
                 continue
             self._pending.add(s.id)
-            self.pool.submit(self._fetch, s)
+            self.pool.submit(self._fetch, s, force)
+        if not store_id and battlenet.owned() is not None:
+            self.blizzardSync.emit()  # new Blizzard purchases come in a few seconds later
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- Blizzard account (owned Battle.net games) -------------------------
+    BLIZZARD_LOGIN = "https://account.battle.net/oauth2/authorization/account-settings"
+
+    blizzardLinked = Property(bool, lambda s: battlenet.owned() is not None, notify=storesChanged)
+
+    @Slot()
+    def blizzardLink(self):
+        if not self.web_login:
+            self.toast.emit("Linking a Blizzard account needs Qt WebEngine (sudo pacman -S qt6-webengine)")
+            return
+        self.loginWeb.emit("blizzard", "Blizzard", self.BLIZZARD_LOGIN)
+
+    @Slot(str)
+    def blizzardOwned(self, payload):
+        """The hidden page read the account's games: keep them and show the new ones."""
+        import json
+        try:
+            raw = json.loads(payload)
+        except ValueError:
+            return self.blizzardFailed("Blizzard sent something Cornerplay could not read")
+        first = battlenet.owned() is None
+        games = battlenet.save_owned(raw)
+        if first:
+            self.loginDone.emit("blizzard", True, f"Blizzard account linked: {len(games)} games found")
+        self.refresh("battlenet")
+
+    @Slot(str)
+    def blizzardFailed(self, reason):
+        if battlenet.owned() is None:
+            self.loginDone.emit("blizzard", False, reason)  # still in the sign-in window
+        else:
+            self.toast.emit(f"Battle.net: {reason}")
+
+    @Slot(QObject)
+    def blizzardClearCookies(self, profile):
+        try:
+            profile.cookieStore().deleteAllCookies()
+            profile.clearHttpCache()
+        except (AttributeError, RuntimeError):
+            pass
+
+    @Slot()
+    def blizzardUnlink(self):
+        battlenet.forget_owned()
+        self.blizzardForget.emit()
+        self.toast.emit("Blizzard account unlinked")
+        self.refresh("battlenet")
 
     @Slot()
     def refreshArtwork(self):
@@ -639,11 +694,13 @@ class AioLaunch(QObject):
             self.refresh("steam")
             self.refresh("battlenet")
 
-    def _fetch(self, store):
+    def _fetch(self, store, force=False):
         games, error = None, ""
         try:
             if store.id in ("epic", "amazon") and store.problem():
                 games = []
+            elif force and store.id == "epic":
+                games = store.fetch(force=True)
             else:
                 games = store.fetch()
         except PartialResult as e:
@@ -1198,7 +1255,7 @@ class AioLaunch(QObject):
         except StoreError as e:
             self.toast.emit(str(e))
             return
-        if store.external_installs:
+        if store.external_installs or g.extra.get("owned_only"):
             self._detach(cmd.argv, cmd.env, cmd.cwd, key)
             self.toast.emit(f"{store.name} is taking over the install of {g.title}")
         else:

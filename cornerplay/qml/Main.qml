@@ -64,8 +64,18 @@ ApplicationWindow {
         }
         function onToast(message) { toasts.append({ message: message }) }
         function onLoginWeb(store, name, url) {
-            loginWindow.active = true
-            loginWindow.item.begin(store, name, url)
+            const target = store === "blizzard" ? blizzardLogin : loginWindow
+            if (store === "blizzard") blizzardSync.active = true
+            target.active = true
+            target.item.begin(store, name, url)
+        }
+        function onBlizzardSync() {
+            blizzardSync.active = true
+            blizzardSync.item.start()
+        }
+        function onBlizzardForget() {
+            blizzardSync.active = true
+            app.blizzardClearCookies(blizzardSync.item.profile)
         }
         function onLoginReady(store, url, prompt) {
             login.store = store; login.url = url; login.prompt = prompt
@@ -75,6 +85,7 @@ ApplicationWindow {
             app.openUrl(url)
         }
         function onLoginDone(store, ok, message) {
+            if (store === "blizzard") { if (ok) toasts.append({ message: message }); return }
             login.busy = false
             if (ok) { login.close(); toasts.append({ message: message }) }
             else login.error = message
@@ -82,8 +93,8 @@ ApplicationWindow {
     }
 
     Shortcut { sequence: "Ctrl+F"; onActivated: search.forceActiveFocus() }
-    Shortcut { sequence: "Ctrl+R"; onActivated: app.refresh() }
-    Shortcut { sequence: "F5"; onActivated: app.refresh() }
+    Shortcut { sequence: "Ctrl+R"; onActivated: app.refresh("", true) }
+    Shortcut { sequence: "F5"; onActivated: app.refresh("", true) }
     Shortcut { sequence: "F11"; onActivated: win.tv = !win.tv }
     Shortcut { sequence: "Ctrl+Q"; onActivated: Qt.quit() }
 
@@ -364,7 +375,7 @@ ApplicationWindow {
                     text: app.refreshing ? "Refreshing…" : "Refresh"
                     iconName: "refresh-cw"
                     enabled: !app.refreshing
-                    onClicked: app.refresh()
+                    onClicked: app.refresh("", true)
                 }
             }
 
@@ -1420,7 +1431,7 @@ ApplicationWindow {
                                     color: modelData.problem ? theme.error : theme.onSurfaceVariant
                                 text: modelData.problem ? modelData.problem
                                       : modelData.loggedIn ? ("Connected" + (modelData.account ? " · " + modelData.account : ""))
-                                      : modelData.id === "battlenet" ? "Install the Battle.net app from the library first"
+                                      : modelData.id === "battlenet" ? "Install the Battle.net app from the library, or link your Blizzard account to list your games"
                                       : "Not connected"
                                 }
                             }
@@ -1437,6 +1448,13 @@ ApplicationWindow {
                                 onLinkActivated: { accounts.close(); prefs.tab = 2; prefs.open() }
                                 HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
+                        }
+                        KButton {
+                            theme: win.theme
+                            visible: modelData.id === "battlenet" && typeof webLogin !== "undefined" && webLogin
+                            text: app.blizzardLinked ? "Unlink account" : "Link account"
+                            iconName: app.blizzardLinked ? "log-out" : "log-in"
+                            onClicked: app.blizzardLinked ? app.blizzardUnlink() : app.blizzardLink()
                         }
                         KButton {
                             theme: win.theme
@@ -2173,6 +2191,19 @@ ApplicationWindow {
             target: loginWindow.item
             function onFallback() { app.loginBegin(loginWindow.item.store, true) }
         }
+    }
+
+    // Blizzard account: its own sign-in window and the hidden page that reads the owned games.
+    // Loaded only once an account is linked (or being linked): it starts Chromium.
+    Loader {
+        id: blizzardSync
+        active: typeof webLogin !== "undefined" && webLogin && app.blizzardLinked
+        source: "BlizzardSync.qml"
+    }
+    Loader {
+        id: blizzardLogin
+        active: false
+        sourceComponent: Component { LoginWindow { keptProfile: blizzardSync.item ? blizzardSync.item.profile : null } }
     }
 
     // -------------------------------------------------------------------- screenshot viewer

@@ -67,15 +67,15 @@ class Epic(Store):
         except ValueError:
             return {}
 
-    def fetch(self):
+    def fetch(self, force=False):
         installed = self._installed()
         games = {}
         error = ""
         if self.logged_in():
             argv = [self.tool(), "list", "--json"]
             stamp = CACHE_DIR / "epic_full_refresh.json"
-            if time.time() - (read_json(stamp) or {}).get("t", 0) > 7 * 86400:
-                argv.append("--force-refresh")  # weekly: new art and details from Epic
+            if force or time.time() - (read_json(stamp) or {}).get("t", 0) > 7 * 86400:
+                argv.append("--force-refresh")  # Refresh button, else weekly: new games, art and details
             r = run(argv, timeout=300)
             if r.returncode == 0 and "--force-refresh" in argv:
                 write_json(stamp, {"t": time.time()})
