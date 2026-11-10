@@ -160,9 +160,36 @@ class Steam(Store):
                         games[appid] = self._game(appid, g.get("name") or f"App {appid}")
             except (requests.RequestException, ValueError) as e:
                 self._add_playtime(games)
+                self._mark_hidden(games, steamid)
                 raise PartialResult(list(games.values()), f"Steam Web API: {e}")
         self._add_playtime(games)
+        self._mark_hidden(games, steamid)
         return list(games.values())
+
+    def _mark_hidden(self, games, steamid):
+        """Games hidden in Steam's library get extra["steam_hidden"]; AIO Launch then keeps
+        them under "Hidden games" too. Steam syncs its collections through the cloud into
+        userdata/<id>/config/cloudstorage/cloud-storage-namespace-1.json."""
+        root = self.root()
+        try:
+            account = int(steamid) - 76561197960265728
+        except (TypeError, ValueError):
+            return
+        path = root / "userdata" / str(account) / "config" / "cloudstorage" / "cloud-storage-namespace-1.json" if root else None
+        try:
+            entries = json.loads(path.read_text()) if path else []
+        except (OSError, ValueError):
+            return
+        hidden = set()
+        for key, entry in entries:
+            if key == "user-collections.hidden" and isinstance(entry, dict) and not entry.get("is_deleted"):
+                try:
+                    hidden = {str(a) for a in json.loads(entry.get("value") or "{}").get("added", [])}
+                except ValueError:
+                    pass
+        for appid, g in games.items():
+            if appid in hidden:
+                g.extra["steam_hidden"] = True
 
     def _local_apps(self, steamid):
         """The "apps" section of the account's localconfig.vdf (every app it has run, with playtime)."""

@@ -160,7 +160,14 @@ class LibraryModel(QAbstractListModel):
         self.groups = list(groups.values())
 
     def is_hidden(self, group):
-        return any(game_options.get(g.key).get("hidden") for g in group)
+        """Hidden in AIO Launch, or hidden in Steam when every copy is a hidden Steam copy
+        (a copy on another store keeps it visible). Unhiding in AIO Launch overrides Steam."""
+        opts = [game_options.get(g.key).get("hidden") for g in group]
+        if any(o is True for o in opts):
+            return True
+        if any(o is False for o in opts):
+            return False
+        return bool(group) and all(g.extra.get("steam_hidden") for g in group)
 
     def group_of(self, key):
         return next((grp for grp in self.groups if any(g.key == key for g in grp)), [])
@@ -262,6 +269,10 @@ class LibraryProxy(QSortFilterProxyModel):
         group = model.groups[row]
         if model.is_hidden(group) != self._hidden:
             return False
+        # A copy hidden in Steam does not count (unless it was unhidden here): the game then
+        # only shows through its other stores' copies, and not at all under the Steam filter.
+        if not self._hidden:
+            group = [g for g in group if not g.extra.get("steam_hidden") or game_options.get(g.key).get("hidden") is False]
         if self._store:
             group = [g for g in group if g.store == self._store]
         if self._installed:
@@ -805,7 +816,8 @@ class AioLaunch(QObject):
         """Hide or show a game; every store's copy of it goes together."""
         group = self.model.group_of(key)
         for g in group:
-            game_options.set(g.key, "hidden", True if hidden else None)
+            # Unhiding a game Steam hides stores False, so it stays shown here (Steam is not changed).
+            game_options.set(g.key, "hidden", True if hidden else (False if g.extra.get("steam_hidden") else None))
         self.proxy.refilter()
         self.storesChanged.emit()
         self.gameChanged.emit(key)
