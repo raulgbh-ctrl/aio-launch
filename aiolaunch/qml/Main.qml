@@ -126,6 +126,14 @@ ApplicationWindow {
                     height: 40
                     radius: 10
                     color: active ? theme.primaryContainer : navHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    Behavior on color { enabled: !app.light; ColorAnimation { duration: 120 } }
+                    // Accent bar on the selected item.
+                    Rectangle {
+                        visible: nav.active
+                        x: 0; anchors.verticalCenter: parent.verticalCenter
+                        width: 4; height: 20; radius: 2
+                        color: theme.primary
+                    }
                     StoreIcon {
                         visible: nav.dot !== ""
                         x: 12; anchors.verticalCenter: parent.verticalCenter
@@ -579,16 +587,59 @@ ApplicationWindow {
         id: detail
         theme: win.theme
         heading: ""
-        width: Math.min(win.width - 60, 720)
-        topPadding: 24
+        width: Math.min(win.width - 60, 860)
+        // The game's wide art runs across the top; the cover and title start inside its faded lower part.
+        readonly property int bannerH: Math.round(width * 0.34)
+        topPadding: bannerH - 118
         onClosed: { win.selectedKey = ""; confirmRemove.armed = false }
+        background: Rectangle {
+            radius: 18
+            color: theme.surfaceContainer
+            border.width: 1
+            border.color: theme.outlineVariant
+            Item {
+                id: detailBanner
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
+                height: detail.bannerH
+                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                layer.effect: MultiEffect { maskEnabled: true; maskSource: detailMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+                Rectangle { anchors.fill: parent; color: Qt.darker(win.selected.storeColor || theme.surfaceContainerHigh, 2.6) }
+                ArtImage {
+                    anchors.fill: parent
+                    sources: detail.visible ? (win.selected.heroes || []) : []
+                    sourceSize.width: 1600
+                    opacity: status === Image.Ready ? 1 : 0
+                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.alpha(theme.surfaceContainer, 0.0) }
+                        GradientStop { position: 0.5; color: Qt.alpha(theme.surfaceContainer, 0.35) }
+                        GradientStop { position: 1.0; color: theme.surfaceContainer }
+                    }
+                }
+            }
+            Rectangle { id: detailMask; anchors.fill: detailBanner; radius: 17; layer.enabled: true; visible: false }
+            Rectangle {
+                anchors { right: parent.right; top: parent.top; margins: 14 }
+                width: 34; height: 34; radius: 17
+                color: closeHover.hovered ? Qt.alpha("black", 0.7) : Qt.alpha("black", 0.45)
+                Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 15 }
+                HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: detail.close() }
+            }
+        }
         contentItem: RowLayout {
-            spacing: 24
+            spacing: 26
             Rectangle {
                 Layout.preferredWidth: 220
                 Layout.preferredHeight: 320
+                Layout.alignment: Qt.AlignTop
                 radius: 12
                 color: theme.surfaceContainerHigh
+                border.width: 1
+                border.color: Qt.alpha("white", 0.14)
                 clip: true
                 Text {
                     anchors.centerIn: parent
@@ -610,23 +661,29 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 10
+                Item { Layout.preferredHeight: 34 }
                 Text {
                     Layout.fillWidth: true
-                    Layout.rightMargin: 30
                     text: win.selected.title || ""
                     color: theme.onSurface
-                    font.pixelSize: 24
-                    font.weight: Font.Bold
+                    font.pixelSize: 30
+                    font.weight: Font.Black
                     wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
                 }
-                Row {
+                Flow {
+                    Layout.fillWidth: true
                     spacing: 8
-                    StoreIcon { size: 15; store: win.selected.store || ""; color: win.selected.storeColor || "gray"; anchors.verticalCenter: parent.verticalCenter }
-                    Text {
-                        color: theme.onSurfaceVariant
-                        font.pixelSize: 13
-                        text: (win.selected.storeName || "") + "  ·  "
-                              + (!win.selected.installed ? "Not installed" : win.selected.update ? "Update available" : "Installed")
+                    Pill { store: win.selected.store || ""; dot: win.selected.storeColor || ""; label: win.selected.storeName || "" }
+                    Pill {
+                        label: !win.selected.installed ? "Not installed" : win.selected.update ? "↑  Update available" : "Installed"
+                        accent: !!win.selected.update
+                    }
+                    Pill {
+                        readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
+                        visible: played !== ""
+                        label: played
                     }
                 }
                 Text {
@@ -638,13 +695,6 @@ ApplicationWindow {
                     elide: Text.ElideMiddle
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: app.openFolder(win.selected.installPath) }
-                }
-                Text {
-                    readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
-                    visible: played !== ""
-                    text: played
-                    color: theme.onSurfaceVariant
-                    font.pixelSize: 13
                 }
 
                 // The same game owned on several stores: choose which copy to use.
@@ -1096,6 +1146,37 @@ ApplicationWindow {
             }
         }
     }
+    // A small rounded label: optional store logo, text, optional accent colour.
+    component Pill: Rectangle {
+        id: pill
+        readonly property var theme: app.theme
+        property string label: ""
+        property string store: ""
+        property string dot: ""
+        property bool accent: false
+        height: 28
+        radius: 14
+        width: pillRow.implicitWidth + 24
+        color: accent ? theme.primary : Qt.alpha(theme.surfaceContainerHighest, 0.9)
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 7
+            StoreIcon {
+                visible: pill.store !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                size: 14; store: pill.store; color: pill.dot || "white"
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: pill.label
+                color: pill.accent ? theme.onPrimary : theme.onSurface
+                font.pixelSize: 12
+                font.weight: pill.accent ? Font.DemiBold : Font.Normal
+            }
+        }
+    }
+
     component Chip: Rectangle {
         id: chip
         readonly property var theme: app.theme

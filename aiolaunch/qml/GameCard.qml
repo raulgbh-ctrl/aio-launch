@@ -29,6 +29,27 @@ Item {
 
     readonly property bool lit: hover.hovered || current
 
+    // Accent glow around the pointed-at card: a few fading outlines, cheap on any GPU.
+    Item {
+        anchors.fill: frame
+        scale: frame.scale
+        visible: card.lit
+        opacity: card.lit ? 1 : 0
+        Repeater {
+            model: 5
+            Rectangle {
+                required property int index
+                anchors.fill: parent
+                anchors.margins: -(index + 1) * 2
+                anchors.topMargin: -(index + 1) * 2 + 4  // sits a little low, like a shadow
+                radius: card.cornerRadius + (index + 1) * 2
+                color: "transparent"
+                border.width: 2
+                border.color: Qt.alpha(card.theme.primary, 0.30 - index * 0.055)
+            }
+        }
+    }
+
     Rectangle {
         id: frame
         anchors.fill: parent

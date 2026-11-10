@@ -56,11 +56,12 @@ FocusScope {
 
     Rectangle { anchors.fill: parent; color: theme.background }
 
-    // Soft backdrop from the focused game's cover.
+    // Backdrop: the focused game's wide art across the top, fading into the background;
+    // its blurred cover when there is no wide art.
     Image {
         id: backdrop
         anchors.fill: parent
-        source: tv.visible && !app.light ? (tv.cur.cover || "") : ""
+        source: tv.visible && !app.light && wideArt.status !== Image.Ready ? (tv.cur.cover || "") : ""
         asynchronous: true
         fillMode: Image.PreserveAspectCrop
         sourceSize.width: 200
@@ -74,6 +75,36 @@ FocusScope {
         blur: 1.0
         blurMax: 64
         opacity: 0.28
+    }
+    Item {
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: parent.height * 0.78
+        visible: tv.visible
+        ArtImage {
+            id: wideArt
+            anchors.fill: parent
+            sources: tv.cur.heroes || []
+            sourceSize.width: app.light ? 1280 : 1920
+            horizontalAlignment: Image.AlignRight
+            opacity: status === Image.Ready ? 0.62 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 300 } }
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.25) }
+                GradientStop { position: 0.55; color: Qt.alpha(theme.background, 0.7) }
+                GradientStop { position: 1.0; color: theme.background }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.85) }
+                GradientStop { position: 0.6; color: Qt.alpha(theme.background, 0.0) }
+            }
+        }
     }
 
     ColumnLayout {
@@ -131,6 +162,7 @@ FocusScope {
 
         GridView {
             id: grid
+            objectName: "tvGrid"
             Layout.fillWidth: true
             Layout.fillHeight: true
             focus: true
