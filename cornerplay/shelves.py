@@ -1,8 +1,8 @@
 """Favourites, the user's own collections, and when each game first showed up.
 
-A game's collections live in its per-game options (games.json, "collections": [ids]) on
+A game's collections live in the profile's personal data (personal.py, "collections": [ids]) on
 every store's copy, like "hidden", so a game owned twice is in a collection once.
-Collection names are kept in settings ("collections"), in the order they were made.
+Collection names are kept per profile (personal.py), in the order they were made.
 The favourites collection has the fixed id "fav".
 
 first_seen.json remembers when each game key first came back from its store, so
@@ -12,7 +12,8 @@ has is stamped 0 (already owned), so the shelf starts empty instead of listing e
 import os
 import time
 
-from .config import CONFIG_DIR, game_options, read_json, settings, write_json
+from . import personal
+from .config import CONFIG_DIR, read_json, write_json
 
 FAV = "fav"
 SEEN_FILE = CONFIG_DIR / "first_seen.json"
@@ -20,12 +21,11 @@ RECENT_DAYS = 45  # "Recently added" covers games that arrived in the last six w
 
 
 def names():
-    value = settings.get("collections")
-    return [n for n in value if isinstance(n, str) and n] if isinstance(value, list) else []
+    return [n for n in personal.collections() if isinstance(n, str) and n]
 
 
 def ids_of(key):
-    return list(game_options.get(key).get("collections") or [])
+    return list(personal.get(key, "collections") or [])
 
 
 def in_group(group, cid):
@@ -37,22 +37,22 @@ def set_member(group, cid, on):
         ids = [i for i in ids_of(g.key) if i != cid]
         if on:
             ids.append(cid)
-        game_options.set(g.key, "collections", ids or None)
+        personal.put(g.key, "collections", ids)
 
 
 def create(name):
     name = " ".join(name.split())[:40]
     if not name or name.lower() in ("favourites", "favorites") or name in names():
         return ""
-    settings.set("collections", names() + [name])
+    personal.set_collections(names() + [name])
     return name
 
 
 def delete(name):
-    settings.set("collections", [n for n in names() if n != name])
-    for key, entry in list(game_options.data.items()):
+    personal.set_collections([n for n in names() if n != name], deleted=[name])
+    for key, entry in list(personal.doc()["games"].items()):
         if name in (entry.get("collections") or []):
-            game_options.set(key, "collections", [i for i in entry["collections"] if i != name] or None)
+            personal.put(key, "collections", [i for i in entry["collections"] if i != name])
 
 
 # --- recently added ----------------------------------------------------------
@@ -105,7 +105,7 @@ STATUS_NAMES = dict(STATUSES)
 def meta(group, name):
     """The first copy's value of status / rating / note (all copies are kept the same)."""
     for g in group:
-        v = game_options.get(g.key).get(name)
+        v = personal.get(g.key, name)
         if v not in (None, ""):
             return v
     return "" if name != "rating" else 0
@@ -113,7 +113,7 @@ def meta(group, name):
 
 def set_meta(group, name, value):
     for g in group:
-        game_options.set(g.key, name, value if value not in ("", 0, None) else None)
+        personal.put(g.key, name, value)
 
 
 # --- recently installed ------------------------------------------------------------

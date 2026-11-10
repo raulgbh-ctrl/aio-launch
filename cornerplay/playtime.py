@@ -7,17 +7,24 @@ Battle.net is not timed: its app stays open after the game closes.
 import fcntl
 import time
 
-from .config import DATA_DIR, read_json, write_json
+from . import personal
+from .config import read_json, write_json
 
-FILE = DATA_DIR / "playtime.json"
-SESSIONS = DATA_DIR / "sessions.json"  # [[key, start, end], ...]: what the play stats are made of
+# Per profile and per PC (personal.py): this PC writes its own files; synced PCs' files are added in.
 TIMED = ("epic", "gog", "amazon")
 MIN_SECONDS = 10  # a shorter run is a failed start, not play
 
 
 def load() -> dict:
-    """{"store:id": {"seconds": total, "last": unix time}}"""
-    return read_json(FILE) or {}
+    """{"store:id": {"seconds": total, "last": unix time}}, this PC's and the synced PCs' together."""
+    own, others = personal.playtime_files("playtime")
+    total = {}
+    for path in [own] + others:
+        for key, e in (read_json(path) or {}).items():
+            t = total.setdefault(key, {"seconds": 0, "last": 0})
+            t["seconds"] += int(e.get("seconds", 0))
+            t["last"] = max(t["last"], int(e.get("last", 0)))
+    return total
 
 
 def record(key: str, started: float, ended: float | None = None):
@@ -26,16 +33,18 @@ def record(key: str, started: float, ended: float | None = None):
     seconds = int(ended - started)
     if seconds < MIN_SECONDS:
         return
-    FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(FILE.with_suffix(".lock"), "w") as lock:
+    own, _others = personal.playtime_files("playtime")
+    log_path, _ = personal.playtime_files("sessions")
+    own.parent.mkdir(parents=True, exist_ok=True)
+    with open(own.with_suffix(".lock"), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        data = load()
+        data = read_json(own) or {}
         entry = data.get(key) or {}
         data[key] = {"seconds": int(entry.get("seconds", 0)) + seconds, "last": int(ended)}
-        write_json(FILE, data)
-        log = read_json(SESSIONS) or []
+        write_json(own, data)
+        log = read_json(log_path) or []
         log.append([key, int(started), int(ended)])
-        write_json(SESSIONS, log[-5000:])
+        write_json(log_path, log[-5000:])
 
 
 def of(game, data: dict) -> tuple[int, int]:
@@ -46,4 +55,8 @@ def of(game, data: dict) -> tuple[int, int]:
 
 
 def sessions() -> list:
-    return [s for s in (read_json(SESSIONS) or []) if isinstance(s, list) and len(s) == 3]
+    own, others = personal.playtime_files("sessions")
+    out = []
+    for path in [own] + others:
+        out += [s for s in (read_json(path) or []) if isinstance(s, list) and len(s) == 3]
+    return out

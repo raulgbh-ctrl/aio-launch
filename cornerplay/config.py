@@ -40,6 +40,10 @@ def _migrate_from_kura():
 DEFAULTS = {
     "library_dirs": [],  # folders games were moved to (Storage > Move); GOG installs are found there too
     "update_check": True,  # look for a new Cornerplay release once a day
+    "profiles": [],        # people using this PC (personal.py); empty: one profile, "Me"
+    "profile": "",
+    "sync_dir": "",        # a folder another tool syncs between PCs; Cornerplay keeps personal data there
+    "machine_id": "",
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
     "show_fps": False,

@@ -394,6 +394,12 @@ FocusScope {
                            text: app.nowPlaying.length ? app.nowPlaying[0].title : ""; color: theme.onSurface; font.pixelSize: 16 }
                 }
                 Text {
+                    visible: app.profiles.length > 1
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: app.profile
+                    color: theme.onSurfaceVariant; font.pixelSize: 18
+                }
+                Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: topStatus.clock
                     color: theme.onSurface

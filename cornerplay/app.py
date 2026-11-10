@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import achievements, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, personal, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -421,6 +421,7 @@ class AioLaunch(QObject):
         self._dlc_cache = {}  # key -> (time, rows)
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
+        personal.on_change(self._personal_changed)
         self._worker_toast.connect(self.toast)
         self._after.connect(lambda fn: fn())
 
@@ -659,6 +660,7 @@ class AioLaunch(QObject):
         if not store_id:
             self._load_epic_free(force)
             self._check_update()
+            self.syncPersonal()
         if self.demo:
             return
         for s in ([self.stores[store_id]] if store_id else self.stores.values()):
@@ -1162,6 +1164,81 @@ class AioLaunch(QObject):
         self.gameChanged.emit(key)
         title = group[0].title if group else "Game"
         self.toast.emit(f"{title} hidden. Find it under Hidden games." if hidden else f"{title} is back in your library")
+
+    # --- people and sync ------------------------------------------------------------
+    profilesChanged = Signal()
+    syncChanged = Signal()
+
+    profiles = Property("QVariantList", lambda s: personal.profiles(), notify=profilesChanged)
+    profile = Property(str, lambda s: personal.current(), notify=profilesChanged)
+
+    def _personal_reloaded(self):
+        self.model.played = playtime.load()
+        self.model.generation += 1
+        self._refilter_all()
+        self.profilesChanged.emit()
+
+    @Slot(str)
+    def switchProfile(self, name):
+        if name == personal.current():
+            return
+        personal.switch(name)
+        self._personal_reloaded()
+        self.toast.emit(f"Hi {name}: your favourites, collections and stats")
+
+    @Slot(str, result=str)
+    def addProfile(self, name):
+        made = personal.add_profile(name)
+        if made:
+            self.profilesChanged.emit()
+        return made
+
+    @Slot(str)
+    def removeProfile(self, name):
+        if personal.remove_profile(name):
+            self._personal_reloaded()
+
+    def _sync_info(self):
+        last = personal.last_sync()
+        return {"dir": settings.get("sync_dir"), "error": last["error"], "busy": self._syncing,
+                "when": time.strftime("%H:%M", time.localtime(last["t"])) if last["t"] else ""}
+
+    _syncing = False
+    syncState = Property("QVariantMap", _sync_info, notify=syncChanged)
+
+    @Slot(str)
+    def setSyncDir(self, folder):
+        folder = QUrl(folder).toLocalFile() if folder.startswith("file:") else folder.strip()
+        settings.set("sync_dir", folder)
+        self.syncChanged.emit()
+        self.syncPersonal()
+
+    @Slot()
+    def syncPersonal(self):
+        if not settings.get("sync_dir") or self._syncing:
+            return
+        self._syncing = True
+        self.syncChanged.emit()
+
+        def work():
+            err = personal.sync()
+
+            def done():
+                self._syncing = False
+                self._personal_reloaded()
+                self.syncChanged.emit()
+                if err:
+                    self.toast.emit(f"Sync: {err}")
+            return done
+        self._bg(work)
+
+    def _personal_changed(self):
+        """A local change (star, collection, note...): sync it out a few seconds later."""
+        if settings.get("sync_dir"):
+            if not hasattr(self, "_sync_soon"):
+                self._sync_soon = QTimer(self, singleShot=True, interval=4000)
+                self._sync_soon.timeout.connect(self.syncPersonal)
+            self._after.emit(self._sync_soon.start)  # from any thread, onto the UI thread
 
     # --- favourites and collections ---------------------------------------
     collectionsChanged = Signal()

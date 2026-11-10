@@ -162,9 +162,20 @@ ApplicationWindow {
                 }
             }
 
-            ColumnLayout {
+            // Scrolls when the list is taller than the window (a short screen, many collections);
+            // otherwise the bottom items sit at the bottom as before.
+            Flickable {
+                id: sideFlick
                 anchors.fill: parent
                 anchors.margins: 14
+                contentHeight: sideCol.height
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: KScrollBar { }
+            ColumnLayout {
+                id: sideCol
+                width: sideFlick.width
+                height: Math.max(sideFlick.height, implicitHeight)
                 spacing: 4
 
                 RowLayout {
@@ -179,6 +190,28 @@ ApplicationWindow {
                         font.pixelSize: 21
                         font.weight: Font.Light
                         font.letterSpacing: 0.3
+                    }
+                }
+                // Who is playing: only shown once there is more than one person.
+                Flow {
+                    visible: app.profiles.length > 1
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8; Layout.bottomMargin: 10
+                    spacing: 6
+                    Repeater {
+                        model: app.profiles
+                        Rectangle {
+                            required property string modelData
+                            readonly property bool on: modelData === app.profile
+                            height: 28; radius: 14
+                            width: whoText.implicitWidth + 24
+                            color: on ? theme.primary : "transparent"
+                            border.width: on ? 0 : 1; border.color: theme.outlineVariant
+                            Text { id: whoText; anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 12; font.weight: Font.DemiBold
+                                   color: parent.on ? theme.onPrimary : theme.onSurfaceVariant }
+                            TapHandler { onTapped: app.switchProfile(parent.modelData) }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        }
                     }
                 }
 
@@ -346,6 +379,7 @@ ApplicationWindow {
                 NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
                 NavItem { label: "Accounts"; icon: "user-round"; onPicked: accounts.open() }
                 NavItem { label: "Settings"; icon: "sliders-horizontal"; onPicked: prefs.open() }
+            }
             }
         }
 
@@ -1598,6 +1632,11 @@ ApplicationWindow {
         }
     }
     FolderDialog {
+        id: syncDest
+        title: "Which folder do your PCs sync?"
+        onAccepted: app.setSyncDir(selectedFolder.toString())
+    }
+    FolderDialog {
         id: moveDest
         title: "Move to which folder?"
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
@@ -2167,7 +2206,7 @@ ApplicationWindow {
                                 linkColor: theme.primary
                                 text: "Showing installed games and games you have played. For every game you own, "
                                       + "<a href=\"key\">add a Steam Web API key</a>."
-                                onLinkActivated: { accounts.close(); prefs.tab = 2; prefs.open() }
+                                onLinkActivated: { accounts.close(); prefs.tab = 3; prefs.open() }
                                 HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
@@ -2436,7 +2475,7 @@ ApplicationWindow {
                 spacing: 8
                 Repeater {
                     model: [{ name: "Appearance", icon: "eye" }, { name: "Compatibility", icon: "gamepad-2" },
-                            { name: "Library", icon: "library" }]
+                            { name: "People & sync", icon: "user-round" }, { name: "Library", icon: "library" }]
                     Chip {
                         required property var modelData
                         required property int index
@@ -2659,6 +2698,73 @@ ApplicationWindow {
                                     text: app.settingsMap.env
                                     onEditingFinished: app.setSetting("env", text.trim())
                                 }
+                            }
+                        }
+
+                        // ---- People & sync
+                        ColumnLayout {
+                            spacing: 16
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                color: theme.onSurfaceVariant; font.pixelSize: 13
+                                text: "Each person gets their own favourites, collections, statuses, stars, notes and play stats. Games, sign-ins and settings are shared. Switch from the name at the top of the sidebar."
+                            }
+                            Repeater {
+                                model: app.profiles
+                                Rectangle {
+                                    required property string modelData
+                                    Layout.fillWidth: true
+                                    height: 48; radius: 12
+                                    color: theme.surfaceContainerHigh
+                                    Rectangle {
+                                        x: 12; anchors.verticalCenter: parent.verticalCenter
+                                        width: 28; height: 28; radius: 14
+                                        color: modelData === app.profile ? theme.primary : theme.surfaceContainerHighest
+                                        Text { anchors.centerIn: parent; text: modelData.charAt(0).toUpperCase(); font.pixelSize: 13; font.weight: Font.Bold
+                                               color: modelData === app.profile ? theme.onPrimary : theme.onSurface }
+                                    }
+                                    Text { x: 52; anchors.verticalCenter: parent.verticalCenter; text: modelData + (modelData === app.profile ? "  (now)" : "")
+                                           color: theme.onSurface; font.pixelSize: 14 }
+                                    Row {
+                                        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                                        spacing: 6
+                                        KButton { theme: win.theme; visible: modelData !== app.profile; text: "Switch"; onClicked: app.switchProfile(modelData) }
+                                        KButton { theme: win.theme; visible: app.profiles.length > 1; danger: true; iconName: "trash-2"; text: ""
+                                                  onClicked: app.removeProfile(modelData) }
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                KField { id: newPerson; theme: win.theme; Layout.fillWidth: true; placeholderText: "Add a person (name)"
+                                         Keys.onReturnPressed: { if (app.addProfile(text)) text = "" } }
+                                KButton { theme: win.theme; text: "Add"; iconName: "plus"; enabled: newPerson.text.trim() !== ""
+                                          onClicked: { if (app.addProfile(newPerson.text)) newPerson.text = "" } }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                            Row2 {
+                                label: "Sync with your other PCs"
+                                hint: "Pick a folder that Syncthing, Nextcloud, Dropbox or similar already keeps in step between your PCs (and the Steam Deck). Cornerplay keeps everyone's favourites, collections, statuses, notes and playtime in a Cornerplay folder inside it, merged game by game. Your games themselves are not copied."
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    KField { id: syncField; theme: win.theme; Layout.fillWidth: true; placeholderText: "Not syncing"
+                                             text: app.syncState.dir || ""
+                                             onEditingFinished: if (text.trim() !== (app.syncState.dir || "")) app.setSyncDir(text.trim()) }
+                                    KButton { theme: win.theme; text: "Choose…"; iconName: "folder-open"; onClicked: syncDest.open() }
+                                }
+                            }
+                            RowLayout {
+                                visible: !!app.syncState.dir
+                                spacing: 10
+                                KButton { theme: win.theme; text: app.syncState.busy ? "Syncing…" : "Sync now"; iconName: "refresh-cw"
+                                          enabled: !app.syncState.busy; onClicked: app.syncPersonal() }
+                                KButton { theme: win.theme; text: "Stop syncing"; onClicked: app.setSyncDir("") }
+                                Text { text: app.syncState.error ? "Last sync failed: " + app.syncState.error
+                                             : app.syncState.when ? "Last synced " + app.syncState.when : ""
+                                       color: app.syncState.error ? theme.error : theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
                         }
 

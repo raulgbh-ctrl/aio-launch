@@ -193,8 +193,11 @@ def main():
     ctx.setContextProperty("webLogin", web_login)
     # TV-mode trailers need Qt Multimedia's QML module; without it they are simply left out.
     ctx.setContextProperty("canPlayVideo", (qml_dir / "QtMultimedia" / "qmldir").is_file())
+    # Say why when the window cannot be built (a QML error), instead of quitting silently.
+    engine.warnings.connect(lambda ws: [print("QML:", w.toString(), file=sys.stderr) for w in ws])
     engine.load(QUrl.fromLocalFile(str(here / "qml" / "Main.qml")))
     if not engine.rootObjects():
+        print("Cornerplay could not open its window (see the QML errors above).", file=sys.stderr)
         return 1
     app.aboutToQuit.connect(cornerplay.shutdown)
     code = app.exec()
