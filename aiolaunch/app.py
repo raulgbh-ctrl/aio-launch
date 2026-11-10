@@ -90,7 +90,7 @@ def _cover(g):
     custom = game_options.get(g.key).get("cover", "")
     if custom.startswith("/"):
         return "file://" + custom
-    return custom or g.cover
+    return custom or g.extra.get("current_cover") or g.cover
 
 
 def _job(m, g):
@@ -610,6 +610,19 @@ class AioLaunch(QObject):
             self.pool.submit(self._fetch, s)
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    @Slot()
+    def refreshArtwork(self):
+        """Forget the remembered art (Steam's asset list, title lookups, GOG art, Epic's game
+        data age) and refresh every store, so the newest covers, banners and logos come in."""
+        from .stores import gog
+        for f in (covers.ASSETS_FILE, covers.CACHE_FILE, gog.META_FILE, CACHE_DIR / "epic_full_refresh.json"):
+            try:
+                f.unlink()
+            except OSError:
+                pass
+        self.toast.emit("Fetching the newest artwork from every store…")
+        self.refresh()
 
     @Slot()
     def windowActivated(self):

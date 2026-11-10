@@ -125,6 +125,34 @@ Item {
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
             }
 
+            // A soft streak of light sweeps across the cover when it is pointed at.
+            Rectangle {
+                id: shine
+                visible: false
+                y: -parent.height * 0.3
+                width: parent.width * 0.45
+                height: parent.height * 1.6
+                rotation: 18
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: Qt.alpha("white", 0.16) }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                NumberAnimation on x {
+                    id: sweep
+                    running: false
+                    from: -shine.width * 1.4; to: card.width + shine.width * 0.4
+                    duration: 700; easing.type: Easing.OutCubic
+                    onStarted: shine.visible = true
+                    onFinished: shine.visible = false
+                }
+            }
+            Connections {
+                target: hover
+                function onHoveredChanged() { if (hover.hovered && !app.light && img.status === Image.Ready) sweep.restart() }
+            }
+
             // Title strip, on hover or when there is no art to read.
             Rectangle {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }

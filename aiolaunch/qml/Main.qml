@@ -90,6 +90,18 @@ ApplicationWindow {
     // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
     property bool tvUsed: startTv
 
+    // The banner shows one of the last few games played, turning to the next every 9 s.
+    property int heroAt: 0
+    readonly property int heroCount: Math.min(4, app.recentGames.length)
+    readonly property var heroInfo: heroCount ? app.recentGames[heroAt % heroCount] : ({})
+    property bool heroPaused: false
+    Timer {
+        interval: 9000
+        repeat: true
+        running: win.heroCount > 1 && !win.heroPaused && win.active && !win.tv && !win.popupOpen
+        onTriggered: win.heroAt = (win.heroAt + 1) % win.heroCount
+    }
+
     // Any pop-up open over the library? Cards and tiles then ignore the pointer, and keep
     // ignoring it for a moment after the pop-up closes (the click that closed it must not
     // land on the game underneath).
@@ -272,6 +284,41 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
+            // Ambient light: the banner game's art, blurred and faint, behind the top of the page.
+            // A zero-height item drawn first, so it sits under the toolbar and the grid.
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 0
+                z: -1
+                visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software && !!win.heroInfo.key
+                Item {
+                    width: parent.width
+                    height: 620
+                    ArtImage {
+                        id: ambientArt
+                        anchors.fill: parent
+                        sources: win.heroInfo.heroes || win.heroInfo.covers || []
+                        sourceSize.width: 480
+                        visible: false
+                    }
+                    MultiEffect {
+                        anchors.fill: parent
+                        source: ambientArt
+                        blurEnabled: true; blur: 1.0; blurMax: 64
+                        saturation: 0.3
+                        opacity: ambientArt.status === Image.Ready ? 0.32 : 0
+                        Behavior on opacity { NumberAnimation { duration: 800 } }
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.25) }
+                            GradientStop { position: 1.0; color: theme.background }
+                        }
+                    }
+                }
+            }
+
             RowLayout {
                 Layout.margins: 20
                 Layout.bottomMargin: 8
@@ -312,6 +359,16 @@ ApplicationWindow {
                 }
             }
 
+            // A hairline under the toolbar once the library has scrolled.
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20
+                Layout.preferredHeight: 1
+                color: theme.outlineVariant
+                opacity: grid.contentY > grid.originY + 4 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -330,9 +387,16 @@ ApplicationWindow {
                     cellHeight: Math.round(cellWidth * 1.46)
                     cacheBuffer: app.light ? 0 : cellHeight * 2
                     keyNavigationEnabled: true
-                    highlightFollowsCurrentItem: true
+                    // Follow the selection only when it moves (keys, controller). Following it always made
+                    // a short window open scrolled past the banner to keep the first card in view.
+                    highlightFollowsCurrentItem: false
+                    onCurrentIndexChanged: {
+                        if (!activeFocus) return
+                        if (currentIndex <= 0) positionViewAtBeginning()
+                        else positionViewAtIndex(currentIndex, GridView.Contain)
+                    }
                     boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: ScrollBar { }
+                    ScrollBar.vertical: KScrollBar { }
                     populate: Transition {
                         enabled: !app.light
                         NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
@@ -354,11 +418,18 @@ ApplicationWindow {
 
                         Item {
                             id: hero
-                            property var info: app.recentGames.length ? app.recentGames[0] : ({})
+                            property var info: win.heroInfo
                             property var game: info.key ? app.game(info.key) : ({})
                             property string accent: info.key ? app.gameColour(info.key) : ""
                             readonly property var tint: win.tinted(accent)
-                            onInfoChanged: accent = info.key ? app.gameColour(info.key) : ""
+                            onInfoChanged: { accent = info.key ? app.gameColour(info.key) : ""; heroFade.restart() }
+                            // Cross-fade to the next game.
+                            ParallelAnimation {
+                                id: heroFade
+                                NumberAnimation { target: heroArt; property: "opacity"; from: app.light ? 1 : 0.15; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: heroContent; property: "opacity"; from: app.light ? 1 : 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
+                            }
+                            HoverHandler { onHoveredChanged: win.heroPaused = hovered }
                             Connections {
                                 target: app
                                 function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
@@ -425,8 +496,27 @@ ApplicationWindow {
                                 anchors.fill: parent; radius: 18; color: "transparent"
                                 border.width: 1; border.color: theme.outlineVariant
                             }
+                            // Dots: which of the recent games is showing; click one to jump to it.
+                            Row {
+                                visible: win.heroCount > 1
+                                anchors { right: parent.right; bottom: parent.bottom; margins: 18 }
+                                spacing: 6
+                                Repeater {
+                                    model: win.heroCount
+                                    Rectangle {
+                                        required property int index
+                                        readonly property bool on: index === win.heroAt % win.heroCount
+                                        width: on ? 22 : 8; height: 8; radius: 4
+                                        color: on ? hero.tint.primary : Qt.alpha("white", 0.45)
+                                        Behavior on width { enabled: !app.light; NumberAnimation { duration: 200 } }
+                                        TapHandler { enabled: win.cardsLive; onTapped: win.heroAt = parent.index }
+                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
 
                             Row {
+                                id: heroContent
                                 anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
                                 spacing: 26
                                 Rectangle {
@@ -1156,7 +1246,7 @@ ApplicationWindow {
                 spacing: 8
                 model: dlc.rows
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { }
+                ScrollBar.vertical: KScrollBar { }
                 delegate: Rectangle {
                     id: dlcRow
                     required property var modelData
@@ -1606,7 +1696,7 @@ ApplicationWindow {
                 contentHeight: prefsStack.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { }
+                ScrollBar.vertical: KScrollBar { }
                 // The pages are built the first time Settings opens.
                 Loader {
                     id: prefsStack
@@ -1893,6 +1983,17 @@ ApplicationWindow {
                                     echoMode: TextInput.PasswordEchoOnEdit
                                     text: app.settingsMap.steam_api_key
                                     onEditingFinished: { app.setSetting("steam_api_key", text.trim()); app.refresh("steam") }
+                                }
+                            }
+                            Row2 {
+                                label: "Artwork"
+                                hint: "Covers follow the stores' current art: Steam's is checked every 2 days, GOG's every week, Epic's game data every week. This fetches everything again now."
+                                KButton {
+                                    theme: win.theme
+                                    iconName: "refresh-cw"
+                                    text: "Refresh artwork now"
+                                    enabled: !app.refreshing
+                                    onClicked: app.refreshArtwork()
                                 }
                             }
                             Row2 {

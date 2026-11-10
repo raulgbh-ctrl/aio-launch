@@ -23,7 +23,9 @@ from .config import CACHE_DIR, read_json, settings, write_json
 
 CACHE_FILE = CACHE_DIR / "cover_lookup.json"
 ASSETS_FILE = CACHE_DIR / "steam_assets.json"
-ASSET_TTL = 30 * 86400  # Steam art URLs carry a version stamp; refresh them monthly
+ASSET_TTL = 2 * 86400  # Steam art URLs carry a version stamp: ask again every 2 days to catch new art
+LOOKUP_TTL = 14 * 86400  # covers found by title are looked up again after two weeks...
+MISS_TTL = 3 * 86400     # ...and misses after three days
 STEAM_ASSETS = "https://shared.akamai.steamstatic.com/store_item_assets/"
 STEAM_CDN = "https://cdn.cloudflare.steamstatic.com/steam/apps"
 SGDB = "https://www.steamgriddb.com/api/v2"
@@ -128,12 +130,19 @@ def fill(games) -> str:
     def cache_key(title):
         return f"{source}:{norm(title)}"
 
-    missing = sorted({g.title for g in todo if cache_key(g.title) not in cache})
+    now = time.time()
+
+    def fresh(k):
+        stamp = cache.get(k + "#t", 0)
+        return k in cache and now - stamp < (LOOKUP_TTL if cache[k] else MISS_TTL)
+
+    missing = sorted({g.title for g in todo if not fresh(cache_key(g.title))})
     if missing:
         with ThreadPoolExecutor(4) as pool:
             for title, url in pool.map(one, missing):
                 if url is not None:  # None = lookup failed, try again next refresh
                     cache[cache_key(title)] = url
+                    cache[cache_key(title) + "#t"] = now
         with _lock:
             merged = read_json(CACHE_FILE) or {}
             merged.update(cache)
@@ -283,7 +292,12 @@ def add_backup_art(games):
     for g in games:
         a = assets.get(appid(g)) or {}
         covers, heroes = [], list(g.extra.get("store_heroes") or [])
-        _add(covers, a.get("cover"), a.get("cover2x"))
+        # Steam's current capsule (its URL changes whenever the art does) goes first; the
+        # store's own art, which can be an old copy, becomes a backup.
+        g.extra["current_cover"] = a.get("cover", "")
+        if g.extra["current_cover"] and g.cover:
+            _add(covers, g.cover)
+        _add(covers, a.get("cover2x"))
         if appid(g):
             _add(covers, f"{STEAM_CDN}/{appid(g)}/library_600x900.jpg")
         _add(heroes, a.get("hero"), sgdb.get(g.title))
@@ -293,6 +307,7 @@ def add_backup_art(games):
         logos = list(g.extra.get("store_logos") or [])
         if appid(g):
             _add(logos, f"{STEAM_ASSETS}steam/apps/{appid(g)}/logo.png")
-        g.extra["covers"] = [u for u in covers if u != g.cover]
+        primary = g.extra["current_cover"] or g.cover
+        g.extra["covers"] = [u for u in covers if u != primary]
         g.extra["heroes"] = heroes
         g.extra["logos"] = logos

@@ -61,7 +61,7 @@ ComboBox {
             implicitHeight: contentHeight
             model: c.popup.visible ? c.delegateModel : null
             currentIndex: c.highlightedIndex
-            ScrollBar.vertical: ScrollBar { }
+            ScrollBar.vertical: KScrollBar { }
         }
         background: Rectangle {
             radius: 10

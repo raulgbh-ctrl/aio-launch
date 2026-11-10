@@ -2,7 +2,9 @@
 import json
 import os
 
-from ..config import XDG_CONFIG, find_tool, read_json, settings
+import time
+
+from ..config import CACHE_DIR, XDG_CONFIG, find_tool, read_json, settings, write_json
 from ..runner import StoreError, wine_env, wrapper_string
 from .base import Command, Game, PartialResult, Store, run
 
@@ -70,7 +72,13 @@ class Epic(Store):
         games = {}
         error = ""
         if self.logged_in():
-            r = run([self.tool(), "list", "--json"], timeout=300)
+            argv = [self.tool(), "list", "--json"]
+            stamp = CACHE_DIR / "epic_full_refresh.json"
+            if time.time() - (read_json(stamp) or {}).get("t", 0) > 7 * 86400:
+                argv.append("--force-refresh")  # weekly: new art and details from Epic
+            r = run(argv, timeout=300)
+            if r.returncode == 0 and "--force-refresh" in argv:
+                write_json(stamp, {"t": time.time()})
             try:
                 listing = json.loads(r.stdout)
             except ValueError:
