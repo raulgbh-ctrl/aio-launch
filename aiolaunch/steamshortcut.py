@@ -149,16 +149,12 @@ def make_artwork(folder: Path, sid: int, theme: dict):
     second = QColor(theme.get("tertiary", theme.get("secondary", "#f0b7c6")))
     light = QColor(theme.get("onSurface", "#e7e0e8"))
 
+    from PySide6.QtSvg import QSvgRenderer
+    icon_svg = QSvgRenderer(str(Path(__file__).parent / "aiolaunch.svg"))
+
     def mark(p, x, y, size):
-        """The app's mark: two cover tiles above a shelf."""
-        u = size / 64.0
-        for rx, col in ((11, accent), (35, second)):
-            path = QPainterPath()
-            path.addRoundedRect(QRectF(x + rx * u, y + 14 * u, 18 * u, 24 * u), 4 * u, 4 * u)
-            p.fillPath(path, col)
-        shelf = QPainterPath()
-        shelf.addRoundedRect(QRectF(x + 11 * u, y + 44 * u, 42 * u, 7 * u), 3.5 * u, 3.5 * u)
-        p.fillPath(shelf, light)
+        """The app icon (aiolaunch.svg), the same one the desktop shows."""
+        icon_svg.render(p, QRectF(x, y, size, size))
 
     def backdrop(p, w, h):
         g = QLinearGradient(0, 0, w, h)
@@ -234,9 +230,6 @@ def make_artwork(folder: Path, sid: int, theme: dict):
     img.save(str(files["logo"]))
 
     img, p = canvas(256, 256, transparent=True)    # icon
-    rounded = QPainterPath()
-    rounded.addRoundedRect(QRectF(0, 0, 256, 256), 56, 56)
-    p.fillPath(rounded, bg.lighter(130))
     mark(p, 0, 0, 256)
     p.end()
     files["icon"] = folder / f"{sid}_icon.png"

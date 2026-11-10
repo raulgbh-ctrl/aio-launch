@@ -149,11 +149,18 @@ def main():
         QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
         QQuickWindow.setGraphicsApi(QSGRendererInterface.OpenGL)
 
-    app = QGuiApplication(sys.argv[:1])
-    app.setApplicationName("AIO Launch")
-    app.setDesktopFileName("aiolaunch")
+    # The window class must say "aiolaunch" so desktops (KDE on the Steam Deck, X11 docks)
+    # match the window to aiolaunch.desktop and show its icon. Qt builds the class from
+    # argv[0] and the application name; started as "python3 -m aiolaunch" both were wrong.
+    app = QGuiApplication(["aiolaunch"])
+    app.setApplicationName("aiolaunch")
+    app.setApplicationDisplayName("AIO Launch")
+    app.setDesktopFileName("aiolaunch")  # the Wayland app id
     here = Path(__file__).parent
-    app.setWindowIcon(QIcon(str(here / "aiolaunch.svg")))
+    icon = QIcon(str(here / "aiolaunch.svg"))
+    for png in sorted((here / "icons" / "app").glob("aiolaunch-*.png")):
+        icon.addFile(str(png))
+    app.setWindowIcon(icon)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     aiolaunch = AioLaunch(demo=args.demo)

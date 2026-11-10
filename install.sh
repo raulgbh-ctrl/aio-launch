@@ -50,7 +50,7 @@ ask() {  # ask "question" -> 0 for yes
 if [ "$MODE" != install ]; then
     say "Removing AIO Launch"
     rm -rf "$LIB"
-    rm -f "$BIN/aiolaunch" "$APPS/aiolaunch.desktop" "$ICONS/aiolaunch.svg"
+    rm -f "$BIN/aiolaunch" "$APPS/aiolaunch.desktop" "$ICONS/aiolaunch.svg" "$PREFIX"/share/icons/hicolor/*/apps/aiolaunch.png
     have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
         rm -rf "$CONFIG" "$DATA" "$CACHE"
@@ -179,7 +179,15 @@ PYTHONPATH="$CODE\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m aiolaunch "\$@
 EOF
 chmod +x "$BIN/aiolaunch"
 
+# The icon goes into the icon theme under its name, as SVG and as PNGs: Steam's
+# "Add a Non-Steam Game" list and some panels do not draw SVG icons.
+mkdir -p "$ICONS"
 cp "$SRC/aiolaunch/aiolaunch.svg" "$ICONS/aiolaunch.svg"
+for png in "$SRC"/aiolaunch/icons/app/aiolaunch-*.png; do
+    size=${png##*-}; size=${size%.png}
+    mkdir -p "$PREFIX/share/icons/hicolor/${size}x${size}/apps"
+    cp "$png" "$PREFIX/share/icons/hicolor/${size}x${size}/apps/aiolaunch.png"
+done
 cat > "$APPS/aiolaunch.desktop" <<EOF
 [Desktop Entry]
 Type=Application
@@ -187,7 +195,7 @@ Name=AIO Launch
 GenericName=Game Library
 Comment=One library for Steam, Epic, GOG, Amazon and Battle.net
 Exec=$BIN/aiolaunch
-Icon=$ICONS/aiolaunch.svg
+Icon=aiolaunch
 Categories=Game;
 Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
 StartupWMClass=aiolaunch
@@ -198,7 +206,9 @@ Name=TV mode
 Exec=$BIN/aiolaunch --tv
 EOF
 have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
-have gtk-update-icon-cache && gtk-update-icon-cache -q "$PREFIX/share/icons/hicolor" >/dev/null 2>&1 || true
+have gtk-update-icon-cache && gtk-update-icon-cache -q -t "$PREFIX/share/icons/hicolor" >/dev/null 2>&1 || true
+# KDE (the Steam Deck's desktop) keeps its own menu and icon cache.
+have kbuildsycoca6 && kbuildsycoca6 >/dev/null 2>&1 || { have kbuildsycoca5 && kbuildsycoca5 >/dev/null 2>&1; } || true
 
 # ---------------------------------------------------------------- optional pieces
 say "Checking the things games need"
