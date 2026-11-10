@@ -214,8 +214,9 @@ class Steam(Store):
         if not known:
             self._add_played(games, steamid)
             return
+        lent = steamappinfo.free_weekend_only(self.root())  # free weekends long over (Black Ops III, DayZ)
         for appid, app in known.items():
-            if app.get("type") != "game" or not app.get("name") or appid in games or appid in TOOL_IDS:
+            if app.get("type") != "game" or not app.get("name") or appid in games or appid in TOOL_IDS or appid in lent:
                 continue
             main = app.get("variant_of", "")
             if main and (known.get(main) or {}).get("type") == "game":
