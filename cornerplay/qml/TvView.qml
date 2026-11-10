@@ -158,8 +158,8 @@ FocusScope {
     }
 
     function grab() { loadShelves(); grid.forceActiveFocus(); sync() }
-    onVisibleChanged: if (visible) grab()
-    Component.onCompleted: if (visible) Qt.callLater(grab)
+    onVisibleChanged: if (visible) { grab(); maybeIntro() }
+    Component.onCompleted: if (visible) { Qt.callLater(grab); Qt.callLater(maybeIntro) }
     Connections {
         target: app
         function onGameChanged(key) { tv.sync(); if (panel.visible) panel.rows = tv.buildActions() }
@@ -350,11 +350,7 @@ FocusScope {
             Layout.minimumWidth: 0
             clip: true
             spacing: 12
-            Text {
-                textFormat: Text.StyledText
-                text: "Corner<b><font color=\"" + tv.tint.primary + "\">play</font></b>"
-                color: theme.onSurface; font.pixelSize: 30; font.weight: Font.Light; Layout.rightMargin: 20
-            }
+            WordMark { size: 30; accent: tv.tint.primary; Layout.rightMargin: 20 }
             Repeater {
                 model: tv.storeIds
                 Rectangle {
@@ -371,12 +367,11 @@ FocusScope {
                         id: tabRow
                         anchors.centerIn: parent
                         spacing: 9
-                        StoreIcon {
+                        StoreTile {
                             visible: parent.parent.modelData !== ""
                             anchors.verticalCenter: parent.verticalCenter
-                            size: 20
+                            size: 26
                             store: parent.parent.modelData
-                            color: parent.parent.active ? tv.tint.onPrimary : (parent.parent.info.color || theme.onSurfaceVariant)
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
@@ -705,6 +700,30 @@ FocusScope {
                 onHoveredChanged: if (hovered && grid.currentIndex !== index) grid.currentIndex = index
                 onOpened: { grid.currentIndex = index; tv.sync(); panel.show() }
                 onActivated: { grid.currentIndex = index; tv.sync(); tv.accept() }
+                // A soft reflection on the shelf below (Settings > Appearance).
+                Item {
+                    visible: !!app.settingsMap.tv_reflection && !app.light
+                    x: 8; y: parent.height - 8
+                    width: parent.width - 16
+                    height: Math.round(parent.height * 0.22)
+                    clip: true
+                    opacity: tvCard.current ? 0.32 : 0.18
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    ArtImage {
+                        width: parent.width
+                        height: tvCard.height - 16
+                        sources: tvCard.covers || []
+                        sourceSize.width: 200
+                        transform: Scale { origin.y: (tvCard.height - 16) / 2; yScale: -1 }
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.2) }
+                            GradientStop { position: 1.0; color: theme.background }
+                        }
+                    }
+                }
                 // The focused game's animated cover, over its still one.
                 RoundedArt {
                     anchors.fill: parent
@@ -834,6 +853,49 @@ FocusScope {
             Text { id: hintKey; anchors.centerIn: parent; text: hint.k || ""; color: theme.onSurface; font.pixelSize: 12; font.weight: Font.DemiBold }
         }
         Text { anchors.verticalCenter: parent.verticalCenter; text: hint.t || ""; color: theme.onSurfaceVariant; font.pixelSize: 15 }
+    }
+
+    // The TV intro (Settings > Appearance, off by default): the corner lights up, the name
+    // appears, a soft chime; then the home screen.
+    property bool introDone: false
+    function maybeIntro() { if (!introDone && app.settingsMap.tv_intro && !app.light) { introDone = true; intro.play() } }
+    Rectangle {
+        id: intro
+        anchors.fill: parent
+        z: 100
+        color: "#0d0906"
+        visible: false
+        function play() { visible = true; opacity = 1; app.uiSound("intro"); introAnim.restart() }
+        Image {
+            id: introIcon
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: -40
+            source: "../cornerplay.svg"
+            width: Math.round(tv.height * 0.22); height: width
+            sourceSize: Qt.size(width * 2, height * 2)
+            opacity: 0; scale: 0.8
+        }
+        WordMark {
+            id: introName
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: introIcon.bottom; anchors.topMargin: 28
+            showIcon: false; size: Math.round(tv.height * 0.055)
+            ink: "#fff3e0"; accent: "#ffb547"
+            opacity: 0
+        }
+        SequentialAnimation {
+            id: introAnim
+            ParallelAnimation {
+                NumberAnimation { target: introIcon; property: "opacity"; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                NumberAnimation { target: introIcon; property: "scale"; to: 1; duration: 900; easing.type: Easing.OutBack }
+            }
+            NumberAnimation { target: introName; property: "opacity"; to: 1; duration: 450 }
+            PauseAnimation { duration: 700 }
+            NumberAnimation { target: intro; property: "opacity"; to: 0; duration: 450; easing.type: Easing.InCubic }
+            ScriptAction { script: { intro.visible = false; introIcon.opacity = 0; introIcon.scale = 0.8; introName.opacity = 0 } }
+        }
+        TapHandler { onTapped: { introAnim.stop(); intro.visible = false } }
+        Keys.onPressed: event => { introAnim.stop(); intro.visible = false }
     }
 
     // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),

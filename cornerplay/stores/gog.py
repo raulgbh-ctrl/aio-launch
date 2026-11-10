@@ -32,6 +32,7 @@ class Gog(Store):
     id = "gog"
     name = "GOG"
     color = "#b56cff"
+    tile = "#7b3fb0"  # its logo sits in white on a tile of this colour
     dlc_note = ""
 
     def problem(self):

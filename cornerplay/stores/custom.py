@@ -57,6 +57,7 @@ class Custom(Store):
     id = "custom"
     name = "Other games"
     color = "#9aa0a6"
+    tile = "#5f646b"  # its logo sits in white on a tile of this colour
     login_kind = "none"
     in_accounts = False
 

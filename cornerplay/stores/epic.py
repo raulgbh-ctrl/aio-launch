@@ -15,6 +15,7 @@ class Epic(Store):
     id = "epic"
     name = "Epic Games"
     color = "#9aa0aa"
+    tile = "#3b3b3f"  # its logo sits in white on a tile of this colour
     dlc_note = "Epic lists the DLC you own; DLC you have not bought is not shown."
 
     def tool(self):

@@ -35,7 +35,10 @@ for arg in "$@"; do
     esac
 done
 
-say()  { printf '\033[1m==>\033[0m %s\n' "$*"; }
+# The amber of the icon (256-colour terminals; plain text where colour is off).
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then AMBER='\033[38;5;214m'; BOLD='\033[1m'; OFF='\033[0m'; else AMBER=''; BOLD=''; OFF=''; fi
+say()  { printf "${AMBER}${BOLD}==>${OFF} %s\n" "$*"; }
+banner() { printf "\n  ${BOLD}Corner${OFF}${AMBER}${BOLD}play${OFF}  your cosy corner for every game you own\n\n"; }
 note() { printf '    %s\n' "$*"; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -110,6 +113,7 @@ sys_install() {  # sys_install "what it is for" pkg...
 }
 
 # ---------------------------------------------------------------- Python side
+banner
 say "Checking Python libraries"
 uses_system_python() {
     probe=$(mktemp "${TMPDIR:-/tmp}/cornerplay-probe.XXXXXX.qml") || return 1

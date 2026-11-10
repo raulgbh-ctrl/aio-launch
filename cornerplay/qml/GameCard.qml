@@ -55,6 +55,18 @@ Item {
         }
     }
 
+    // The cover's shadow (Settings > Appearance: none, soft or deep).
+    RectangularShadow {
+        anchors.fill: frame
+        visible: !app.light && (app.settingsMap.card_shadow || "soft") !== "none"
+        readonly property bool deep: app.settingsMap.card_shadow === "deep"
+        radius: frame.radius
+        scale: frame.scale
+        blur: deep ? 26 : 12
+        spread: 0
+        offset.y: deep ? 12 : 5
+        color: Qt.alpha("black", deep ? 0.6 : 0.4)
+    }
     Rectangle {
         id: frame
         anchors.fill: parent

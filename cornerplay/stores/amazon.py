@@ -13,6 +13,7 @@ class Amazon(Store):
     id = "amazon"
     name = "Amazon Games"
     color = "#ff9900"
+    tile = "#d9800b"  # its logo sits in white on a tile of this colour
 
     def __init__(self):
         self._pending = None  # login data between login_begin and login_finish

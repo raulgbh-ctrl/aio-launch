@@ -53,6 +53,9 @@ DEFAULTS = {
     "epic_free_hidden_until": 0,  # Free on Epic hidden until the current offers end
     "home_order": ["continue", "free"],
     "ui_scale": 0.0,           # interface size: 0 = automatic, else 1.0 / 1.15 / 1.3 / 1.5 / 2.0 (after a restart)
+    "card_shadow": "soft",   # cover shadows: "none", "soft", "deep"
+    "tv_reflection": True,   # TV mode: covers reflected on the shelf below
+    "tv_intro": False,       # TV mode: a short start-up animation and chime
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
@@ -65,7 +68,7 @@ DEFAULTS = {
     "steam_id": "",
     "steamgriddb_key": "",
     "env": "",                 # extra environment for every game: KEY=VALUE KEY2=VALUE2
-    "theme_mode": "ryoku",     # "ryoku", a preset name from theme.PRESETS, or "custom"
+    "theme_mode": "Cornerplay",  # "Cornerplay" (amber, the signature look), "ryoku" (wallpaper), a preset, or "custom"
     "theme_bg": "#141218",
     "theme_accent": "#d2bcfd",
     "card_size": 196,

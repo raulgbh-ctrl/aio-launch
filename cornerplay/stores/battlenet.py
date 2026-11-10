@@ -120,6 +120,7 @@ class BattleNet(Store):
     id = "battlenet"
     name = "Battle.net"
     color = "#148eff"
+    tile = "#1673d9"  # its logo sits in white on a tile of this colour
     login_kind = "external"
 
     def problem(self):

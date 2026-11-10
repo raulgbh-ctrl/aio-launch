@@ -249,15 +249,7 @@ ApplicationWindow {
                     Layout.margins: 8
                     Layout.bottomMargin: 16
                     spacing: 10
-                    Image { source: "../cornerplay.svg"; sourceSize: Qt.size(68, 68); Layout.preferredWidth: 34; Layout.preferredHeight: 34 }
-                    Text {
-                        textFormat: Text.StyledText
-                        text: "Corner<b><font color=\"" + theme.primary + "\">play</font></b>"
-                        color: theme.onSurface
-                        font.pixelSize: 21
-                        font.weight: Font.Light
-                        font.letterSpacing: 0.3
-                    }
+                    WordMark { size: 22 }
                 }
                 // Who is playing: only shown once there is more than one person.
                 Flow {
@@ -307,12 +299,11 @@ ApplicationWindow {
                         width: 4; height: 20; radius: 2
                         color: theme.primary
                     }
-                    StoreIcon {
+                    StoreTile {
                         visible: nav.dot !== ""
-                        x: 12; anchors.verticalCenter: parent.verticalCenter
-                        size: 17
+                        x: 10; anchors.verticalCenter: parent.verticalCenter
+                        size: 22
                         store: nav.store
-                        color: nav.dot || "transparent"
                         opacity: nav.dim ? 0.35 : 1
                     }
                     Icon {
@@ -1026,7 +1017,7 @@ ApplicationWindow {
                                     }
                                     Row {
                                         spacing: 6
-                                        StoreIcon { size: 13; store: recentTile.modelData.store; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                                        StoreTile { size: 16; store: recentTile.modelData.store; anchors.verticalCenter: parent.verticalCenter }
                                         Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                                     }
                                     Text {
@@ -1235,7 +1226,7 @@ ApplicationWindow {
                             }
                             Row {
                                 width: 140; height: parent.height; spacing: 6
-                                StoreIcon { anchors.verticalCenter: parent.verticalCenter; size: 14; store: trow.store; color: trow.storeColor }
+                                StoreTile { anchors.verticalCenter: parent.verticalCenter; size: 18; store: trow.store }
                                 Text { anchors.verticalCenter: parent.verticalCenter; text: trow.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
                             Text { width: 120; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
@@ -1263,6 +1254,15 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     spacing: 14
                     width: Math.min(parent.width - 60, 460)
+                    Image {  // a little scene for the reason
+                        visible: !app.refreshing
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 240; height: 160
+                        sourceSize: Qt.size(480, 320)
+                        source: app.totalCount === 0 ? "../art/empty-library.svg"
+                                : library.shelf && !library.search && !(library.tags || []).length ? "../art/empty-list.svg"
+                                : "../art/no-results.svg"
+                    }
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
@@ -3368,6 +3368,17 @@ ApplicationWindow {
                                 }
                                 KButton { theme: win.theme; Layout.alignment: Qt.AlignBottom; text: "Restart now"; iconName: "refresh-cw"; onClicked: app.restartApp() }
                             }
+                            Row2 {
+                                label: "Cover shadows"
+                                KCombo {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: "None (flat)", value: "none" }, { label: "Soft", value: "soft" }, { label: "Deep", value: "deep" }]
+                                    Component.onCompleted: select(app.settingsMap.card_shadow || "soft")
+                                    onActivated: app.setSetting("card_shadow", currentValue)
+                                }
+                            }
+                            Toggle { label: "TV mode: covers reflected on the shelf"; settingKey: "tv_reflection" }
+                            Toggle { label: "TV mode: start-up animation and chime"; settingKey: "tv_intro" }
                             KButton {
                                 theme: win.theme
                                 text: app.settingsMap.card_size >= 250 ? "Back to normal tiles" : "Large tiles (touchscreens)"
@@ -3977,6 +3988,47 @@ ApplicationWindow {
         }
     }
 
+    // -------------------------------------------------------------------- splash
+    // While the library loads: the icon's corner lights up and the name appears. Short, and it
+    // goes as soon as there is something to show.
+    Rectangle {
+        id: splash
+        anchors.fill: parent
+        z: 1000
+        color: theme.background
+        // Started in TV mode with its intro on: the intro is the welcome, not this.
+        opacity: win.tv && app.settingsMap.tv_intro && !app.light ? 0 : 1
+        visible: opacity > 0
+        property bool ready: false
+        Timer { interval: app.light ? 300 : 900; running: true; onTriggered: splash.ready = true }
+        Timer { interval: 2600; running: true; onTriggered: splash.opacity = 0 }   // never longer than this
+        readonly property bool loaded: app.totalCount > 0 || !app.refreshing
+        onReadyChanged: if (ready && loaded) opacity = 0
+        onLoadedChanged: if (ready && loaded) opacity = 0
+        Behavior on opacity { NumberAnimation { duration: app.light ? 0 : 350; easing.type: Easing.InCubic } }
+        Column {
+            anchors.centerIn: parent
+            spacing: 22
+            Image {
+                id: splashIcon
+                anchors.horizontalCenter: parent.horizontalCenter
+                source: "../cornerplay.svg"
+                width: 108; height: 108
+                sourceSize: Qt.size(Math.ceil(width * Math.max(2, Screen.devicePixelRatio)), Math.ceil(height * Math.max(2, Screen.devicePixelRatio)))
+                SequentialAnimation on scale {
+                    running: splash.visible && !app.light
+                    NumberAnimation { from: 0.85; to: 1.0; duration: 520; easing.type: Easing.OutBack }
+                }
+                NumberAnimation on opacity { running: splash.visible; from: 0; to: 1; duration: 360 }
+            }
+            WordMark {
+                anchors.horizontalCenter: parent.horizontalCenter
+                showIcon: false; size: 30
+                NumberAnimation on opacity { running: splash.visible; from: 0; to: 1; duration: 600 }
+            }
+        }
+    }
+
     // -------------------------------------------------------------------- hover preview
     Rectangle {
         id: preview
@@ -3997,7 +4049,7 @@ ApplicationWindow {
             spacing: 6
             Text { width: parent.width; text: preview.g.title || ""; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; wrapMode: Text.WordWrap }
             Row { spacing: 6
-                  StoreIcon { anchors.verticalCenter: parent.verticalCenter; size: 13; store: preview.g.store || ""; color: preview.g.storeColor || "white" }
+                  StoreTile { anchors.verticalCenter: parent.verticalCenter; size: 16; store: preview.g.store || "" }
                   Text { text: (preview.g.storeName || "") + (preview.g.installed ? "  ·  installed" : "  ·  not installed"); color: theme.onSurfaceVariant; font.pixelSize: 12 } }
             Text { width: parent.width; visible: text !== ""; text: preview.g.key ? app.playedText(preview.g.playtime, preview.g.lastPlayed) : ""
                    color: theme.onSurfaceVariant; font.pixelSize: 12; wrapMode: Text.WordWrap }

@@ -583,7 +583,7 @@ class AioLaunch(QObject):
                 logged, account, problem = s.logged_in(), s.account(), s.problem()
             except Exception as e:  # a broken config file must not take the UI down
                 logged, account, problem = False, "", str(e)
-            out.append({"id": s.id, "name": s.name, "color": s.color, "count": len(mine),
+            out.append({"id": s.id, "name": s.name, "color": s.color, "tile": getattr(s, "tile", s.color), "count": len(mine),
                         "inAccounts": getattr(s, "in_accounts", True),
                         "installed": sum(g.installed for g in mine), "loggedIn": logged,
                         "account": account, "problem": problem, "loginKind": s.login_kind,
@@ -602,8 +602,9 @@ class AioLaunch(QObject):
 
     @Slot(str)
     def uiSound(self, name):
-        """A soft click in TV mode ("move", "select" or "back"), when turned on in Settings."""
-        if not settings.get("tv_sounds"):
+        """A soft click in TV mode ("move", "select" or "back"), when turned on in Settings;
+        "intro" is the TV intro's chime (its own setting)."""
+        if not settings.get("tv_intro" if name == "intro" else "tv_sounds"):
             return
         if self._sounds is None:
             self._sounds = {}
@@ -611,7 +612,7 @@ class AioLaunch(QObject):
                 from PySide6.QtMultimedia import QSoundEffect
             except ImportError:
                 return
-            for n in ("move", "select", "back"):
+            for n in ("move", "select", "back", "intro"):
                 effect = QSoundEffect(self)
                 effect.setSource(QUrl.fromLocalFile(str(Path(__file__).parent / "sounds" / f"{n}.wav")))
                 effect.setVolume(0.6)

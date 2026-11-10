@@ -31,6 +31,7 @@ class Steam(Store):
     id = "steam"
     name = "Steam"
     color = "#66c0f4"
+    tile = "#2a5d8a"  # its logo sits in white on a tile of this colour
     dlc_note = ("Steam installs the DLC you own by itself. Cornerplay can only see which DLC is installed; "
                 "open the others in Steam to buy or install them.")
     external_installs = True

@@ -7,7 +7,7 @@ RYOKU_PALETTE = HOME / ".cache/ryoku/colors.json"
 
 # name -> (background, accent)
 PRESETS = {
-    "Cornerplay": ("#17121f", "#ffad8f"),  # warm plum and lamplight peach, like the icon
+    "Cornerplay": ("#1a1410", "#ffb547"),  # the signature look: deep warm brown and lamplight amber, like the icon
     "Midnight": ("#141218", "#d2bcfd"),
     "Graphite": ("#16181c", "#8ab4f8"),
     "Forest": ("#111613", "#8fd6a4"),
