@@ -1261,12 +1261,13 @@ ApplicationWindow {
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
-                    height: 78
+                    height: Math.max(78, accountRow.implicitHeight + 34)
                     radius: 14
                     color: theme.surfaceContainerHigh
                     border.width: 1
                     border.color: modelData.loggedIn ? Qt.alpha(modelData.color, 0.45) : theme.outlineVariant
                     RowLayout {
+                        id: accountRow
                         anchors.fill: parent
                         anchors.leftMargin: 14; anchors.rightMargin: 12
                         spacing: 14
@@ -1299,6 +1300,19 @@ ApplicationWindow {
                                       : modelData.id === "battlenet" ? "Install the Battle.net app from the library first"
                                       : "Not connected"
                                 }
+                            }
+                            // Steam without a Web API key: say what is listed, and where to get the rest.
+                            Text {
+                                Layout.fillWidth: true
+                                visible: modelData.id === "steam" && modelData.loggedIn && !app.settingsMap.steam_api_key
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: 11
+                                color: theme.outline
+                                linkColor: theme.primary
+                                text: "Showing installed games and games you have played. For every game you own, "
+                                      + "<a href=\"key\">add a Steam Web API key</a>."
+                                onLinkActivated: { accounts.close(); prefs.tab = 2; prefs.open() }
+                                HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
                         KButton {
