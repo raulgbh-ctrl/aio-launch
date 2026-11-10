@@ -48,37 +48,12 @@ def user_env() -> dict:
 
 
 def proton_versions() -> list:
-    """Every Proton build umu can use: [{"label", "value"}], value is a PROTONPATH."""
+    """Every Proton build umu can use: [{"label", "value"}], value is a PROTONPATH.
+    The builds come from protons.find(): Steam, Heroic, Lutris, umu, system, wherever they are."""
+    from . import protons
     out = [{"label": "GE-Proton, always the latest (updates itself)", "value": "GE-Proton"},
            {"label": "UMU-Proton (umu-launcher's own build)", "value": ""}]
-    flat = HOME / ".var/app/com.valvesoftware.Steam"
-    roots = [(HOME / ".local/share/Steam/compatibilitytools.d", ""),
-             (HOME / ".steam/steam/compatibilitytools.d", ""),
-             (HOME / ".steam/root/compatibilitytools.d", ""),
-             (flat / ".local/share/Steam/compatibilitytools.d", "Flatpak"),
-             (flat / "data/Steam/compatibilitytools.d", "Flatpak"),
-             (HOME / ".local/share/umu/compatibilitytools", "umu"),
-             ("/usr/share/steam/compatibilitytools.d", "system"),
-             ("/usr/local/share/steam/compatibilitytools.d", "system")]
-    try:
-        from .stores.steam import Steam
-        roots += [(os.path.join(lib, "steamapps", "common"), "Steam") for lib in Steam().library_dirs()]
-    except Exception:
-        pass
-    seen = set()
-    for root, tag in roots:
-        try:
-            names = sorted(os.listdir(root), reverse=True)
-        except OSError:
-            continue
-        for name in names:
-            path = os.path.realpath(os.path.join(root, name))
-            if path in seen or not os.path.isfile(os.path.join(path, "proton")):
-                continue
-            seen.add(path)
-            kind = "Steam" if tag == "Steam" else "GE" if name.startswith("GE-Proton") else tag
-            label = name.replace("-x86_64", "")
-            out.append({"label": f"{label}  ·  {kind}" if kind else label, "value": path})
+    out += [{"label": f"{p['label']}  ·  {p['source']}", "value": p["path"]} for p in protons.find()]
     return out
 
 
