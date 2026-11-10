@@ -135,6 +135,10 @@ class Steam(Store):
                     done = False
                 path = os.path.join(lib, "steamapps", "common", st.get("installdir", ""))
                 games[appid] = self._game(appid, name or f"App {appid}", done, path)
+                try:
+                    games[appid].extra["size"] = int(st.get("SizeOnDisk", 0) or 0)
+                except ValueError:
+                    pass
                 depots = st.get("InstalledDepots", {})
                 games[appid].extra["dlc_installed"] = sorted(
                     {d["dlcappid"] for d in depots.values() if isinstance(d, dict) and d.get("dlcappid")})

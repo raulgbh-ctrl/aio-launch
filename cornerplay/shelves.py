@@ -9,6 +9,7 @@ first_seen.json remembers when each game key first came back from its store, so
 "Recently added" can list new purchases. The first time a store is read every game it
 has is stamped 0 (already owned), so the shelf starts empty instead of listing everything.
 """
+import os
 import time
 
 from .config import CONFIG_DIR, game_options, read_json, settings, write_json
@@ -85,10 +86,57 @@ def note(store_id, keys):
 
 
 def added(group):
-    """When the newest copy of a game arrived (0 = it was already there)."""
+    """When the game arrived: bought (first seen since Cornerplay knew the store) or installed."""
     keys = _load()["keys"]
-    return max((keys.get(g.key, 0) for g in group), default=0)
+    bought = max((keys.get(g.key, 0) for g in group), default=0)
+    return max(bought, installed_at(group))
 
 
 def is_recent(group):
     return added(group) > time.time() - RECENT_DAYS * 86400
+
+
+# --- backlog status, your rating, your note --------------------------------------
+# Kept on every copy of a game, like collections. Status: "playing", "want", "finished", "dropped".
+STATUSES = [("playing", "Playing"), ("want", "Want to play"), ("finished", "Finished"), ("dropped", "Dropped")]
+STATUS_NAMES = dict(STATUSES)
+
+
+def meta(group, name):
+    """The first copy's value of status / rating / note (all copies are kept the same)."""
+    for g in group:
+        v = game_options.get(g.key).get(name)
+        if v not in (None, ""):
+            return v
+    return "" if name != "rating" else 0
+
+
+def set_meta(group, name, value):
+    for g in group:
+        game_options.set(g.key, name, value if value not in ("", 0, None) else None)
+
+
+# --- recently installed ------------------------------------------------------------
+_mtimes = {}
+
+
+def installed_at(group):
+    """When the newest installed copy's folder was made (a cheap stand-in for the install date)."""
+    best = 0
+    for g in group:
+        if not g.installed or not g.install_path:
+            continue
+        t = _mtimes.get(g.install_path)
+        if t is None:
+            try:
+                st = os.stat(g.install_path)
+                t = int(getattr(st, "st_birthtime", 0) or st.st_ctime)
+            except OSError:
+                t = 0
+            _mtimes[g.install_path] = t
+        best = max(best, t)
+    return best
+
+
+def forget_install_times():
+    _mtimes.clear()

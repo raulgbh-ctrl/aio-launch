@@ -103,6 +103,9 @@ class Epic(Store):
             if app not in games and not inst.get("is_dlc"):
                 games[app] = Game(store=self.id, id=app, title=inst.get("title", app),
                                   installed=True, install_path=inst.get("install_path", ""))
+        for app, inst in installed.items():
+            if app in games:
+                games[app].extra["size"] = int(inst.get("install_size", 0) or 0)
         for app in _updates(installed):
             if app in games:
                 games[app].extra["update"] = True

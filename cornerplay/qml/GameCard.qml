@@ -215,7 +215,7 @@ Item {
                     spacing: 7
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
-                        name: card.job === "uninstall" ? "trash-2" : card.job === "update" ? "arrow-up" : card.job === "dlc" ? "puzzle" : "download"
+                        name: card.job === "uninstall" ? "trash-2" : card.job === "update" ? "arrow-up" : card.job === "dlc" ? "puzzle" : card.job === "move" ? "folder-open" : "download"
                         size: 14; color: "white"
                     }
                     Text {
@@ -225,7 +225,7 @@ Item {
                         font.weight: Font.DemiBold
                         text: card.job === "uninstall" ? "Removing…"
                               : card.progress < 0 ? "Starting…"
-                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : "Installing ") + Math.floor(card.progress) + "%"
+                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : "Installing ") + Math.floor(card.progress) + "%"
                     }
                 }
                 Rectangle {

@@ -14,11 +14,11 @@ import shlex
 
 import sys
 
-from . import achievements, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, storage, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
-from .stores.base import Game, PartialResult
+from .stores.base import Command, Game, PartialResult, run as store_run
 from .stores import battlenet
 from .stores.battlenet import LAUNCHER_COVER, BattleNet
 from .stores.epic import Epic
@@ -31,9 +31,10 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
-         "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite"]
-GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite")
-SORTS = ("name", "recent", "playtime")
+         "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite",
+         "status", "rating"]
+GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite", "status", "rating")
+SORTS = ("name", "recent", "playtime", "rating")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
 
 
@@ -107,6 +108,8 @@ _FIELDS = {
     "cover": lambda m, g: _cover(g),
     "coverFallback": lambda m, g: g.cover_fallback,
     "favourite": lambda m, g: shelves.FAV in shelves.ids_of(g.key),
+    "status": lambda m, g: shelves.meta([g], "status"),
+    "rating": lambda m, g: int(shelves.meta([g], "rating") or 0),
     "installed": lambda m, g: g.installed,
     "job": lambda m, g: _job(m, g).get("kind", ""),
     "progress": lambda m, g: _job(m, g).get("progress", 0.0),
@@ -191,6 +194,10 @@ class LibraryModel(QAbstractListModel):
             return len(group)
         if role == "favourite":
             return shelves.in_group(group, shelves.FAV)
+        if role == "status":
+            return shelves.meta(group, "status")
+        if role == "rating":
+            return int(shelves.meta(group, "rating") or 0)
         times = [playtime.of(g, self.played) for g in group]
         return sum(t[0] for t in times) if role == "playtime" else max(t[1] for t in times)
 
@@ -230,6 +237,9 @@ class LibraryModel(QAbstractListModel):
         d["steamAppId"] = _appid(g)
         d["favourite"] = shelves.in_group(group or [g], shelves.FAV)
         d["collections"] = [c for c in shelves.names() if shelves.in_group(group or [g], c)]
+        d["status"] = shelves.meta(group or [g], "status")
+        d["rating"] = int(shelves.meta(group or [g], "rating") or 0)
+        d["note"] = shelves.meta(group or [g], "note")
         d["playtime"] = self.group_value(group or [g], "playtime")
         d["lastPlayed"] = self.group_value(group or [g], "lastPlayed")
         return d
@@ -298,6 +308,8 @@ class LibraryProxy(QSortFilterProxyModel):
             return model.group_value(group, "lastPlayed") > 0
         if s == "added":
             return shelves.is_recent(group)
+        if s.startswith("s:"):
+            return shelves.meta(group, "status") == s[2:]
         return True
 
     def _sort_mode(self):
@@ -318,6 +330,8 @@ class LibraryProxy(QSortFilterProxyModel):
                 key = (title,)
             elif sort == "added":
                 key = (-shelves.added(group), title)
+            elif sort == "rating":  # your best-rated first, unrated last
+                key = (-int(shelves.meta(group, "rating") or 0), title)
             else:  # most recent / most played first; never-played games fall to the end
                 value = model.group_value(group, "lastPlayed" if sort == "recent" else "playtime")
                 key = (-value, title)
@@ -378,6 +392,7 @@ class AioLaunch(QObject):
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
     epicFreeChanged = Signal()
+    storageReady = Signal("QVariantMap")
     achievementsReady = Signal(str, "QVariantMap")  # key, {"done", "total"}
     blizzardSync = Signal()      # QML's hidden page reads the Blizzard account's games (BlizzardSync.qml)
     blizzardForget = Signal()    # QML clears the Blizzard sign-in it keeps
@@ -652,6 +667,93 @@ class AioLaunch(QObject):
             self.blizzardSync.emit()  # new Blizzard purchases come in a few seconds later
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- storage: sizes, drives, moving installs ------------------------------
+    MOVABLE = ("epic", "gog", "amazon")
+
+    @Slot()
+    def loadStorage(self):
+        """Sizes of every installed game and how full each drive is; storageReady follows."""
+        games = [g for g in self.model.games if g.installed and g.install_path and g.id != "battlenet-app"]
+        last = {g.key: playtime.of(g, self.model.played)[1] for g in games}
+
+        def work():
+            rows, drives = [], {}
+            for g in games:
+                size = storage.size_of(g.install_path, g.extra.get("size", 0))
+                d = storage.drive(g.install_path)
+                if d:
+                    drives.setdefault(d["mount"], dict(d, games=0, gameBytes=0))
+                    drives[d["mount"]]["games"] += 1
+                    drives[d["mount"]]["gameBytes"] += size
+                rows.append({"key": g.key, "title": g.title, "store": g.store,
+                             "storeName": self.stores[g.store].name, "storeColor": self.stores[g.store].color,
+                             "path": g.install_path, "bytes": size, "size": storage.nice(size),
+                             "mount": d["mount"] if d else "", "last": last.get(g.key, 0),
+                             "lastText": _short_date(last[g.key], True) if last.get(g.key) else "never",
+                             "covers": _covers(g), "movable": g.store in self.MOVABLE})
+            for extra in [str(settings.games_dir)] + list(settings.get("library_dirs") or []):
+                d = storage.drive(extra) if os.path.isdir(extra) else None
+                if d and d["mount"] not in drives:
+                    drives[d["mount"]] = dict(d, games=0, gameBytes=0)
+            rows.sort(key=lambda r: -r["bytes"])
+            out = {"games": rows, "total": storage.nice(sum(r["bytes"] for r in rows)),
+                   "drives": [dict(d, freeText=storage.nice(d["free"]), totalText=storage.nice(d["total"]),
+                                   gamesText=storage.nice(d["gameBytes"])) for d in drives.values()]}
+            return lambda: self.storageReady.emit(out)
+        self._bg(work)
+
+    @Slot(str, str)
+    def moveGame(self, key, dest_dir):
+        """Move an installed game into dest_dir (a folder; the game keeps its own folder name)."""
+        g = self.model.find(key)
+        if not g or not g.installed or key in self.procs:
+            return
+        if g.store == "steam":
+            self.toast.emit("Steam moves its own games: in Steam, Settings > Storage, pick the game, then Move")
+            client = self.stores["steam"].client()
+            if client:
+                self._detach(client + ["steam://open/main"], {}, "", "steam-client")
+            return
+        if g.store not in self.MOVABLE:
+            self.toast.emit(f"{self.stores[g.store].name} games can only be moved from the {self.stores[g.store].name} app")
+            return
+        dest_dir = QUrl(dest_dir).toLocalFile() if dest_dir.startswith("file:") else dest_dir
+        src = os.path.realpath(g.install_path)
+        dst = os.path.join(dest_dir, os.path.basename(src.rstrip("/")))
+        if os.path.realpath(dest_dir) == os.path.dirname(src):
+            self.toast.emit(f"{g.title} is already there")
+            return
+        if os.path.exists(dst):
+            self.toast.emit(f"There is already a folder called {os.path.basename(dst)} there")
+            return
+        self._moves[key] = (src, dst, dest_dir)
+        root = str(Path(__file__).resolve().parent.parent)
+        env = {"PYTHONPATH": root + (":" + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else "")}
+        self._start_job(g, "move", Command([sys.executable, "-m", "cornerplay.mover", src, dst], env, root))
+
+    _moves = {}
+
+    def _after_move(self, g):
+        """Tell the store where its game went (GOG finds it through library_dirs)."""
+        src, dst, dest_dir = self._moves.pop(g.key, ("", "", ""))
+        if not dst or not os.path.isdir(dst):
+            return
+        dirs = list(settings.get("library_dirs") or [])
+        if dest_dir not in dirs:
+            settings.set("library_dirs", dirs + [dest_dir])
+        if g.store == "epic":
+            tool = self.stores["epic"].tool()
+            store_run([tool, "move", g.id, dest_dir, "--skip-move"], timeout=120)
+        elif g.store == "amazon":
+            from .stores.amazon import NILE_DIR
+            path = NILE_DIR / "installed.json"
+            data = read_json(path) or []
+            for entry in data:
+                if entry.get("id") == g.id:
+                    entry["path"] = dst
+            write_json(path, data)
+        shelves.forget_install_times()
 
     # --- Epic's free games ---------------------------------------------------
     _epic_free = []
@@ -1055,10 +1157,13 @@ class AioLaunch(QObject):
             if n:
                 out.append({"id": sid, "name": name, "count": n})
         add("playing", "Continue playing", lambda g: self.model.group_value(g, "lastPlayed") > 0)
+        add("s:playing", "Playing", lambda g: shelves.meta(g, "status") == "playing")
         add("fav", "Favourites", lambda g: shelves.in_group(g, shelves.FAV))
+        add("s:want", "Want to play", lambda g: shelves.meta(g, "status") == "want")
         for c in shelves.names():
             add("c:" + c, c, lambda g, c=c: shelves.in_group(g, c))
         add("added", "Recently added", shelves.is_recent)
+        add("s:finished", "Finished", lambda g: shelves.meta(g, "status") == "finished")
         out.append({"id": "", "name": "Library", "count": len(groups)})
         return out
 
@@ -1070,6 +1175,82 @@ class AioLaunch(QObject):
         for c in shelves.names():
             out.append({"id": "c:" + c, "name": c, "count": sum(1 for g in groups if shelves.in_group(g, c))})
         return out
+
+    def _sidebar_statuses(self):
+        """Backlog statuses that have games, for the sidebar."""
+        groups = [g for g in self.model.groups if not self.model.is_hidden(g)]
+        counts = {}
+        for g in groups:
+            st = shelves.meta(g, "status")
+            if st:
+                counts[st] = counts.get(st, 0) + 1
+        return [{"id": "s:" + sid, "name": name, "count": counts[sid]} for sid, name in shelves.STATUSES if counts.get(sid)]
+
+    sidebarStatuses = Property("QVariantList", _sidebar_statuses, notify=storesChanged)
+
+    @Slot(str, str)
+    def setStatus(self, key, status):
+        group = self.model.group_of(key)
+        if group:
+            shelves.set_meta(group, "status", status if status in shelves.STATUS_NAMES else "")
+            self._refilter_all(key)
+
+    @Slot(str, int)
+    def setRating(self, key, stars):
+        group = self.model.group_of(key)
+        if group:
+            shelves.set_meta(group, "rating", max(0, min(5, int(stars))))
+            self._refilter_all(key)
+
+    @Slot(str, str)
+    def setNote(self, key, text):
+        group = self.model.group_of(key)
+        if group and text.strip() != (shelves.meta(group, "note") or ""):
+            shelves.set_meta(group, "note", text.strip()[:2000])
+            self.gameChanged.emit(key)
+
+    statusNames = Property("QVariantList", lambda s: [{"id": i, "name": n} for i, n in shelves.STATUSES], constant=True)
+
+    @Slot(result="QVariantMap")
+    def stats(self):
+        """Play stats: totals, per store, most played, and the last weeks from Cornerplay's session log."""
+        groups = [g for g in self.model.groups if not self.model.is_hidden(g)]
+        rows = []
+        for grp in groups:
+            secs = self.model.group_value(grp, "playtime")
+            rep_ = self.model.rep(grp)
+            rows.append((secs, grp, rep_))
+        played = [r for r in rows if r[0] > 0]
+        per_store = {}
+        for secs, grp, rep_ in played:
+            name = self.stores[rep_.store].name
+            per_store[name] = per_store.get(name, 0) + secs
+        top = sorted(played, key=lambda r: -r[0])[:10]
+        now = time.time()
+        log = playtime.sessions()
+        week = sum(e - s for _, s, e in log if e > now - 7 * 86400)
+        month = sum(e - s for _, s, e in log if e > now - 30 * 86400)
+        days = []  # hours per day, last 14 days (oldest first)
+        for d in range(13, -1, -1):
+            lo = now - (d + 1) * 86400
+            hi = now - d * 86400
+            days.append(round(sum(max(0, min(e, hi) - max(s, lo)) for _, s, e in log) / 3600, 2))
+        statuses = {}
+        for grp in groups:
+            st = shelves.meta(grp, "status")
+            if st:
+                statuses[shelves.STATUS_NAMES[st]] = statuses.get(shelves.STATUS_NAMES[st], 0) + 1
+        return {
+            "totalHours": round(sum(r[0] for r in played) / 3600),
+            "games": len(groups), "played": len(played), "neverPlayed": len(groups) - len(played),
+            "installed": sum(1 for g in groups if any(x.installed for x in g)),
+            "weekHours": round(week / 3600, 1), "monthHours": round(month / 3600, 1),
+            "sessions": len(log), "days": days,
+            "perStore": [{"name": n, "hours": round(v / 3600)} for n, v in sorted(per_store.items(), key=lambda kv: -kv[1])],
+            "top": [{"key": r[2].key, "title": r[2].title, "hours": round(r[0] / 3600, 1),
+                     "cover": _cover(r[2]), "covers": _covers(r[2])} for r in top],
+            "statuses": [{"name": n, "count": c} for n, c in statuses.items()],
+        }
 
     sidebarShelves = Property("QVariantList", _sidebar_shelves, notify=storesChanged)
 
@@ -1516,7 +1697,11 @@ class AioLaunch(QObject):
         lines = self.logs.pop(key, [])
         (LOG_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", key) + f".{kind}.log")).write_text("\n".join(lines))
         if p.property("cancelled"):
+            self._moves.pop(key, None)
             self.toast.emit(f"Cancelled: {g.title}")
+        elif code == 0 and kind == "move":
+            self.toast.emit(f"Moved {g.title}")
+            self._after_move(g)
         elif code == 0:
             if kind == "update":
                 g.extra.pop("update", None)  # the refresh below confirms it

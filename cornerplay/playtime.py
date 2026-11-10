@@ -10,6 +10,7 @@ import time
 from .config import DATA_DIR, read_json, write_json
 
 FILE = DATA_DIR / "playtime.json"
+SESSIONS = DATA_DIR / "sessions.json"  # [[key, start, end], ...]: what the play stats are made of
 TIMED = ("epic", "gog", "amazon")
 MIN_SECONDS = 10  # a shorter run is a failed start, not play
 
@@ -32,6 +33,9 @@ def record(key: str, started: float, ended: float | None = None):
         entry = data.get(key) or {}
         data[key] = {"seconds": int(entry.get("seconds", 0)) + seconds, "last": int(ended)}
         write_json(FILE, data)
+        log = read_json(SESSIONS) or []
+        log.append([key, int(started), int(ended)])
+        write_json(SESSIONS, log[-5000:])
 
 
 def of(game, data: dict) -> tuple[int, int]:
@@ -39,3 +43,7 @@ def of(game, data: dict) -> tuple[int, int]:
     own = data.get(game.key) or {}
     return (max(int(own.get("seconds", 0)), int(game.extra.get("steam_playtime", 0))),
             max(int(own.get("last", 0)), int(game.extra.get("steam_last_played", 0))))
+
+
+def sessions() -> list:
+    return [s for s in (read_json(SESSIONS) or []) if isinstance(s, list) and len(s) == 3]

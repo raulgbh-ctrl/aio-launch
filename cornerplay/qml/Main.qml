@@ -294,6 +294,18 @@ ApplicationWindow {
                     dim: true
                     onPicked: newColl.ask("")
                 }
+                // Backlog statuses that have games (Playing, Want to play, Finished, Dropped).
+                Repeater {
+                    model: app.sidebarStatuses
+                    NavItem {
+                        required property var modelData
+                        label: modelData.name
+                        icon: ({ "s:playing": "gamepad-2", "s:want": "bookmark", "s:finished": "check", "s:dropped": "x" })[modelData.id] || "bookmark"
+                        count: modelData.count
+                        active: library.shelf === modelData.id && !library.showHidden
+                        onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = modelData.id }
+                    }
+                }
 
                 Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
 
@@ -328,6 +340,8 @@ ApplicationWindow {
                     active: library.showHidden
                     onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
                 }
+                NavItem { label: "Stats"; icon: "trophy"; onPicked: statsBox.show() }
+                NavItem { label: "Storage"; icon: "folder-open"; onPicked: storage.show() }
                 NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
                 NavItem { label: "Accounts"; icon: "user-round"; onPicked: accounts.open() }
                 NavItem { label: "Settings"; icon: "sliders-horizontal"; onPicked: prefs.open() }
@@ -397,7 +411,8 @@ ApplicationWindow {
                     Layout.preferredWidth: 190
                     model: [{ label: "Sort: Name", value: "name" },
                             { label: "Sort: Recently played", value: "recent" },
-                            { label: "Sort: Most played", value: "playtime" }]
+                            { label: "Sort: Most played", value: "playtime" },
+                            { label: "Sort: My rating", value: "rating" }]
                     Component.onCompleted: select(library.sortMode)
                     onActivated: library.sortMode = currentValue
                 }
@@ -818,7 +833,9 @@ ApplicationWindow {
                         Text {
                             x: 8
                             text: library.shelf === "" ? "Library"
-                                  : library.shelf === "fav" ? "Favourites" : library.shelf.replace(/^c:/, "")
+                                  : library.shelf === "fav" ? "Favourites"
+                                  : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
+                                  : library.shelf.replace(/^c:/, "")
                             color: theme.onSurfaceVariant
                             font.pixelSize: 13; font.weight: Font.DemiBold
                         }
@@ -911,6 +928,7 @@ ApplicationWindow {
         onOpened: {
             accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
             ach = app.achievements(win.selectedKey)
+            noteField.text = win.selected.note || ""
             dlcCount = -1
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
         }
@@ -1026,6 +1044,53 @@ ApplicationWindow {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
                     }
+                }
+                // Your take on the game: backlog status, stars, a note.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: app.statusNames
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool on: win.selected.status === modelData.id
+                            height: 30; radius: 15
+                            width: stText.implicitWidth + 26
+                            color: on ? detail.tint.primary : "transparent"
+                            border.width: on ? 0 : 1
+                            border.color: theme.outlineVariant
+                            Text { id: stText; anchors.centerIn: parent; text: parent.modelData.name; font.pixelSize: 12; font.weight: Font.DemiBold
+                                   color: parent.on ? detail.tint.onPrimary : theme.onSurfaceVariant }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.setStatus(win.selectedKey, parent.on ? "" : parent.modelData.id) }
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Row {
+                        spacing: 2
+                        Repeater {
+                            model: 5
+                            Icon {
+                                required property int index
+                                readonly property bool lit: index < (starHover.hovered ? starHover.at : (win.selected.rating || 0))
+                                name: lit ? "star-filled" : "star"
+                                size: 20
+                                color: lit ? "#ffd166" : theme.outline
+                                TapHandler { onTapped: app.setRating(win.selectedKey, (win.selected.rating || 0) === parent.index + 1 ? 0 : parent.index + 1) }
+                                HoverHandler { onHoveredChanged: if (hovered) starHover.at = parent.index + 1 }
+                            }
+                        }
+                        HoverHandler { id: starHover; property int at: 0; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+                KField {
+                    id: noteField
+                    theme: win.theme
+                    Layout.fillWidth: true
+                    iconName: "bookmark"
+                    placeholderText: "Your note (where you got to, what to try next)"
+                    text: win.selected.note || ""
+                    onEditingFinished: app.setNote(win.selectedKey, text)
                 }
                 Text {
                     Layout.fillWidth: true
@@ -1318,6 +1383,276 @@ ApplicationWindow {
                 Keys.onReturnPressed: clicked()
                 text: "Play without syncing this time"
                 onClicked: { conflict.close(); app.resolveConflict(conflict.key, "skip") }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- storage
+    // Every installed game by size, how full each drive is, and Move / Uninstall.
+    KDialog {
+        id: storage
+        objectName: "storageBox"
+        theme: win.theme
+        heading: "Storage"
+        headingIcon: "folder-open"
+        property var d: ({ games: [], drives: [] })
+        property bool loading: false
+        property bool tidy: false   // "Free up space": big games not played for three months
+        property string moveKey: ""
+        function show() { loading = true; app.loadStorage(); open() }
+        Connections { target: app; function onStorageReady(info) { storage.d = info; storage.loading = false } }
+        Connections { target: app; function onGameChanged(key) { if (storage.opened && key && storage.loading === false && !app.game(key).job) app.loadStorage() } }
+        width: Math.min(win.width - 60, 820)
+        height: Math.min(win.height - 60, 760)
+        readonly property var shown: (d.games || []).filter(g => !tidy || (g.bytes > 2 * 1024 * 1024 * 1024
+                                       && (!g.last || g.last < Date.now() / 1000 - 90 * 86400)))
+        contentItem: ColumnLayout {
+            spacing: 14
+            // Drives
+            Repeater {
+                model: storage.d.drives || []
+                ColumnLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: modelData.label + "  (" + modelData.mount + ")"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideMiddle }
+                        Text { text: modelData.freeText + " free of " + modelData.totalText; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 10; radius: 5
+                        color: theme.surfaceContainerHighest
+                        Rectangle {  // everything used
+                            height: parent.height; radius: 5
+                            width: parent.width * modelData.used / Math.max(1, modelData.total)
+                            color: Qt.alpha(theme.onSurfaceVariant, 0.45)
+                        }
+                        Rectangle {  // the games' share
+                            height: parent.height; radius: 5
+                            width: parent.width * modelData.gameBytes / Math.max(1, modelData.total)
+                            color: modelData.free / Math.max(1, modelData.total) < 0.1 ? theme.error : theme.primary
+                        }
+                    }
+                    Text { text: modelData.games + (modelData.games === 1 ? " game, " : " games, ") + modelData.gamesText; color: theme.outline; font.pixelSize: 12 }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Text { text: storage.loading ? "Measuring your games…" : (storage.shown.length + " games · " + (storage.d.total || "")); color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.fillWidth: true }
+                KButton {
+                    theme: win.theme
+                    text: storage.tidy ? "Show all" : "Free up space"
+                    iconName: storage.tidy ? "library" : "trash-2"
+                    onClicked: storage.tidy = !storage.tidy
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: storage.tidy
+                wrapMode: Text.WordWrap
+                text: storage.shown.length ? "Games over 2 GB you haven't played for three months, biggest first."
+                                           : "Nothing to clear: every big game was played lately."
+                color: theme.outline; font.pixelSize: 12
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 6
+                model: storage.shown
+                ScrollBar.vertical: KScrollBar { }
+                delegate: Rectangle {
+                    required property var modelData
+                    readonly property var live: app.game(modelData.key)
+                    width: ListView.view.width
+                    height: 62; radius: 12
+                    color: theme.surfaceContainerHigh
+                    RoundedArt {
+                        x: 8; anchors.verticalCenter: parent.verticalCenter
+                        width: 34; height: 48; radius: 6
+                        ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 68 }
+                    }
+                    Column {
+                        x: 54; anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - 54 - actions.width - 20
+                        spacing: 3
+                        Text { width: parent.width; text: modelData.title; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        Row {
+                            spacing: 6
+                            StoreIcon { size: 12; store: modelData.store; color: modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: live.job === "move" ? "Moving " + Math.max(0, Math.floor(live.progress)) + "%"
+                                         : modelData.size + "  ·  played " + modelData.lastText
+                                   color: live.job ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12 }
+                        }
+                    }
+                    Row {
+                        id: actions
+                        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                        spacing: 6
+                        KButton {
+                            theme: win.theme
+                            visible: !live.job && modelData.store !== "battlenet"
+                            text: "Move"
+                            iconName: "folder-open"
+                            onClicked: {
+                                if (!modelData.movable) { app.moveGame(modelData.key, ""); return }
+                                storage.moveKey = modelData.key
+                                moveDest.open()
+                            }
+                        }
+                        KButton {
+                            theme: win.theme
+                            visible: !!live.job
+                            text: "Cancel"
+                            iconName: "x"
+                            onClicked: app.cancel(modelData.key)
+                        }
+                        KButton {
+                            id: rmBtn
+                            property bool armed: false
+                            theme: win.theme
+                            danger: true
+                            visible: !live.job && modelData.store !== "battlenet"
+                            text: armed ? "Sure?" : "Uninstall"
+                            iconName: "trash-2"
+                            onClicked: { if (!armed) { armed = true; return } armed = false; app.uninstall(modelData.key) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    FolderDialog {
+        id: moveDest
+        title: "Move to which folder?"
+        onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
+    }
+
+    // -------------------------------------------------------------------- stats
+    KDialog {
+        id: statsBox
+        objectName: "statsBox"
+        theme: win.theme
+        heading: "Your games in numbers"
+        headingIcon: "trophy"
+        property var d: ({})
+        function show() { d = app.stats(); open() }
+        width: Math.min(win.width - 60, 760)
+        height: Math.min(win.height - 60, 720)
+        component Tile: Rectangle {
+            property string big: ""
+            property string small: ""
+            Layout.fillWidth: true
+            height: 78; radius: 14
+            color: theme.surfaceContainerHigh
+            Column {
+                anchors.centerIn: parent
+                spacing: 2
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: parent.parent.big; color: theme.onSurface; font.pixelSize: 26; font.weight: Font.Bold }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: parent.parent.small; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+            }
+        }
+        contentItem: Flickable {
+            clip: true
+            contentHeight: statsCol.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: KScrollBar { }
+            ColumnLayout {
+                id: statsCol
+                width: parent.width
+                spacing: 16
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Tile { big: (statsBox.d.totalHours || 0) + " h"; small: "played in total" }
+                    Tile { big: String(statsBox.d.played || 0); small: "of " + (statsBox.d.games || 0) + " games played" }
+                    Tile { big: String(statsBox.d.neverPlayed || 0); small: "never started" }
+                    Tile { big: String(statsBox.d.installed || 0); small: "installed" }
+                }
+                // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
+                Text { text: "Last two weeks  ·  " + (statsBox.d.weekHours || 0) + " h this week, " + (statsBox.d.monthHours || 0) + " h this month"
+                       color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                Item {
+                    Layout.fillWidth: true
+                    height: 110
+                    readonly property real peak: Math.max(1, ...(statsBox.d.days || [0]))
+                    Row {
+                        anchors.fill: parent
+                        spacing: 6
+                        Repeater {
+                            model: statsBox.d.days || []
+                            Item {
+                                required property real modelData
+                                width: (parent.width - 13 * 6) / 14
+                                height: parent.height
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    width: parent.width
+                                    height: Math.max(3, (parent.height - 4) * parent.modelData / parent.parent.parent.peak)
+                                    radius: 4
+                                    color: parent.modelData > 0 ? theme.primary : theme.surfaceContainerHighest
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: (statsBox.d.sessions || 0) === 0
+                    wrapMode: Text.WordWrap
+                    text: "Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals."
+                    color: theme.outline; font.pixelSize: 12
+                }
+                Text { text: "Most played"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                Repeater {
+                    model: statsBox.d.top || []
+                    RowLayout {
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        spacing: 12
+                        RoundedArt {
+                            Layout.preferredWidth: 34; Layout.preferredHeight: 48
+                            radius: 6
+                            ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 68 }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { Layout.fillWidth: true; text: modelData.title; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
+                                Text { text: modelData.hours + " h"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 6; radius: 3
+                                color: theme.surfaceContainerHighest
+                                Rectangle {
+                                    height: parent.height; radius: 3
+                                    width: parent.width * modelData.hours / Math.max(1, (statsBox.d.top[0] || {}).hours || 1)
+                                    color: theme.primary
+                                }
+                            }
+                        }
+                    }
+                }
+                Text { text: "By store"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; visible: (statsBox.d.perStore || []).length > 0 }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: statsBox.d.perStore || []
+                        Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.hours + " h" }
+                    }
+                    Repeater {
+                        model: statsBox.d.statuses || []
+                        Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.count; accent: true }
+                    }
+                }
             }
         }
     }

@@ -118,6 +118,9 @@ FocusScope {
         }
         for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
         out.push({ label: cur.favourite ? "Remove from favourites" : "Add to favourites", act: "fav", key: cur.key })
+        // Backlog status: one row that steps through the choices.
+        const names = { "": "None", playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" }
+        out.push({ label: "Status: " + names[cur.status || ""] + "  \u25B8", act: "status", key: cur.key })
         out.push({ label: cur.hidden ? "Unhide game" : "Hide game", act: cur.hidden ? "unhide" : "hide", key: cur.key })
         out.push({ label: "Close", act: "close", key: "" })
         return out
@@ -422,6 +425,7 @@ FocusScope {
                             const state = tv.cur.job === "install" ? "Installing " + pct
                                         : tv.cur.job === "update" ? "Updating " + pct
                                         : tv.cur.job === "dlc" ? "Installing DLC " + pct
+                                        : tv.cur.job === "move" ? "Moving " + pct
                                         : tv.cur.job ? "Removing…"
                                         : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
                             return stores + "  ·  " + state
@@ -444,7 +448,8 @@ FocusScope {
                     readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
                     readonly property string trophies: tv.ach.total ? "\u{1F3C6} " + tv.ach.done + " / " + tv.ach.total : ""
                     visible: text !== ""
-                    text: [played, trophies].filter(t => !!t).join("   \u00B7   ")
+                    readonly property string stars: tv.cur.rating ? "\u2605".repeat(tv.cur.rating) + "\u2606".repeat(5 - tv.cur.rating) : ""
+                    text: [played, trophies, stars].filter(t => !!t).join("   \u00B7   ")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 17
                 }
@@ -485,7 +490,7 @@ FocusScope {
                     visible: !!tv.cur.key
                     Rectangle {
                         id: playBtn
-                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC" }[tv.cur.job] || "Removing")
+                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC", move: "Moving" }[tv.cur.job] || "Removing")
                                                                        + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
                                                         : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
                         height: 56; radius: 28
@@ -828,6 +833,12 @@ FocusScope {
             else if (a.act === "uninstall") app.uninstall(a.key)
             else if (a.act === "hide" || a.act === "unhide") app.setHidden(a.key, a.act === "hide")
             else if (a.act === "fav") app.toggleFavourite(a.key)
+            else if (a.act === "status") {
+                const order = ["", "playing", "want", "finished", "dropped"]
+                app.setStatus(a.key, order[(order.indexOf(tv.cur.status || "") + 1) % order.length])
+                rows = tv.buildActions()
+                return  // stay open: press again for the next status
+            }
             hide()
         }
         visible: false

@@ -38,6 +38,8 @@ def _migrate_from_kura():
 
 
 DEFAULTS = {
+    "library_dirs": [],  # folders games were moved to (Storage > Move); GOG installs are found there too
+    "update_check": True,  # look for a new Cornerplay release once a day
     "games_dir": str(HOME / "Games" / APP),
     "proton": "GE-Proton",  # umu PROTONPATH: "GE-Proton", a path, or "" for UMU-Proton
     "mangohud": False,
@@ -131,7 +133,8 @@ def write_json(path, data):
 
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
-    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden", "collections")
+    KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden", "collections",
+            "status", "rating", "note")
 
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"

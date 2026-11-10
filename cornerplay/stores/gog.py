@@ -106,7 +106,10 @@ class Gog(Store):
     def _installed(self):
         """Scan the GOG folder for goggame-<id>.info files: {id: (path, info)}."""
         out = {}
-        for info_path in glob.glob(str(self.base_dir() / "*" / "goggame-*.info")):
+        # Cornerplay's GOG folder, and the folders games were moved to (Storage > Move).
+        roots = [self.base_dir()] + [p for p in (settings.get("library_dirs") or []) if isinstance(p, str)]
+        infos = [i for r in roots for i in glob.glob(os.path.join(str(r), "*", "goggame-*.info"))]
+        for info_path in infos:
             info = read_json(info_path) or {}
             gid = str(info.get("gameId", ""))
             if gid and gid == str(info.get("rootGameId", gid)):
