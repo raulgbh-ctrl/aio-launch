@@ -17,6 +17,7 @@ Item {
     required property string job
     required property real progress
     required property int copies
+    required property bool update
     property int cornerRadius: 14
     property bool showBadge: true
     property bool showTitle: false
@@ -119,7 +120,8 @@ Item {
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         text: card.job === "uninstall" ? "Removing…"
-                              : card.progress < 0 ? "Starting…" : "Installing " + Math.floor(card.progress) + "%"
+                              : card.progress < 0 ? "Starting…"
+                              : (card.job === "update" ? "Updating " : "Installing ") + Math.floor(card.progress) + "%"
                     }
                     Rectangle {
                         width: parent.width; height: 5; radius: 3
@@ -155,6 +157,15 @@ Item {
             width: 22; height: 22; radius: 11
             color: "#cc000000"
             Text { anchors.centerIn: parent; text: "↓"; color: "white"; font.pixelSize: 13; font.bold: true }
+        }
+
+        // Update-available marker.
+        Rectangle {
+            visible: card.installed && card.update && card.job === ""
+            anchors { right: parent.right; top: parent.top; margins: 10 }
+            width: 22; height: 22; radius: 11
+            color: theme.primary
+            Text { anchors.centerIn: parent; text: "↑"; color: theme.onPrimary; font.pixelSize: 13; font.bold: true }
         }
 
         Rectangle {

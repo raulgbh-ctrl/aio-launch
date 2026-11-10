@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -29,7 +29,20 @@ PALETTE = themes.RYOKU_PALETTE
 PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
-         "installed", "job", "progress", "external", "installPath", "copies"]
+         "installed", "job", "progress", "external", "installPath", "copies",
+         "update", "playtime", "lastPlayed"]
+GROUP_ROLES = ("copies", "playtime", "lastPlayed")
+SORTS = ("name", "recent", "playtime")
+RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
+
+
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _short_date(stamp, with_year=False):
+    """ "21 Oct" in English whatever the system language, to match the rest of the app."""
+    t = time.localtime(stamp)
+    return f"{t.tm_mday} {MONTHS[t.tm_mon - 1]}" + (f" {t.tm_year}" if with_year else "")
 
 
 def _cover(g):
@@ -49,6 +62,7 @@ class LibraryModel(QAbstractListModel):
         self.groups: list[list[Game]] = []
         self.jobs: dict[str, dict] = {}  # key -> {"kind": str, "progress": float}
         self.focus_store = ""            # the sidebar's store filter decides which copy is shown
+        self.played = playtime.load()    # AIO Launch's own playtime record
 
     def roleNames(self):
         return {Qt.UserRole + i: QByteArray(r.encode()) for i, r in enumerate(ROLES)}
@@ -95,7 +109,16 @@ class LibraryModel(QAbstractListModel):
             "installed": g.installed, "job": job["kind"] if job else "",
             "progress": job["progress"] if job else 0.0,
             "external": store.external_installs, "installPath": g.install_path, "copies": 1,
+            "update": bool(g.installed and g.extra.get("update")),
+            "playtime": playtime.of(g, self.played)[0], "lastPlayed": playtime.of(g, self.played)[1],
         }[role]
+
+    def group_value(self, group, role):
+        """Row-level values: a game owned on several stores counts the time played on each."""
+        if role == "copies":
+            return len(group)
+        times = [playtime.of(g, self.played) for g in group]
+        return sum(t[0] for t in times) if role == "playtime" else max(t[1] for t in times)
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid() or not 0 <= index.row() < len(self.groups):
@@ -107,7 +130,8 @@ class LibraryModel(QAbstractListModel):
         i = role - Qt.UserRole
         if not 0 <= i < len(ROLES):
             return None
-        return len(group) if ROLES[i] == "copies" else self.value(g, ROLES[i])
+        role = ROLES[i]
+        return self.group_value(group, role) if role in GROUP_ROLES else self.value(g, role)
 
     def find(self, key):
         for g in self.games:
@@ -126,6 +150,8 @@ class LibraryModel(QAbstractListModel):
                        for c in group] if len(group) > 1 else []
         d["hasDlc"] = g.store in ("steam", "epic", "gog")
         d["hidden"] = self.is_hidden(group or [g])
+        d["playtime"] = self.group_value(group or [g], "playtime")
+        d["lastPlayed"] = self.group_value(group or [g], "lastPlayed")
         return d
 
     def set_games(self, games):
@@ -155,6 +181,7 @@ class LibraryProxy(QSortFilterProxyModel):
     def __init__(self, model):
         super().__init__()
         self._store, self._installed, self._search, self._hidden = "", False, "", False
+        self._sort = settings.get("sort") if settings.get("sort") in SORTS else "name"
         self.setSourceModel(model)
         self.setSortCaseSensitivity(Qt.CaseInsensitive)
         self.setDynamicSortFilter(True)
@@ -170,6 +197,25 @@ class LibraryProxy(QSortFilterProxyModel):
         if self._installed:
             group = [g for g in group if g.installed]
         return bool(group) and (not self._search or any(self._search in g.title.lower() for g in group))
+
+    def lessThan(self, left, right):
+        model = self.sourceModel()
+        a, b = model.groups[left.row()], model.groups[right.row()]
+        if self._sort != "name":
+            role = "lastPlayed" if self._sort == "recent" else "playtime"
+            va, vb = model.group_value(a, role), model.group_value(b, role)
+            if va != vb:
+                return va > vb  # most recent / most played first; never-played games fall to the end
+        return model.rep(a).title.lower() < model.rep(b).title.lower()
+
+    def _set_sort(self, mode):
+        if mode in SORTS and mode != self._sort:
+            self._sort = mode
+            settings.set("sort", mode)
+            self.invalidate()
+            self.filterChanged.emit()
+
+    sortMode = Property(str, lambda s: s._sort, _set_sort, notify=filterChanged)
 
     def _set(self, attr, value):
         if getattr(self, attr) != value:
@@ -224,6 +270,7 @@ class AioLaunch(QObject):
         self.procs: dict[str, QProcess] = {}
         self.logs: dict[str, list] = {}
         self._pending = set()
+        self._updates_seen = set()
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         self._worker_toast.connect(self.toast)
@@ -302,6 +349,50 @@ class AioLaunch(QObject):
         return out
 
     storesInfo = Property("QVariantList", _stores_info, notify=storesChanged)
+
+    def _recent_games(self):
+        """The "Continue playing" row: installed games, most recently played first."""
+        m = self.model
+        rows = []
+        for group in m.groups:
+            last = m.group_value(group, "lastPlayed")
+            if last and not m.is_hidden(group) and any(g.installed for g in group):
+                rows.append((last, group))
+        rows.sort(key=lambda r: -r[0])
+        out = []
+        for last, group in rows[:RECENT_ROW]:
+            g = m.rep(group)
+            out.append({"key": g.key, "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
+                        "storeName": self.stores[g.store].name, "storeColor": self.stores[g.store].color,
+                        "lastPlayed": last})
+        return out
+
+    recentGames = Property("QVariantList", _recent_games, notify=storesChanged)
+    updateCount = Property(int, lambda s: sum(1 for g in s.model.games if g.installed and g.extra.get("update")),
+                           notify=storesChanged)
+
+    @Slot("QVariant", "QVariant", result=str)
+    def playedText(self, seconds, last):
+        """ "12 h played · last played 3 days ago", or "" for a game never played."""
+        seconds, last = int(seconds or 0), int(last or 0)
+        parts = []
+        if seconds >= 3600:
+            parts.append(f"{seconds / 3600:.1f}".rstrip("0").rstrip(".") + " h played")
+        elif seconds >= 60:
+            parts.append(f"{seconds // 60} min played")
+        if last:
+            days = (time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1)) - last) / 86400
+            when = ("today" if days < 0 else "yesterday" if days < 1
+                    else f"{int(days) + 1} days ago" if days < 6
+                    else _short_date(last, with_year=days > 300))
+            parts.append("last played " + when)
+        text = " · ".join(parts)
+        return text[:1].upper() + text[1:]
+
+    def _reload_playtime(self):
+        self.model.played = playtime.load()
+        self.model.touch()
+        self.storesChanged.emit()
     refreshing = Property(bool, lambda s: bool(s._pending), notify=refreshingChanged)
     totalCount = Property(int, lambda s: len(s.model.groups) - s._hidden_count(), notify=storesChanged)
 
@@ -366,6 +457,18 @@ class AioLaunch(QObject):
         if not self._pending:
             self.checkSteamShortcut()
             self._auto_steam()
+            self._announce_updates()
+
+    def _announce_updates(self):
+        """One toast per newly found update (not again on every refresh)."""
+        found = {g.key: g.title for g in self.model.games if g.installed and g.extra.get("update")
+                 and not game_options.get(g.key).get("hidden")}
+        new = [t for k, t in found.items() if k not in self._updates_seen]
+        self._updates_seen = set(found)
+        if len(new) == 1:
+            self.toast.emit(f"Update available: {new[0]}")
+        elif new:
+            self.toast.emit(f"{len(new)} game updates available")
 
     # --- sign-in ---------------------------------------------------------
     def _bg(self, fn):
@@ -757,7 +860,7 @@ class AioLaunch(QObject):
 
     def _start(self, g, cmd, sync):
         log = str(LOG_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", g.key) + ".log"))
-        if g.store in saves.SUPPORTED:
+        if g.store in saves.SUPPORTED or g.store in playtime.TIMED:
             job = CACHE_DIR / f"sessions/job-{os.getpid()}-{int(time.time() * 1000)}.json"
             write_json(job, {"game": g.to_dict(), "argv": cmd.argv, "env": cmd.env, "cwd": cmd.cwd,
                              "log": log, "sync": sync})
@@ -781,6 +884,7 @@ class AioLaunch(QObject):
             if data.get("state") == "uploading":
                 self.toast.emit(f"Uploading saves for {data.get('title') or 'your game'}…")
             elif data.get("state") == "done":
+                self._reload_playtime()
                 res = data.get("sync") or {}
                 title = data.get("title", "")
                 if res.get("status") == "ok":
@@ -808,6 +912,19 @@ class AioLaunch(QObject):
             self.toast.emit(f"{store.name} is taking over the install of {g.title}")
         else:
             self._start_job(g, "install", cmd)
+
+    @Slot(str)
+    def update(self, key):
+        g, store = self._guard(key)
+        if not g or key in self.procs or not g.extra.get("update"):
+            return
+        try:
+            with runner.using(self._options_for(g)):
+                cmd = store.update(g)
+        except StoreError as e:
+            self.toast.emit(str(e))
+            return
+        self._start_job(g, "update", cmd)
 
     @Slot(str)
     def uninstall(self, key):
@@ -874,7 +991,9 @@ class AioLaunch(QObject):
         if p.property("cancelled"):
             self.toast.emit(f"Cancelled: {g.title}")
         elif code == 0:
-            self.toast.emit(f"{'Installed' if kind == 'install' else 'Removed'} {g.title}")
+            if kind == "update":
+                g.extra.pop("update", None)  # the refresh below confirms it
+            self.toast.emit(f"{ {'install': 'Installed', 'update': 'Updated'}.get(kind, 'Removed')} {g.title}")
         else:
             detail = next((l for l in reversed(lines) if "error" in l.lower()), lines[-1] if lines else "")
             self.toast.emit(f"{kind.capitalize()} failed for {g.title}: {detail[-160:]}".rstrip(": "))
@@ -950,6 +1069,14 @@ class AioLaunch(QObject):
         for g in games:
             if g.id in hints:
                 g.extra["steam_appid"] = hints[g.id]
+        for g in games:
+            if g.key in ("epic:1145360", "gog:588650"):
+                g.extra["update"] = True
+        now = int(time.time())
+        self.model.played = {"epic:1145360": {"seconds": 41 * 3600, "last": now - 3 * 3600},
+                             "steam:1245620": {"seconds": 120 * 3600, "last": now - 2 * 86400},
+                             "gog:588650": {"seconds": 9 * 3600, "last": now - 26 * 3600},
+                             "battlenet:pro": {"seconds": 1800, "last": now - 20 * 86400}}
         self.model.set_games(games)
         self.pool.submit(lambda: (covers.fill(games), self._after.emit(self.model.touch)))
         self.model.jobs["gog:646570"] = {"kind": "install", "progress": 42.0}

@@ -228,6 +228,16 @@ ApplicationWindow {
                     Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
                 }
                 Item { Layout.fillWidth: true }
+                KCombo {
+                    id: sortBox
+                    theme: win.theme
+                    Layout.preferredWidth: 190
+                    model: [{ label: "Sort: Name", value: "name" },
+                            { label: "Sort: Recently played", value: "recent" },
+                            { label: "Sort: Most played", value: "playtime" }]
+                    Component.onCompleted: select(library.sortMode)
+                    onActivated: library.sortMode = currentValue
+                }
                 Text {
                     text: grid.count + (grid.count === 1 ? " game" : " games")
                     color: theme.onSurfaceVariant
@@ -238,6 +248,81 @@ ApplicationWindow {
                     text: app.refreshing ? "Refreshing…" : "Refresh"
                     enabled: !app.refreshing
                     onClicked: app.refresh()
+                }
+            }
+
+            // Continue playing: the last games you played, one click away.
+            ColumnLayout {
+                visible: app.recentGames.length > 0 && !library.search && !library.storeFilter
+                         && !library.showHidden && library.sortMode !== "recent"
+                Layout.fillWidth: true
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                Layout.bottomMargin: 6
+                spacing: 8
+                Text { text: "Continue playing"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                ListView {
+                    id: recentRow
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 132
+                    orientation: ListView.Horizontal
+                    spacing: 12
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: app.recentGames
+                    delegate: Rectangle {
+                        id: recentTile
+                        required property var modelData
+                        width: 236; height: 132
+                        radius: 12
+                        color: theme.surfaceContainerHigh
+                        border.width: recentHover.hovered ? 2 : 1
+                        border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
+                        clip: true
+                        Image {
+                            id: recentArt
+                            width: 84; height: parent.height
+                            source: recentTile.modelData.cover || ""
+                            asynchronous: true
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize.width: 168
+                            onStatusChanged: {
+                                const fb = recentTile.modelData.coverFallback || ""
+                                if (status === Image.Error && fb && source != fb) source = fb
+                            }
+                        }
+                        Column {
+                            anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                            spacing: 6
+                            Text {
+                                width: parent.width
+                                text: recentTile.modelData.title
+                                color: theme.onSurface
+                                font.pixelSize: 14; font.weight: Font.DemiBold
+                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            }
+                            Row {
+                                spacing: 6
+                                Rectangle { width: 8; height: 8; radius: 4; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                            }
+                            Text {
+                                width: parent.width
+                                text: {
+                                    const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
+                                    return s.charAt(0).toUpperCase() + s.slice(1)
+                                }
+                                color: theme.outline
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                        }
+                        HoverHandler { id: recentHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onSingleTapped: win.select(recentTile.modelData.key)
+                            onDoubleTapped: win.activate(recentTile.modelData.key)
+                        }
+                    }
                 }
             }
 
@@ -378,7 +463,8 @@ ApplicationWindow {
                     Text {
                         color: theme.onSurfaceVariant
                         font.pixelSize: 13
-                        text: (win.selected.storeName || "") + "  ·  " + (win.selected.installed ? "Installed" : "Not installed")
+                        text: (win.selected.storeName || "") + "  ·  "
+                              + (!win.selected.installed ? "Not installed" : win.selected.update ? "Update available" : "Installed")
                     }
                 }
                 Text {
@@ -390,6 +476,13 @@ ApplicationWindow {
                     elide: Text.ElideMiddle
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: app.openFolder(win.selected.installPath) }
+                }
+                Text {
+                    readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
+                    visible: played !== ""
+                    text: played
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 13
                 }
 
                 // The same game owned on several stores: choose which copy to use.
@@ -436,7 +529,8 @@ ApplicationWindow {
                         font.pixelSize: 13
                         text: win.selected.job === "uninstall" ? "Removing…"
                               : win.selected.progress < 0 ? "Starting…"
-                              : "Installing  " + (win.selected.progress || 0).toFixed(1) + "%"
+                              : (win.selected.job === "update" ? "Updating  " : "Installing  ")
+                                + (win.selected.progress || 0).toFixed(1) + "%"
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -461,7 +555,8 @@ ApplicationWindow {
                           : "Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton."
                 }
 
-                RowLayout {
+                Flow {
+                    Layout.fillWidth: true
                     spacing: 10
                     KButton {
                         theme: win.theme
@@ -472,6 +567,12 @@ ApplicationWindow {
                             app.preferCopy(win.selectedKey)
                             win.selected.installed ? app.play(win.selectedKey) : app.install(win.selectedKey)
                         }
+                    }
+                    KButton {
+                        theme: win.theme
+                        visible: !win.selected.job && !!win.selected.update
+                        text: "Update"
+                        onClicked: app.update(win.selectedKey)
                     }
                     KButton {
                         theme: win.theme

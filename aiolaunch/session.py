@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 
+from . import playtime
 from .config import CACHE_DIR, write_json
 from .stores.base import Game
 
@@ -35,12 +36,18 @@ def run(game, argv, env_extra, cwd, log_path, sync):
     env.update(env_extra or {})
     if cwd and not os.path.isdir(cwd):
         cwd = None
+    started = time.time()
     with open(log_path, "w", encoding="utf-8") as log:
         try:
             code = subprocess.run(argv, env=env, cwd=cwd or None, stdout=log, stderr=subprocess.STDOUT).returncode
         except OSError as e:
             log.write(f"Could not start: {e}\n")
             code = -1
+    if game.store in playtime.TIMED:
+        try:
+            playtime.record(game.key, started)
+        except OSError:
+            pass  # never lose the save upload over a playtime file
     result = {"status": "skipped", "message": ""}
     if sync:
         write_json(out, {"key": game.key, "state": "uploading", "since": time.time(), "title": game.title})

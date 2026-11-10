@@ -138,8 +138,33 @@ class Steam(Store):
                     if appid not in games and appid not in TOOL_IDS:
                         games[appid] = self._game(appid, g.get("name") or f"App {appid}")
             except (requests.RequestException, ValueError) as e:
+                self._add_playtime(games)
                 raise PartialResult(list(games.values()), f"Steam Web API: {e}")
+        self._add_playtime(games)
         return list(games.values())
+
+    def _add_playtime(self, games):
+        """Steam's own playtime record (localconfig.vdf of the signed-in account)."""
+        root, steamid = self.root(), settings.get("steam_id").strip() or self._recent_user()[0]
+        if not root or not steamid:
+            return
+        try:
+            account = int(steamid) - 76561197960265728
+        except ValueError:
+            return
+        conf = vdf.load(root / "userdata" / str(account) / "config" / "localconfig.vdf")
+        node = conf
+        for name in ("UserLocalConfigStore", "Software", "Valve", "Steam", "apps"):
+            node = next((v for k, v in node.items() if k.lower() == name.lower() and isinstance(v, dict)), {})
+        for appid, app in node.items():
+            g = games.get(appid)
+            if g is None or not isinstance(app, dict):
+                continue
+            try:
+                g.extra["steam_playtime"] = int(app.get("Playtime", 0)) * 60
+                g.extra["steam_last_played"] = int(app.get("LastPlayed", 0))
+            except ValueError:
+                pass
 
     def dlcs(self, game):
         try:

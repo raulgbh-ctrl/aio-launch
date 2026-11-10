@@ -9,7 +9,9 @@ from urllib.parse import parse_qs, urlparse
 
 from ..net import requests
 
-from ..config import CACHE_DIR, CONFIG_DIR, find_tool, read_json, settings, write_json
+from pathlib import Path
+
+from ..config import CACHE_DIR, CONFIG_DIR, XDG_CONFIG, find_tool, read_json, settings, write_json
 from ..runner import StoreError, wine_env, wrapper_argv
 from .base import Command, Game, PartialResult, Store
 
@@ -22,6 +24,8 @@ AUTH_URL = ("https://auth.gog.com/auth?client_id=" + CLIENT_ID +
             "&response_type=code&layout=client2")
 AUTH_FILE = CONFIG_DIR / "gog_auth.json"  # same layout gogdl reads and refreshes
 META_FILE = CACHE_DIR / "gog_meta.json"
+# gogdl saves each installed build's manifest here (it holds the installed buildId).
+GOGDL_MANIFESTS = Path(os.environ.get("GOGDL_CONFIG_PATH") or XDG_CONFIG) / "heroic_gogdl" / "manifests"
 
 
 class Gog(Store):
@@ -120,9 +124,36 @@ class Gog(Store):
         for gid, (path, info) in installed.items():
             g = games.setdefault(gid, Game(store=self.id, id=gid, title=info.get("name", gid)))
             g.installed, g.install_path = True, path
+        for gid in self._updates(installed):
+            games[gid].extra["update"] = True
         if error:
             raise PartialResult(list(games.values()), f"GOG: {error}")
         return list(games.values())
+
+    def _updates(self, installed):
+        """Installed games whose build is older than GOG's newest public build.
+
+        The installed build comes from the manifest gogdl keeps after a download
+        (or the game's goggame info file); games installed without either are skipped.
+        """
+        def check(gid):
+            have = ((read_json(GOGDL_MANIFESTS / gid) or {}).get("buildId")
+                    or installed[gid][1].get("buildId"))
+            if not have:
+                return None
+            try:
+                r = requests.get(f"https://content-system.gog.com/products/{gid}/os/windows/builds",
+                                 params={"generation": 2}, timeout=15)
+                items = [i for i in r.json().get("items") or []
+                         if not i.get("branch") and i.get("generation", 2) == 2]
+            except (requests.RequestException, ValueError):
+                return None
+            return gid if items and str(items[0].get("build_id")) != str(have) else None
+
+        if not installed:
+            return set()
+        with ThreadPoolExecutor(4) as pool:
+            return {gid for gid in pool.map(check, installed) if gid}
 
     def _owned(self):
         s = requests.Session()
@@ -195,6 +226,17 @@ class Gog(Store):
         base.mkdir(parents=True, exist_ok=True)
         return Command([tool, "--auth-config-path", str(AUTH_FILE), "download", game.id,
                         "--platform", "windows", "--path", str(base), "--with-dlcs", "--lang", "en-US"])
+
+    def update(self, game):
+        tool = find_tool("gogdl")
+        if not tool:
+            raise StoreError(self.problem())
+        if not game.install_path or not os.path.isdir(game.install_path):
+            raise StoreError("Game files not found; try Refresh")
+        self._token()
+        # For "update", gogdl takes the game's own folder as --path (for "download" it is the parent).
+        return Command([tool, "--auth-config-path", str(AUTH_FILE), "update", game.id,
+                        "--platform", "windows", "--path", game.install_path, "--with-dlcs", "--lang", "en-US"])
 
     def uninstall(self, game):
         path = os.path.realpath(game.install_path or "")

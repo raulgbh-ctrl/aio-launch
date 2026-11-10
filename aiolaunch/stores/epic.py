@@ -92,6 +92,9 @@ class Epic(Store):
             if app not in games and not inst.get("is_dlc"):
                 games[app] = Game(store=self.id, id=app, title=inst.get("title", app),
                                   installed=True, install_path=inst.get("install_path", ""))
+        for app in _updates(installed):
+            if app in games:
+                games[app].extra["update"] = True
         if error:
             raise PartialResult(list(games.values()), f"Epic: {error}")
         return list(games.values())
@@ -110,6 +113,9 @@ class Epic(Store):
     def uninstall(self, game):
         return Command([self.tool(), "-y", "uninstall", game.id])
 
+    def update(self, game):
+        return Command([self.tool(), "-y", "update", game.id])
+
     def launch(self, game):
         """Blocking: asks legendary for the launch details so AIO Launch can run (and wait for) the game itself."""
         env = wine_env(self.id, game.id)
@@ -126,6 +132,24 @@ class Epic(Store):
                 *p.get("user_parameters", []), *p.get("egl_parameters", [])]
         env.update({k: str(v) for k, v in (p.get("environment") or {}).items()})
         return Command(argv, env=env, cwd=p.get("working_directory") or p.get("game_directory", ""))
+
+
+def _updates(installed):
+    """Installed games whose version differs from Epic's latest build.
+
+    `legendary list` (run by fetch) refreshes assets.json with each game's newest
+    build_version; this is the same comparison `legendary list-installed --check-updates` makes.
+    """
+    latest = {}
+    for platform, items in (read_json(XDG_CONFIG / "legendary/assets.json") or {}).items():
+        for a in items or []:
+            latest[(platform, a.get("app_name"))] = a.get("build_version")
+    out = set()
+    for app, inst in installed.items():
+        newest = latest.get((inst.get("platform") or "Windows", app))
+        if newest and inst.get("version") and newest != inst["version"]:
+            out.add(app)
+    return out
 
 
 def _images(meta):

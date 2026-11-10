@@ -32,8 +32,12 @@ FocusScope {
         const removable = []
         for (const c of copies) {
             const g = app.game(c.key)
-            if (g.job) out.push({ label: "Cancel " + (g.job === "install" ? "install" : "removal") + " · " + c.storeName, act: "cancel", key: c.key })
-            else if (g.installed) { out.push({ label: "Play on " + c.storeName, act: "play", key: c.key }); if (g.store !== "battlenet") removable.push(c) }
+            if (g.job) out.push({ label: "Cancel " + ({ install: "install", update: "update" }[g.job] || "removal") + " · " + c.storeName, act: "cancel", key: c.key })
+            else if (g.installed) {
+                out.push({ label: "Play on " + c.storeName, act: "play", key: c.key })
+                if (g.update) out.push({ label: "Update on " + c.storeName, act: "update", key: c.key })
+                if (g.store !== "battlenet") removable.push(c)
+            }
             else out.push({ label: "Install from " + c.storeName, act: "install", key: c.key })
         }
         for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
@@ -185,9 +189,13 @@ FocusScope {
                     text: {
                         if (!tv.cur.key) return ""
                         const stores = tv.cur.copies.length ? tv.cur.copies.map(c => c.storeName).join(", ") : tv.cur.storeName
-                        const state = tv.cur.job === "install" ? "Installing " + Math.max(0, Math.floor(tv.cur.progress)) + "%"
-                                    : tv.cur.job ? "Removing…" : tv.cur.installed ? "Installed" : "Not installed"
-                        return stores + "  ·  " + state
+                        const pct = Math.max(0, Math.floor(tv.cur.progress)) + "%"
+                        const state = tv.cur.job === "install" ? "Installing " + pct
+                                    : tv.cur.job === "update" ? "Updating " + pct
+                                    : tv.cur.job ? "Removing…"
+                                    : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
+                        const played = app.playedText(tv.cur.playtime, tv.cur.lastPlayed)
+                        return stores + "  ·  " + state + (played ? "  ·  " + played : "")
                     }
                 }
             }
@@ -222,6 +230,7 @@ FocusScope {
             armed = -1
             if (a.act === "play") { app.preferCopy(a.key); app.play(a.key) }
             else if (a.act === "install") { app.preferCopy(a.key); app.install(a.key) }
+            else if (a.act === "update") app.update(a.key)
             else if (a.act === "cancel") app.cancel(a.key)
             else if (a.act === "uninstall") app.uninstall(a.key)
             else if (a.act === "hide" || a.act === "unhide") app.setHidden(a.key, a.act === "hide")

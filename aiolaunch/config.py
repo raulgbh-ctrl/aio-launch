@@ -53,6 +53,7 @@ DEFAULTS = {
     "cloud_saves": True,
     "steam_games": False,      # keep installed games in Steam (Game Mode) automatically
     "performance": "auto",     # "auto", "light" or "full"
+    "sort": "name",            # library order: "name", "recent" or "playtime"
 }
 
 # Where Heroic keeps its bundled copies of legendary / gogdl / nile.

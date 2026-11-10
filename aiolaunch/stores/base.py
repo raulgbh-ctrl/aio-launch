@@ -95,6 +95,10 @@ class Store:
     def launch(self, game: Game) -> Command:
         raise StoreError("Launch is not supported for this store")
 
+    def update(self, game: Game) -> Command:
+        """Update an installed game. fetch() marks games that have one with extra["update"] = True."""
+        raise StoreError("Updates are not supported for this store")
+
 
 def run(argv, timeout=120, env=None) -> subprocess.CompletedProcess:
     """Run a backend CLI and capture its output."""

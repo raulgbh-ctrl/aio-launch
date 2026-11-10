@@ -85,6 +85,11 @@ class Amazon(Store):
             games.append(Game(store=self.id, id=gid, title=product.get("title") or gid,
                               cover=icon, cover_fallback=icon,
                               installed=bool(inst), install_path=(inst or {}).get("path", "")))
+        if installed and self.logged_in():
+            updates = self._updates()
+            for g in games:
+                if g.id in updates and g.installed:
+                    g.extra["update"] = True
         if error:
             raise PartialResult(games, f"Amazon: {error}")
         return games
@@ -96,6 +101,21 @@ class Amazon(Store):
 
     def uninstall(self, game):
         return Command([self.tool(), "uninstall", game.id])
+
+    def _updates(self):
+        """Ids of installed games with an update (`nile list-updates`); empty if the check fails."""
+        try:
+            r = run([self.tool(), "list-updates", "--json"], timeout=120)
+            data = json.loads((r.stdout or "").strip() or "[]")
+        except (StoreError, ValueError):
+            return set()
+        return {(d.get("id") if isinstance(d, dict) else d) for d in data or []} - {None}
+
+    def update(self, game):
+        argv = [self.tool(), "update", game.id]
+        if game.install_path:
+            argv += ["--path", game.install_path]
+        return Command(argv)
 
     def launch(self, game):
         return Command(
