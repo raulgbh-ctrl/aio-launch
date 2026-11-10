@@ -425,11 +425,17 @@ FocusScope {
                     Text { id: playingText; x: 34; anchors.verticalCenter: parent.verticalCenter
                            text: app.nowPlaying.length ? app.nowPlaying[0].title : ""; color: theme.onSurface; font.pixelSize: 16 }
                 }
-                Text {
-                    visible: app.profiles.length > 1
+                Row {  // who is playing: initial in a circle (and the name when there are several people)
                     anchors.verticalCenter: parent.verticalCenter
-                    text: app.profile
-                    color: theme.onSurfaceVariant; font.pixelSize: 18
+                    spacing: 10
+                    Rectangle {
+                        width: 38; height: 38; radius: 19
+                        color: tv.tint.primary
+                        Text { anchors.centerIn: parent; text: (app.profile || "?").charAt(0).toUpperCase(); color: tv.tint.onPrimary
+                               font.pixelSize: 18; font.weight: Font.Bold }
+                    }
+                    Text { visible: app.profiles.length > 1; anchors.verticalCenter: parent.verticalCenter
+                           text: app.profile; color: theme.onSurfaceVariant; font.pixelSize: 18 }
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -782,44 +788,51 @@ FocusScope {
             }
         }
 
-        // Button hints: the connected controller's own glyphs, or keyboard keys.
+        // Button hints: the connected controller's own glyphs, or keyboard keys; only the ones
+        // that do something right now (no Jump in a short row, no Store with one store...).
         Row {
             Layout.alignment: Qt.AlignRight
             visible: tv.width >= 900
             spacing: 22
             Repeater {
-                model: pad.connected
-                       ? [{ b: ["a"], t: "Play" }, { b: ["x"], t: "Actions" }, { b: ["y"], t: "Installed only" },
-                          { b: ["lt", "rt"], t: "Jump" }, { b: ["lb", "rb"], t: "Store" }, { b: ["back"], t: "Search" }, { b: ["b"], t: "Back" }]
-                       : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
-                       ? [{ b: ["a"], t: "Play" }, { k: "F2", t: "Actions" }, { b: ["y"], t: "Installed only" },
-                          { b: ["b"], t: "Back" }]
-                       : [{ k: "Enter", t: "Play" }, { k: "F2", t: "Actions" }, { k: "F3", t: "Installed only" },
-                          { k: "↑ ↓", t: "Shelf" }, { k: "Shift ←/→", t: "Jump" }, { k: "PgUp / PgDn", t: "Store" }, { k: "Type", t: "Search" }, { k: "Esc", t: "Back" }]
-                Row {
-                    required property var modelData
-                    spacing: 8
-                    Repeater {
-                        model: modelData.b || []
-                        PadButton { required property string modelData; button: modelData; style: pad.style; size: 26 }
-                    }
-                    Rectangle {  // keycap
-                        visible: !!modelData.k
-                        height: 26; radius: 6
-                        width: keyText.implicitWidth + 16
-                        color: Qt.alpha(theme.surfaceContainerHighest, 0.9)
-                        border.width: 1; border.color: theme.outlineVariant
-                        Text { id: keyText; anchors.centerIn: parent; text: modelData.k || ""; color: theme.onSurface; font.pixelSize: 12; font.weight: Font.DemiBold }
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData.t
-                        color: theme.onSurfaceVariant
-                        font.pixelSize: 15
-                    }
+                model: {
+                    const play = tv.cur.key && !tv.cur.installed ? "Install" : "Play"
+                    const jump = grid.count > grid.page + 1, stores = tv.storeIds.length > 2, shelves = tv.shelfList.length > 1
+                    const all = pad.connected
+                        ? [{ b: ["a"], t: play }, { b: ["x"], t: "More" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                           shelves ? { b: ["\u2195"], t: "Shelf", pad: true } : null, jump ? { b: ["lt", "rt"], t: "Jump" } : null,
+                           stores ? { b: ["lb", "rb"], t: "Store" } : null, { b: ["back"], t: "Search" },
+                           { b: ["b"], t: tvLibrary.search ? "Clear search" : "Back" }]
+                        : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
+                        ? [{ b: ["a"], t: play }, { k: "F2", t: "More" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
+                        : [{ k: "Enter", t: play }, { k: "F2", t: "More" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                           shelves ? { k: "\u2191 \u2193", t: "Shelf" } : null, jump ? { k: "Shift \u2190/\u2192", t: "Jump" } : null,
+                           stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
+                           { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
+                    return all.filter(h => h && !h.pad)
                 }
+                Hint { required property var modelData; hint: modelData }
             }
         }
+    }
+
+    // One button hint: the pad's glyphs or a keycap, and what it does.
+    component Hint: Row {
+        property var hint: ({})
+        spacing: 8
+        Repeater {
+            model: hint.b || []
+            PadButton { required property string modelData; button: modelData; style: pad.style; size: 26 }
+        }
+        Rectangle {  // keycap
+            visible: !!hint.k
+            height: 26; radius: 6
+            width: hintKey.implicitWidth + 16
+            color: Qt.alpha(theme.surfaceContainerHighest, 0.9)
+            border.width: 1; border.color: theme.outlineVariant
+            Text { id: hintKey; anchors.centerIn: parent; text: hint.k || ""; color: theme.onSurface; font.pixelSize: 12; font.weight: Font.DemiBold }
+        }
+        Text { anchors.verticalCenter: parent.verticalCenter; text: hint.t || ""; color: theme.onSurfaceVariant; font.pixelSize: 15 }
     }
 
     // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),
@@ -957,12 +970,72 @@ FocusScope {
             hide()
         }
         visible: false
-        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-        width: Math.min(520, parent.width * 0.42)
-        color: theme.surfaceContainer
-        ColumnLayout {
+        // The game's page: everything about it on the left, what to do on the right.
+        anchors.fill: parent
+        color: Qt.alpha(theme.background, 0.985)
+        RowLayout {
             anchors.fill: parent
-            anchors.margins: 40
+            anchors.margins: Math.round(Math.min(64, tv.width * 0.04))
+            spacing: Math.round(Math.min(56, tv.width * 0.035))
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 14
+            LogoTitle {
+                Layout.fillWidth: true
+                logos: tv.cur.logos || []
+                title: tv.cur.title || ""
+                color: theme.onSurface
+                pixelSize: Math.round(Math.min(56, Math.max(34, tv.height * 0.05)))
+                logoHeight: Math.round(Math.min(150, Math.max(70, tv.height * 0.13)))
+                maxWidth: Math.min(width, 620)
+            }
+            Text {
+                Layout.fillWidth: true
+                text: [tv.cur.storeName || "", tv.cur.installed ? "Installed" : "Not installed",
+                       tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : "",
+                       tv.info.developer || "", tv.info.year || ""].filter(x => x).join("   \u00B7   ")
+                color: theme.onSurfaceVariant; font.pixelSize: 18; wrapMode: Text.WordWrap
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                Repeater {
+                    model: tv.info.genres || []
+                    Rectangle { required property string modelData; height: 30; radius: 15; width: pgT.implicitWidth + 26
+                                color: "transparent"; border.width: 1; border.color: tv.tint.primary
+                                Text { id: pgT; anchors.centerIn: parent; text: parent.modelData; color: theme.onSurface; font.pixelSize: 14 } }
+                }
+            }
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 80
+                clip: true
+                contentHeight: pgAbout.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                Text { id: pgAbout; width: parent.width; text: tv.info.description || ""; color: theme.onSurface; opacity: 0.85
+                       font.pixelSize: 18; lineHeight: 1.3; wrapMode: Text.WordWrap }
+            }
+            ListView {
+                visible: (tv.info.screenshots || []).length > 0 && tv.height >= 640
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.round(Math.min(200, tv.height * 0.2))
+                orientation: ListView.Horizontal
+                spacing: 12
+                interactive: false
+                clip: true
+                model: tv.info.screenshots || []
+                delegate: RoundedArt {
+                    required property var modelData
+                    height: ListView.view.height; width: Math.round(height * 16 / 9); radius: 10
+                    Image { anchors.fill: parent; source: modelData.thumb || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                }
+            }
+        }
+        ColumnLayout {
+            Layout.preferredWidth: Math.min(480, tv.width * 0.36)
+            Layout.fillHeight: true
             spacing: 18
             Text {
                 Layout.fillWidth: true
@@ -1011,6 +1084,17 @@ FocusScope {
                 Keys.onEnterPressed: panel.run(currentIndex)
                 Keys.onEscapePressed: panel.hide()
                 Keys.onLeftPressed: panel.hide()
+            }
+        }
+        }
+        // The page's own hints: only what works here.
+        Row {
+            anchors { right: parent.right; bottom: parent.bottom; margins: 28 }
+            spacing: 22
+            Repeater {
+                model: pad.connected || pad.deck ? [{ b: ["a"], t: "Choose" }, { b: ["b"], t: "Back" }]
+                                                 : [{ k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                Hint { required property var modelData; hint: modelData }
             }
         }
     }
