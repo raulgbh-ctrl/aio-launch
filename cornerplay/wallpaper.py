@@ -33,8 +33,97 @@ def _ok(path):
     return bool(path) and os.path.isfile(path) and path.lower().endswith(IMAGE_EXT)
 
 
+def _ini(path):
+    """Read a KDE config file into {section: {key: value}}. Section names keep KDE's inner brackets."""
+    sections, cur = {}, None
+    try:
+        text = Path(path).read_text(errors="ignore")
+    except OSError:
+        return sections
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            cur = sections.setdefault(line[1:-1], {})
+        elif cur is not None and "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            cur[k.strip()] = v.strip()
+    return sections
+
+
+def _kde_dark():
+    glob_ = _ini(HOME / ".config/kdeglobals")
+    if "dark" in glob_.get("General", {}).get("ColorScheme", "").lower():
+        return True
+    bg = glob_.get("Colors:Window", {}).get("BackgroundNormal", "")
+    try:
+        r, g, b = (int(x) for x in bg.split(",")[:3])
+        return (r * 299 + g * 587 + b * 114) / 1000 < 128
+    except ValueError:
+        return False
+
+
+def _kde_package(value):
+    """A KDE wallpaper may be a package folder (or just its name); pick its biggest image."""
+    value = _uri(value).rstrip("/")
+    if os.path.isfile(value):
+        return value
+    dirs = [value] if os.path.isabs(value) else [
+        str(HOME / ".local/share/wallpapers" / value), f"/usr/local/share/wallpapers/{value}",
+        f"/usr/share/wallpapers/{value}"]
+    for d in dirs:
+        if not os.path.isdir(d):
+            continue
+        subs = ["contents/images_dark", "contents/images"] if _kde_dark() else ["contents/images"]
+        for sub in subs + ["contents/images", "."]:
+            files = [f for f in glob.glob(os.path.join(d, sub, "*")) if _ok(f)]
+            if files:
+                def size(f):
+                    m = re.match(r"(\d+)x(\d+)", os.path.basename(f))
+                    return (int(m.group(1)) * int(m.group(2)) if m else 0, os.path.getsize(f))
+                return max(files, key=size)
+    return ""
+
+
+def _kde_default():
+    """The wallpaper Plasma shows when the user never picked one: the look-and-feel's default."""
+    lnf = _ini(HOME / ".config/kdeglobals").get("KDE", {}).get("LookAndFeelPackage", "org.kde.breeze.desktop")
+    for base in (HOME / ".local/share", Path("/usr/local/share"), Path("/usr/share")):
+        image = _ini(base / "plasma/look-and-feel" / lnf / "contents/defaults").get("Wallpaper", {}).get("Image")
+        if image:
+            return image
+    return "Next"
+
+
+def _kde():
+    """Yield the wallpaper of the desktop the user is looking at, best match first."""
+    conf = _ini(HOME / ".config/plasma-org.kde.plasma.desktop-appletsrc")
+    if not conf:
+        return
+    activity = _ini(HOME / ".config/kactivitymanagerdrc").get("main", {}).get("currentActivity", "")
+    desktops = []
+    for name, keys in conf.items():
+        m = re.fullmatch(r"Containments\]\[(\d+)", name)
+        if not m:
+            continue
+        plugin = keys.get("wallpaperplugin", "")
+        if not plugin:
+            continue  # panels have no wallpaper
+        general = conf.get(f"{name}][Wallpaper][{plugin}][General", {})
+        image = general.get("Image", "")
+        if plugin != "org.kde.image":
+            continue  # slideshow, colour, maps etc.: no single image to read
+        rank = (keys.get("activityId", "") == activity if activity else True,
+                keys.get("lastScreen", "") == "0", -int(m.group(1)))
+        desktops.append((rank, image or _kde_default()))
+    for _, image in sorted(desktops, reverse=True):
+        yield "KDE", _kde_package(image)
+
+
 def _candidates():
     """Yield (source, path) guesses, most specific first."""
+    on_kde = "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+    if on_kde:
+        yield from _kde()
     # Ryoku
     state = read_json(HOME / ".local/state/ryoku/stage-walls.json") or {}
     yield "Ryoku", state.get("current", "")
@@ -72,11 +161,9 @@ def _candidates():
                     yield "swaybg", args[i + 1].decode()
         except OSError:
             pass
-    # KDE Plasma
-    plasma = HOME / ".config/plasma-org.kde.plasma.desktop-appletsrc"
-    if plasma.is_file():
-        for m in re.finditer(r"^Image=(.+)$", plasma.read_text(errors="ignore"), re.M):
-            yield "KDE", _uri(m.group(1))
+    # KDE Plasma (first on a KDE session, so a stray GNOME setting can't win there)
+    if not on_kde:
+        yield from _kde()
     # GNOME, Cinnamon, MATE, Budgie
     dark = "dark" in _out(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"])
     keys = ["picture-uri-dark", "picture-uri"] if dark else ["picture-uri", "picture-uri-dark"]
@@ -93,7 +180,8 @@ def _candidates():
 def watch_paths():
     """Files and folders that change when the wallpaper changes, on the common desktops."""
     paths = [HOME / ".local/state/ryoku/stage-walls.json", HOME / ".config/dconf/user",
-             HOME / ".config/plasma-org.kde.plasma.desktop-appletsrc", HOME / ".config/hypr/hyprpaper.conf",
+             HOME / ".config/plasma-org.kde.plasma.desktop-appletsrc", HOME / ".config/kactivitymanagerdrc",
+             HOME / ".config/hypr/hyprpaper.conf",
              HOME / ".config/waypaper/config.ini", HOME / ".config/nitrogen/bg-saved.cfg", HOME / ".fehbg",
              HOME / ".config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"]
     out = []
