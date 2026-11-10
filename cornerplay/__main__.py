@@ -189,6 +189,7 @@ def main():
     ctx.setContextProperty("tvNextLibrary", cornerplay.tvNextProxy)
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
+    cornerplay.gamepad_available = gamepad.available
     ctx.setContextProperty("startTv", args.tv)
     ctx.setContextProperty("webLogin", web_login)
     # TV-mode trailers need Qt Multimedia's QML module; without it they are simply left out.

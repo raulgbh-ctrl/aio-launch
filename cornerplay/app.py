@@ -1,4 +1,5 @@
 """Qt side of Cornerplay: the library model, background jobs and the object QML talks to."""
+import json
 import os
 import re
 import time
@@ -14,7 +15,7 @@ import shlex
 
 import sys
 
-from . import achievements, personal, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, health, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -444,6 +445,9 @@ class AioLaunch(QObject):
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         personal.on_change(self._personal_changed)
+        self._night = QTimer(self, interval=10 * 60 * 1000)
+        self._night.timeout.connect(self._night_tick)
+        self._night.start()
         self._worker_toast.connect(self.toast)
         self._after.connect(lambda fn: fn())
 
@@ -700,6 +704,166 @@ class AioLaunch(QObject):
                 QTimer.singleShot(6000, self.blizzardSync.emit)
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- health check ------------------------------------------------------------
+    healthReady = Signal("QVariantList")
+
+    @Slot()
+    def checkHealth(self):
+        runner.forget_vulkan_check()
+        pad = getattr(self, "gamepad_available", True)
+
+        def work():
+            rows = health.checks(self.stores, pad)
+            return lambda: self.healthReady.emit(rows)
+        self._bg(work)
+
+    @Slot()
+    def fetchBackends(self):
+        self.toast.emit("Downloading the store tools…")
+        self._detach([sys.executable, "-m", "cornerplay", "--fetch-backends"],
+                     {"PYTHONPATH": str(Path(__file__).resolve().parent.parent)}, "", "fetch-backends")
+        QTimer.singleShot(20000, self.checkHealth)
+
+    @Slot(str)
+    def copyText(self, text):
+        QGuiApplication.clipboard().setText(text)
+        self.toast.emit("Copied: paste it into a terminal")
+
+    # --- launch problems explained --------------------------------------------------
+    launchProblem = Signal(str, "QVariantMap")  # key, {"title", "cause", "detail", "fix"}
+
+    def _after_session(self, data):
+        """A game started from Cornerplay ended: if it closed within seconds, say why when the log shows it."""
+        key = data.get("key", "")
+        ran = (data.get("since") or 0) - (data.get("started") or data.get("since") or 0)
+        if not key or ran > 25:
+            return
+        text = ""
+        try:
+            with open(data.get("log") or "", errors="replace") as f:
+                text = f.read()[-200000:]
+        except OSError:
+            pass
+        found = problems.explain(text)
+        if not found and data.get("exit") in (0, None):
+            return  # closed quickly but cleanly: probably a launcher handing over
+        found = found or {"cause": "It closed right away", "fix": "proton",
+                          "detail": "Nothing in its log says why. Another Proton version, or Repair files, often helps."}
+        self.launchProblem.emit(key, dict(found, title=data.get("title", "")))
+
+    @Slot(str, str)
+    def fixProblem(self, key, fix):
+        g = self.model.find(key)
+        if not g:
+            return
+        if fix == "repair":
+            self.verifyGame(key)
+        elif fix in ("vcrun", "dotnet"):
+            # winetricks through umu, into this game's own prefix
+            verb = "vcrun2022" if fix == "vcrun" else "dotnet48"
+            try:
+                with runner.using(self._options_for(g)):
+                    kind, run = runner.compat()
+                    env = runner.wine_env(g.store, g.id)
+            except StoreError as e:
+                self.toast.emit(str(e))
+                return
+            if kind != "umu":
+                self.toast.emit(f"Install {verb} with winetricks into {env.get('WINEPREFIX')}")
+                return
+            self._start_job(g, "fix", Command([run, "winetricks", "-q", verb], env))
+            self.toast.emit(f"Installing {verb} for {g.title}; it can take a few minutes")
+
+    # --- backup and restore -----------------------------------------------------------
+    @Slot(str)
+    def makeBackup(self, folder):
+        folder = QUrl(folder).toLocalFile() if folder.startswith("file:") else (folder or "")
+        try:
+            path = backup.make(folder or None)
+            self.toast.emit(f"Backup saved: {path}")
+        except OSError as e:
+            self.toast.emit(f"Backup failed: {e}")
+
+    @Slot(str)
+    def restoreBackup(self, file):
+        file = QUrl(file).toLocalFile() if file.startswith("file:") else file
+        try:
+            backup.restore(file)
+        except (OSError, ValueError, KeyError) as e:
+            self.toast.emit(f"Restore failed: {e}")
+            return
+        self.toast.emit("Restored. Cornerplay restarts to load it…")
+        QTimer.singleShot(1500, self.restartApp)
+
+    # --- leftover Proton prefixes -------------------------------------------------------
+    prefixesReady = Signal("QVariantList")
+
+    @Slot()
+    def loadPrefixes(self):
+        root = str(settings.games_dir / "prefixes")
+        wanted = {os.path.basename(runner.prefix_path(g.store, g.id)) for g in self.model.games
+                  if g.installed and g.store in ("epic", "gog", "amazon")}
+        if self.stores["battlenet"].launcher_exe():
+            wanted.add(os.path.basename(runner.prefix_path("battlenet", "launcher")))
+
+        def work():
+            rows = storage.leftover_prefixes(root, wanted)
+            return lambda: self.prefixesReady.emit(rows)
+        self._bg(work)
+
+    @Slot(str)
+    def deletePrefix(self, path):
+        root = os.path.realpath(str(settings.games_dir / "prefixes"))
+        real = os.path.realpath(path)
+        if os.path.dirname(real) != root or not os.path.isdir(real):
+            self.toast.emit("Refusing to delete a folder outside the prefixes folder")
+            return
+
+        def work():
+            import shutil
+            shutil.rmtree(real, ignore_errors=True)
+            return lambda: (self.toast.emit(f"Deleted {os.path.basename(real)}"), self.loadPrefixes())
+        self._bg(work)
+
+    # --- updates overnight ---------------------------------------------------------------
+    def _night_tick(self):
+        """Every 10 minutes: in the chosen hours, on mains power and a normal (not metered)
+        connection, refresh once and update the games that have one."""
+        if not settings.get("auto_update") or self.demo:
+            return
+        hour = time.localtime().tm_hour
+        start, end = int(settings.get("auto_update_from")), int(settings.get("auto_update_to"))
+        inside = start <= hour < end if start < end else (hour >= start or hour < end)
+        if not inside:
+            self._night_refreshed = False
+            return
+        batt = self.battery()
+        if batt and not batt.get("charging"):
+            return
+        if not self._network_ok() or self._playing:
+            return
+        if not getattr(self, "_night_refreshed", False):
+            self._night_refreshed = True
+            self.refresh("", True)  # find the updates first; the next tick installs them
+            return
+        for g in self.model.games:
+            if g.installed and g.extra.get("update") and g.key not in self.procs \
+                    and g.store in ("epic", "gog", "amazon") and self.model.jobs.get(g.key, {}).get("kind") != "queued":
+                self.update(g.key)
+
+    @staticmethod
+    def _network_ok():
+        """Not on a metered connection (phone hotspot). Without NetworkManager: assume fine."""
+        import shutil, subprocess
+        if not shutil.which("nmcli"):
+            return True
+        try:
+            out = subprocess.run(["nmcli", "-t", "-f", "GENERAL.METERED", "device", "show"],
+                                 capture_output=True, text=True, timeout=5).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            return True
+        return not any(line.split(":", 1)[-1].startswith("yes") for line in out.splitlines())
 
     # --- Cornerplay's own updates ---------------------------------------------
     _update = {}
@@ -1917,6 +2081,7 @@ class AioLaunch(QObject):
                 self.toast.emit(f"Uploading saves for {data.get('title') or 'your game'}…")
             elif data.get("state") == "done":
                 self._reload_playtime()
+                self._after_session(data)
                 res = data.get("sync") or {}
                 title = data.get("title", "")
                 if res.get("status") == "ok":
@@ -1939,8 +2104,56 @@ class AioLaunch(QObject):
                 self._play_timer.timeout.connect(self._check_sessions)
             self._play_timer.start()  # restarts: one pending check at most
 
+    diskWarning = Signal(str, "QVariantMap")   # key, {"title", "need", "free", "after", "suggest": [...]}
+
     @Slot(str)
     def install(self, key):
+        """Install, after checking the drive will not run nearly full (diskWarning asks first)."""
+        g, store = self._guard(key)
+        if not g or key in self.procs or store.external_installs or g.extra.get("owned_only"):
+            return self.installAnyway(key)
+        target = str(settings.games_dir)
+
+        def work():
+            need = 0
+            if g.store == "epic":
+                try:
+                    r = store_run([store.tool(), "info", g.id, "--json"], timeout=60)
+                    info = json.loads(r.stdout or "{}")
+                    need = int(((info.get("manifest") or {}).get("disk_size")) or 0)
+                except (ValueError, StoreError, OSError):
+                    need = 0
+            probe = target if os.path.isdir(target) else str(Path.home())
+            d = storage.drive(probe)
+            if not d:
+                return lambda: self.installAnyway(key)
+            after = d["free"] - need
+            if after >= 0.10 * d["total"] and after > 0:
+                return lambda: self.installAnyway(key)
+            suggest = self._space_suggestions(d["mount"])
+            info = {"title": g.title, "need": storage.nice(need) if need else "", "free": storage.nice(d["free"]),
+                    "after": storage.nice(max(0, after)), "drive": d["label"], "full": after <= 0,
+                    "suggest": suggest}
+            return lambda: self.diskWarning.emit(key, info)
+        self._bg(work)
+
+    def _space_suggestions(self, mount):
+        """Big installed games on that drive not played for three months, biggest first."""
+        now = time.time()
+        rows = []
+        for g in self.model.games:
+            if not g.installed or not g.install_path or storage.mount_of(g.install_path) != mount:
+                continue
+            last = playtime.of(g, self.model.played)[1]
+            if last and last > now - 90 * 86400:
+                continue
+            size = storage.size_of(g.install_path, g.extra.get("size", 0))
+            if size > 2 * 1024 ** 3:
+                rows.append((size, g.title))
+        return [f"{t} ({storage.nice(b)})" for b, t in sorted(rows, reverse=True)[:4]]
+
+    @Slot(str)
+    def installAnyway(self, key):
         g, store = self._guard(key)
         if not g or key in self.procs:
             return
@@ -1989,13 +2202,40 @@ class AioLaunch(QObject):
 
     @Slot(str)
     def cancel(self, key):
+        if any(q[0].key == key for q in self._queue):  # still waiting: just leave the line
+            self._queue = [q for q in self._queue if q[0].key != key]
+            self.model.jobs.pop(key, None)
+            self._touch(key)
+            return
         p = self.procs.get(key)
         if p:
             p.setProperty("cancelled", True)
             p.terminate()
             QTimer.singleShot(4000, lambda: p.state() != QProcess.NotRunning and p.kill())
 
+    DOWNLOADS = ("install", "update", "dlc", "verify", "move", "fix")
+    _queue = []  # [(game, kind, cmd)] waiting for the running download to finish
+
     def _start_job(self, g, kind, cmd):
+        """Downloads go one at a time (all at once only made each slower); the rest wait in line."""
+        if kind in self.DOWNLOADS and any(j.get("kind") in self.DOWNLOADS for k, j in self.model.jobs.items()
+                                          if k in self.procs):
+            if not any(q[0].key == g.key for q in self._queue):
+                self._queue.append((g, kind, cmd))
+                self.model.jobs[g.key] = {"kind": "queued", "progress": -1.0}
+                self._touch(g.key)
+                self.toast.emit(f"{g.title} is queued: it starts when the current download finishes")
+            return
+        self._run_job(g, kind, cmd)
+
+    def _next_in_queue(self):
+        if self._queue and not any(j.get("kind") in self.DOWNLOADS for k, j in self.model.jobs.items()
+                                   if k in self.procs):
+            g, kind, cmd = self._queue.pop(0)
+            self.model.jobs.pop(g.key, None)
+            self._run_job(g, kind, cmd)
+
+    def _run_job(self, g, kind, cmd):
         key = g.key
         p = QProcess(self)
         p.setProcessChannelMode(QProcess.MergedChannels)
@@ -2050,6 +2290,7 @@ class AioLaunch(QObject):
         p.deleteLater()
         self._touch(key)
         self.refresh(g.store)
+        QTimer.singleShot(0, self._next_in_queue)
 
     def _touch(self, key):
         self.model.touch(key)

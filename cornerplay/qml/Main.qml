@@ -379,6 +379,7 @@ ApplicationWindow {
                     onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
                 }
                 NavItem { label: "What should I play?"; icon: "gamepad-2"; onPicked: picker.show() }
+                NavItem { label: "Health check"; icon: "check"; count: healthBox.bad > 0 ? "!" : ""; onPicked: healthBox.show() }
                 NavItem { label: "Stats"; icon: "trophy"; onPicked: statsBox.show() }
                 NavItem { label: "Storage"; icon: "folder-open"; onPicked: storage.show() }
                 NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
@@ -1510,8 +1511,10 @@ ApplicationWindow {
         property bool loading: false
         property bool tidy: false   // "Free up space": big games not played for three months
         property string moveKey: ""
-        function show() { loading = true; app.loadStorage(); open() }
+        function show() { loading = true; app.loadStorage(); app.loadPrefixes(); open() }
         Connections { target: app; function onStorageReady(info) { storage.d = info; storage.loading = false } }
+        property var prefixes: []
+        Connections { target: app; function onPrefixesReady(rows) { storage.prefixes = rows } }
         Connections { target: app; function onGameChanged(key) { if (storage.opened && key && storage.loading === false && !app.game(key).job) app.loadStorage() } }
         width: Math.min(win.width - 60, 820)
         height: Math.min(win.height - 60, 760)
@@ -1558,6 +1561,36 @@ ApplicationWindow {
                     text: storage.tidy ? "Show all" : "Free up space"
                     iconName: storage.tidy ? "library" : "trash-2"
                     onClicked: storage.tidy = !storage.tidy
+                }
+            }
+            // Proton prefixes no installed game uses (and old ones put aside by Reset).
+            Rectangle {
+                Layout.fillWidth: true
+                visible: storage.prefixes.length > 0
+                height: pfx.implicitHeight + 20
+                radius: 12
+                color: theme.surfaceContainerHigh
+                ColumnLayout {
+                    id: pfx
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 6
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                        text: "Leftover Proton prefixes (Windows settings of games no longer installed). They can hold saves from games without cloud saves: delete only what you are sure about."
+                        color: theme.onSurfaceVariant; font.pixelSize: 12
+                    }
+                    Repeater {
+                        model: storage.prefixes
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Text { Layout.fillWidth: true; text: modelData.name + (modelData.reset ? "  (put aside by Reset)" : ""); color: theme.onSurface; font.pixelSize: 13; elide: Text.ElideMiddle }
+                            Text { text: modelData.size; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                            KButton { property bool armed: false; theme: win.theme; danger: true; iconName: "trash-2"
+                                      text: armed ? "Sure?" : "Delete"
+                                      onClicked: { if (!armed) { armed = true; return } app.deletePrefix(modelData.path) } }
+                        }
+                    }
                 }
             }
             Text {
@@ -1635,6 +1668,17 @@ ApplicationWindow {
                 }
             }
         }
+    }
+    FolderDialog {
+        id: backupDest
+        title: "Save the backup in which folder?"
+        onAccepted: app.makeBackup(selectedFolder.toString())
+    }
+    FileDialog {
+        id: restoreFile
+        title: "Restore which Cornerplay backup?"
+        nameFilters: ["Cornerplay backups (Cornerplay-backup-*.zip)", "Zip files (*.zip)"]
+        onAccepted: app.restoreBackup(selectedFile.toString())
     }
     FolderDialog {
         id: syncDest
@@ -1723,6 +1767,145 @@ ApplicationWindow {
                 text: picker.installedOnly ? "Nothing fits: no installed game that isn't finished or dropped. Turn off Installed only to pick from everything."
                                            : "Nothing fits these choices."
                 color: theme.onSurfaceVariant; font.pixelSize: 14
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- health check
+    KDialog {
+        id: healthBox
+        objectName: "healthBox"
+        theme: win.theme
+        heading: "Health check"
+        headingIcon: "check"
+        property var rows: []
+        property bool busy: false
+        readonly property int bad: rows.filter(r => r.ok === false).length
+        function show() { busy = true; app.checkHealth(); open() }
+        Connections { target: app; function onHealthReady(rows) { healthBox.rows = rows; healthBox.busy = false } }
+        Timer { interval: 5000; running: true; onTriggered: app.checkHealth() }  // once, quietly, after start
+        width: Math.min(win.width - 60, 680)
+        height: Math.min(win.height - 60, 720)
+        contentItem: ColumnLayout {
+            spacing: 10
+            Text {
+                Layout.fillWidth: true
+                text: healthBox.busy ? "Checking…" : healthBox.bad ? healthBox.bad + (healthBox.bad === 1 ? " thing needs" : " things need") + " fixing"
+                                                                    : "Everything games need is in place"
+                color: healthBox.bad ? theme.error : theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 6
+                model: healthBox.rows
+                ScrollBar.vertical: KScrollBar { }
+                delegate: Rectangle {
+                    required property var modelData
+                    width: ListView.view.width
+                    height: Math.max(56, hcol.implicitHeight + 18)
+                    radius: 12
+                    color: modelData.ok === false ? Qt.alpha(theme.error, 0.12) : theme.surfaceContainerHigh
+                    Rectangle {
+                        x: 14; anchors.verticalCenter: parent.verticalCenter
+                        width: 22; height: 22; radius: 11
+                        color: modelData.ok === true ? "#6fd08c" : modelData.ok === false ? theme.error : theme.surfaceContainerHighest
+                        Icon { anchors.centerIn: parent; visible: modelData.ok !== null; name: modelData.ok ? "check" : "x"; size: 13; color: "#111" }
+                    }
+                    Column {
+                        id: hcol
+                        x: 48; anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - 48 - hfix.width - 24
+                        spacing: 3
+                        Text { width: parent.width; text: modelData.name; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { width: parent.width; text: modelData.detail; color: theme.onSurfaceVariant; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; visible: modelData.fix.kind === "command"; text: modelData.fix.command || ""
+                               color: theme.primary; font.family: "monospace"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    }
+                    KButton {
+                        id: hfix
+                        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                        theme: win.theme
+                        visible: !!modelData.fix.kind
+                        primary: modelData.ok === false
+                        text: modelData.fix.kind === "command" ? "Copy" : (modelData.fix.label || "Fix")
+                        onClicked: {
+                            const f = modelData.fix
+                            if (f.kind === "command") app.copyText(f.command)
+                            else if (f.action === "openStorage") { healthBox.close(); storage.show() }
+                            else if (f.action === "loginBegin") { healthBox.close(); app.loginBegin(f.arg) }
+                            else if (f.action === "fetchBackends") app.fetchBackends()
+                            else if (f.action === "downloadGe") app.downloadGe()
+                        }
+                    }
+                }
+            }
+            KButton { theme: win.theme; text: "Check again"; iconName: "refresh-cw"; enabled: !healthBox.busy; onClicked: healthBox.show() }
+        }
+    }
+
+    // -------------------------------------------------------------------- not enough space
+    KDialog {
+        id: diskBox
+        theme: win.theme
+        property string key: ""
+        property var info: ({})
+        heading: info.full ? "Not enough space for " + (info.title || "") : (info.title || "") + " would nearly fill your drive"
+        headingIcon: "folder-open"
+        width: Math.min(win.width - 60, 520)
+        Connections { target: app; function onDiskWarning(key, info) { diskBox.key = key; diskBox.info = info; diskBox.open() } }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                text: (diskBox.info.need ? "It needs about " + diskBox.info.need + ". " : "")
+                      + diskBox.info.drive + " has " + diskBox.info.free + " free"
+                      + (diskBox.info.need ? ", so " + diskBox.info.after + " would be left." : ".")
+                      + " Under 10% free slows the PC down and can break updates."
+            }
+            Text { visible: (diskBox.info.suggest || []).length > 0; text: "Big games you haven't played for three months:"; color: theme.onSurface; font.pixelSize: 13 }
+            Repeater { model: diskBox.info.suggest || []; Text { required property string modelData; text: "\u2022  " + modelData; color: theme.onSurfaceVariant; font.pixelSize: 13 } }
+            RowLayout {
+                spacing: 8
+                KButton { theme: win.theme; primary: true; text: "Free up space"; iconName: "trash-2"; onClicked: { diskBox.close(); storage.tidy = true; storage.show() } }
+                KButton { theme: win.theme; visible: !diskBox.info.full; text: "Install anyway"; onClicked: { diskBox.close(); app.installAnyway(diskBox.key) } }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- a game closed right away
+    KDialog {
+        id: problemBox
+        theme: win.theme
+        property string key: ""
+        property var p: ({})
+        heading: (p.title || "The game") + " closed right away"
+        headingIcon: "x"
+        width: Math.min(win.width - 60, 540)
+        Connections { target: app; function onLaunchProblem(key, p) { problemBox.key = key; problemBox.p = p; problemBox.open() } }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text { Layout.fillWidth: true; text: problemBox.p.cause || ""; color: theme.onSurface; font.pixelSize: 16; font.weight: Font.DemiBold; wrapMode: Text.WordWrap }
+            Text { Layout.fillWidth: true; text: problemBox.p.detail || ""; color: theme.onSurfaceVariant; font.pixelSize: 13; wrapMode: Text.WordWrap }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "repair"; text: "Repair files"; iconName: "refresh-cw"
+                          onClicked: { app.fixProblem(problemBox.key, "repair"); problemBox.close() } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vcrun"; text: "Install Visual C++"; iconName: "download"
+                          onClicked: { app.fixProblem(problemBox.key, "vcrun"); problemBox.close() } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "dotnet"; text: "Install .NET"; iconName: "download"
+                          onClicked: { app.fixProblem(problemBox.key, "dotnet"); problemBox.close() } }
+                KButton { theme: win.theme; primary: problemBox.p.fix === "proton"; visible: problemBox.p.fix === "proton" || problemBox.p.fix === "vcrun"
+                          text: "Try another Proton"; iconName: "settings-2"; onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vulkan"; text: "Open Health check"; iconName: "check"
+                          onClicked: { problemBox.close(); healthBox.show() } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "storage"; text: "Free up space"; iconName: "trash-2"
+                          onClicked: { problemBox.close(); storage.tidy = true; storage.show() } }
+                KButton { theme: win.theme; text: "Open log"; iconName: "folder-open"; onClicked: app.openLog(problemBox.key) }
+                KButton { theme: win.theme; visible: !!win.selectedKey || true; text: "ProtonDB"; iconName: "external-link"
+                          onClicked: { const id = app.game(problemBox.key).steamAppId; app.openUrl(id ? "https://www.protondb.com/app/" + id : "https://www.protondb.com") } }
             }
         }
     }
@@ -2762,6 +2945,16 @@ ApplicationWindow {
                                     KButton { theme: win.theme; text: "Choose…"; iconName: "folder-open"; onClicked: syncDest.open() }
                                 }
                             }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                            Row2 {
+                                label: "Back up Cornerplay"
+                                hint: "One file with your settings, people, favourites, collections, notes and playtime: for a new PC, or before trying things. Store sign-ins are not in it (sign in again on the new PC)."
+                                RowLayout {
+                                    spacing: 8
+                                    KButton { theme: win.theme; text: "Save a backup…"; iconName: "download"; onClicked: backupDest.open() }
+                                    KButton { theme: win.theme; text: "Restore…"; iconName: "refresh-cw"; onClicked: restoreFile.open() }
+                                }
+                            }
                             RowLayout {
                                 visible: !!app.syncState.dir
                                 spacing: 10
@@ -2855,6 +3048,21 @@ ApplicationWindow {
                                 Component.onCompleted: app.checkSteamShortcut()
                             }
                             Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
+                            Toggle { label: "Update Epic, GOG and Amazon games overnight (plugged in, not on a metered connection, while Cornerplay is open)"; settingKey: "auto_update" }
+                            RowLayout {
+                                visible: !!app.settingsMap.auto_update
+                                spacing: 10
+                                Text { text: "Between"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                KCombo { theme: win.theme; Layout.preferredWidth: 110
+                                         model: [...Array(24).keys()].map(h => ({ label: (h < 10 ? "0" : "") + h + ":00", value: h }))
+                                         Component.onCompleted: select(app.settingsMap.auto_update_from)
+                                         onActivated: app.setSetting("auto_update_from", currentValue) }
+                                Text { text: "and"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                KCombo { theme: win.theme; Layout.preferredWidth: 110
+                                         model: [...Array(24).keys()].map(h => ({ label: (h < 10 ? "0" : "") + h + ":00", value: h }))
+                                         Component.onCompleted: select(app.settingsMap.auto_update_to)
+                                         onActivated: app.setSetting("auto_update_to", currentValue) }
+                            }
                             Row2 {
                                 label: ""
                                 hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."

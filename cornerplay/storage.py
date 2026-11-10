@@ -74,3 +74,22 @@ def nice(n):
         if n < 1024 or unit == "TB":
             return f"{n:.0f} {unit}" if unit in ("B", "KB", "MB") else f"{n:.1f} {unit}"
         n /= 1024
+
+
+def leftover_prefixes(prefix_root, wanted):
+    """Proton prefixes no installed game uses any more (and prefixes put aside by Reset).
+    wanted: the prefix folder names in use. Returns [{"path", "name", "bytes", "size", "reset"}]."""
+    out = []
+    if not os.path.isdir(prefix_root):
+        return out
+    for name in sorted(os.listdir(prefix_root)):
+        path = os.path.join(prefix_root, name)
+        if not os.path.isdir(path) or os.path.islink(path):
+            continue
+        reset = ".old-" in name
+        if name in wanted and not reset:
+            continue
+        b = _walk(path)
+        out.append({"path": path, "name": name, "bytes": b, "size": nice(b), "reset": reset})
+    out.sort(key=lambda p: -p["bytes"])
+    return out

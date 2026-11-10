@@ -64,7 +64,7 @@ def run(game, argv, env_extra, cwd, log_path, sync):
         elif result["status"] == "error":
             notify(f"{game.title}: cloud save upload failed", result["message"])
     write_json(out, {"key": game.key, "state": "done", "exit": code, "sync": result,
-                     "title": game.title, "since": time.time()})
+                     "title": game.title, "since": time.time(), "started": started, "log": log_path})
     return code
 
 

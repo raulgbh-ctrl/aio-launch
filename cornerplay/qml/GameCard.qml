@@ -223,9 +223,9 @@ Item {
                         color: "white"
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
-                        text: card.job === "uninstall" ? "Removing…"
+                        text: card.job === "uninstall" ? "Removing…" : card.job === "queued" ? "Queued"
                               : card.progress < 0 ? "Starting…"
-                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : card.job === "verify" ? "Checking " : "Installing ") + Math.floor(card.progress) + "%"
+                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : card.job === "verify" ? "Checking " : card.job === "fix" ? "Fixing " : "Installing ") + Math.floor(card.progress) + "%"
                     }
                 }
                 Rectangle {

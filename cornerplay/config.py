@@ -44,6 +44,9 @@ DEFAULTS = {
     "profile": "",
     "sync_dir": "",        # a folder another tool syncs between PCs; Cornerplay keeps personal data there
     "machine_id": "",
+    "auto_update": False,     # update Epic / GOG / Amazon games overnight (mains power, not metered)
+    "auto_update_from": 2,
+    "auto_update_to": 6,
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"

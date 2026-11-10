@@ -93,6 +93,14 @@ Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the
 - **Now playing**: a bar (and a TV chip) while a game started from Cornerplay runs, with Quit and Force close.
 - **People**: Settings > People & sync: each person has their own favourites, collections, statuses, stars, notes and stats; switch at the top of the sidebar.
 - **Sync between PCs**: pick a folder Syncthing / Nextcloud / Dropbox already syncs; personal data merges game by game and playtime adds up across PCs.
+- **Health check** (sidebar): Vulkan, Proton runner and versions, store tools, Steam, sign-ins, disk space, the sign-in window and controller support, each with a fix (a download, a sign-in, or the exact command to copy). The sidebar shows "!" when something needs fixing.
+- **When a game closes right away**: Cornerplay reads its log and says why in plain words (no Vulkan, missing Visual C++ or .NET, anti-cheat, missing files, a crash inside Proton, a full drive) with a fix button: Install Visual C++ / .NET (winetricks through umu), Repair files, Try another Proton, Open log, ProtonDB.
+- **Downloads one at a time**: installs, updates, repairs and moves queue up ("Queued" on the cover) instead of slowing each other down; Cancel takes a game out of the line.
+- **Space check before installing**: if the drive would drop under 10% free (Epic says how big a game is; for the others the current free space counts), Cornerplay asks first and suggests big games you haven't played for three months.
+- **Overnight updates** (Settings > Library): Epic, GOG and Amazon updates between two hours you choose, only on mains power and not on a metered connection, while Cornerplay is open.
+- **Leftover Proton prefixes** (Storage): prefixes of games no longer installed, and old ones put aside by Reset, with their size and Delete.
+- **Backup and restore** (Settings > People & sync): one zip with settings, people, collections, notes and playtime (no sign-in tokens); restoring keeps a copy of what was there.
+- **Animated covers and banners** in TV mode (SteamGridDB key; only when plugged in).
 - **Updates**: an installed Cornerplay checks GitHub once a day and offers the new version (Update, then Restart). Settings: `update_check`.
 - **Free on Epic**: this week's free Epic games (and the next ones) above the library, from Epic's public promotions feed. Get opens the store page (Epic lets no other app claim them); claimed games show up on the next refresh.
 - **Steam achievements**: progress (12 / 50) in a Steam game's panel and in TV mode, when a Steam Web API key is set.
