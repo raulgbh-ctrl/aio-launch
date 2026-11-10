@@ -3283,7 +3283,7 @@ ApplicationWindow {
         property var steamProton: ({ choices: [], current: "" })
         readonly property bool compat: ["epic", "gog", "amazon", "custom"].includes(game.store) || key === "battlenet:battlenet-app"
         // Runs without Proton: a GOG Linux version, or a Linux program added by hand.
-        readonly property bool native: game.platform === "linux"
+        readonly property bool runsNative: game.platform === "linux"
         heading: "Options · " + (game.title || "")
         width: Math.min(win.width - 60, 600)
         function show(k) {
@@ -3334,7 +3334,7 @@ ApplicationWindow {
                 }
             }
             Row2 {
-                visible: gameOpts.compat && !gameOpts.native
+                visible: gameOpts.compat && !gameOpts.runsNative
                 label: "Proton version"
                 KCombo {
                     id: optProton
@@ -3430,7 +3430,7 @@ ApplicationWindow {
                     KButton { theme: win.theme; visible: ["epic", "gog", "amazon"].includes(gameOpts.game.store)
                               text: "Repair files"; iconName: "refresh-cw"
                               onClicked: { app.verifyGame(gameOpts.key); gameOpts.close() } }
-                    KButton { theme: win.theme; visible: gameOpts.compat && !gameOpts.native; danger: gameOpts.resetArmed
+                    KButton { theme: win.theme; visible: gameOpts.compat && !gameOpts.runsNative; danger: gameOpts.resetArmed
                               text: gameOpts.resetArmed ? "Really reset?" : "Reset Proton prefix"; iconName: "trash-2"
                               onClicked: { if (!gameOpts.resetArmed) { gameOpts.resetArmed = true; return }
                                            gameOpts.resetArmed = false; app.resetPrefix(gameOpts.key) } }

@@ -18,6 +18,34 @@ def load_fonts(app):
         app.setFont(font)
 
 
+def check_qml():
+    """Compile every QML file (catches syntax and reserved-word mistakes before a restart)."""
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import QUrl
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlComponent, QQmlEngine
+    try:
+        from PySide6.QtWebEngineQuick import QtWebEngineQuick
+        QtWebEngineQuick.initialize()
+    except ImportError:
+        pass
+    app = QGuiApplication(["cornerplay"])
+    engine = QQmlEngine()
+    bad = 0
+    for qml in sorted((Path(__file__).parent / "qml").glob("*.qml")):
+        c = QQmlComponent(engine, QUrl.fromLocalFile(str(qml)), QQmlComponent.PreferSynchronous)
+        errors = [e.toString() for e in c.errors()]
+        if errors and "QtWebEngine" in " ".join(errors) and "is not installed" in " ".join(errors):
+            print(f"skip  {qml.name} (Qt WebEngine not installed)")
+            continue
+        print(("ok    " if not errors else "FAIL  ") + qml.name)
+        for e in errors:
+            print("      " + e)
+        bad += bool(errors)
+    del app
+    return 1 if bad else 0
+
+
 def fetch_backends():
     """Download the legendary / gogdl / nile release binaries into Cornerplay's data dir."""
     import requests
@@ -108,9 +136,12 @@ def main():
     ap.add_argument("--add-to-steam", action="store_true",
                     help="add Cornerplay to Steam (Game Mode) with artwork; closes and reopens Steam if needed")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
+    ap.add_argument("--check", action="store_true", help="compile every QML file and report errors, then exit")
     args = ap.parse_args()
     if args.fetch_backends:
         return fetch_backends()
+    if args.check:
+        return check_qml()
     if args.status:
         return status()
     if args.play:
