@@ -373,8 +373,10 @@ def _gogdl_exclude(game_id):
 def perf_env_native():
     """MangoHud settings (FPS counter, frame cap) for a native game; DXVK settings do not apply."""
     from ..runner import perf_env
-    env = perf_env("gog", "native")
-    return {k: v for k, v in env.items() if k == "MANGOHUD_CONFIG"}
+    from ..runner import user_env
+    env = {k: v for k, v in perf_env("gog", "native").items() if k == "MANGOHUD_CONFIG"}
+    env.update(user_env())  # the game's own environment variables (Options)
+    return env
 
 
 def _resolve(root, rel):

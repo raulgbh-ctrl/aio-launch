@@ -6,7 +6,7 @@ import shlex
 import uuid
 
 from ..config import CONFIG_DIR, read_json, write_json
-from ..runner import StoreError, extras, wine_env, wrapper_argv
+from ..runner import StoreError, extras, perf_env, user_env, wine_env, wrapper_argv
 from .base import Command, Game, Store
 
 FILE = CONFIG_DIR / "custom_games.json"
@@ -92,5 +92,7 @@ class Custom(Store):
         args = shlex.split(e.get("args") or "")
         cwd = os.path.dirname(e["exe"])
         if e.get("kind") == "linux":
-            return Command([*extras(), e["exe"], *args], cwd=cwd)
+            env = {k: v for k, v in perf_env(self.id, game.id).items() if k == "MANGOHUD_CONFIG"}
+            env.update(user_env())
+            return Command([*extras(), e["exe"], *args], env=env, cwd=cwd)
         return Command([*wrapper_argv(), e["exe"], *args], env=wine_env(self.id, game.id), cwd=cwd)

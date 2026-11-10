@@ -2104,7 +2104,7 @@ class AioLaunch(QObject):
 
     def _vulkan_warning(self, g):
         """Before a Proton game: say so when the GPU has no Vulkan driver (it would just crash)."""
-        if g.store in ("epic", "gog", "amazon", "battlenet"):
+        if g.store in ("epic", "gog", "amazon", "battlenet", "custom") and g.extra.get("platform") != "linux":
             msg = runner.vulkan_problem()
             if msg:
                 self.toast.emit(msg)
@@ -2130,7 +2130,7 @@ class AioLaunch(QObject):
                     self._worker_toast.emit(f"{g.title}: {res['message']} (launching anyway)")
             with runner.using(opts):
                 cmd = store.launch(g)
-            if opts.get("args") and g.store in ("epic", "gog", "amazon"):
+            if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom"):
                 cmd.argv += shlex.split(opts["args"])
             return lambda: self._start(g, cmd, saves.enabled_for(g))
         self._bg(work)
