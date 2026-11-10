@@ -28,6 +28,8 @@ SUPPORTED = ("epic", "gog")
 def enabled_for(game) -> bool:
     if game.store not in SUPPORTED:
         return False
+    if game.extra.get("platform") == "linux":
+        return False  # GOG's save locations are Windows paths inside a Proton prefix
     from .config import game_options
     override = game_options.get(game.key).get("cloud_saves")
     return bool(settings.get("cloud_saves") if override is None else override)

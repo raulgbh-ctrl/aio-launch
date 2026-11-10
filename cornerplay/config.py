@@ -47,6 +47,7 @@ DEFAULTS = {
     "auto_update": False,     # update Epic / GOG / Amazon games overnight (mains power, not metered)
     "auto_update_from": 2,
     "auto_update_to": 6,
+    "gog_native": True,    # GOG: install the Linux version when the game has one (no Proton)
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
@@ -145,7 +146,7 @@ def write_json(path, data):
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
     KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden", "collections",
-            "status", "rating", "note", "perf", "show_fps")
+            "status", "rating", "note", "perf", "show_fps", "platform")
 
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"

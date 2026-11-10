@@ -1154,6 +1154,10 @@ ApplicationWindow {
                         visible: played !== ""
                         label: played
                     }
+                    Pill {
+                        visible: win.selected.store === "gog" && (win.selected.platform === "linux" || (!win.selected.installed && !!win.selected.linuxVersion))
+                        label: win.selected.platform === "linux" ? "\u{1F427}  Linux version" : "\u{1F427}  Has a Linux version"
+                    }
                     // Controller support (Steam's store data); not full: Steam Input can map one.
                     Pill {
                         visible: detail.info.controller !== undefined && !!win.selected.steamAppId
@@ -1926,6 +1930,8 @@ ApplicationWindow {
                           onClicked: { app.fixProblem(problemBox.key, "dotnet"); problemBox.close() } }
                 KButton { theme: win.theme; primary: problemBox.p.fix === "proton"; visible: problemBox.p.fix === "proton" || problemBox.p.fix === "vcrun"
                           text: "Try another Proton"; iconName: "settings-2"; onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "native"; text: "Use the Windows version"; iconName: "settings-2"
+                          onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
                 KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vulkan"; text: "Open Health check"; iconName: "check"
                           onClicked: { problemBox.close(); healthBox.show() } }
                 KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "storage"; text: "Free up space"; iconName: "trash-2"
@@ -2824,6 +2830,51 @@ ApplicationWindow {
                                     onActivated: app.setSetting("proton", currentValue)
                                 }
                             }
+                            // Proton-CachyOS: tuned builds from CachyOS (faster v3 build on newer CPUs).
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: cachyRow.implicitHeight + 28
+                                radius: 12
+                                color: theme.surfaceContainerHigh
+                                Component.onCompleted: app.checkCachy()
+                                ColumnLayout {
+                                    id: cachyRow
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                                    spacing: 8
+                                    RowLayout {
+                                        spacing: 10
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text { text: "Proton-CachyOS"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.WordWrap
+                                                font.pixelSize: 12
+                                                color: app.cachyStatus.error ? theme.error : theme.onSurfaceVariant
+                                                text: app.cachyStatus.error ? app.cachyStatus.error
+                                                      : app.cachyStatus.busy ? "Downloading " + Math.floor(app.cachyStatus.progress) + "%  (about 400 MB)"
+                                                      : (app.cachyStatus.installed ? "Installed: " + app.cachyStatus.installed.replace("proton-cachyos-", "") : "Performance-tuned Proton from CachyOS; often faster. Not downloaded yet")
+                                                        + (app.cachyStatus.latest ? (app.cachyStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.cachyStatus.latest) : "")
+                                            }
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            primary: !app.cachyStatus.upToDate
+                                            enabled: !app.cachyStatus.busy
+                                            text: app.cachyStatus.upToDate ? "Check again" : "Download latest"
+                                            onClicked: app.cachyStatus.upToDate ? app.checkCachy() : app.downloadCachy()
+                                        }
+                                    }
+                                    Rectangle {
+                                        visible: !!app.cachyStatus.busy
+                                        Layout.fillWidth: true
+                                        height: 5; radius: 3
+                                        color: theme.surfaceContainerHighest
+                                        Rectangle { height: parent.height; radius: 3; color: theme.primary; width: parent.width * (app.cachyStatus.progress || 0) / 100 }
+                                    }
+                                }
+                            }
                             Rectangle {
                                 Layout.fillWidth: true
                                 implicitHeight: geCol.implicitHeight + 28
@@ -2893,6 +2944,7 @@ ApplicationWindow {
                             Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
                             Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
                             Toggle { label: "FPS counter in games"; settingKey: "show_fps" }
+                            Toggle { label: "GOG: install the Linux version when a game has one (no Proton needed)"; settingKey: "gog_native" }
                             Toggle { label: "Keep each game's shader cache (less stutter after the first run)"; settingKey: "shader_cache" }
                             Row2 {
                                 label: "Performance profile for every game"
@@ -3155,6 +3207,7 @@ ApplicationWindow {
             optSteamProton.select(steamProton.current)
             optHud.select(opts.mangohud === undefined ? "default" : opts.mangohud)
             optPerf.select(opts.perf === undefined ? "default" : opts.perf)
+            optPlatform.select(opts.platform === undefined ? "default" : opts.platform)
             optFps.select(opts.show_fps === undefined ? "default" : opts.show_fps)
             resetArmed = false
             optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
@@ -3214,6 +3267,18 @@ ApplicationWindow {
                     KCombo { id: optMode; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "gamemode", currentValue) }
                 }
+            }
+            // GOG games with a Linux version: which one to install.
+            Row2 {
+                visible: gameOpts.game.store === "gog" && !!gameOpts.game.linuxVersion
+                label: "Version"
+                hint: gameOpts.game.installed
+                      ? "Installed: the " + (gameOpts.game.platform === "linux" ? "Linux" : "Windows") + " version. To switch, pick the other one, then uninstall and install again."
+                      : "The Linux version runs without Proton (lighter, but old ones can need extra libraries); the Windows version runs through Proton."
+                KCombo { id: optPlatform; theme: win.theme; Layout.fillWidth: true
+                         model: [{ label: "Use default (Settings)", value: "default" }, { label: "Linux version (native)", value: "linux" },
+                                 { label: "Windows version (Proton)", value: "windows" }]
+                         onActivated: app.setGameOption(gameOpts.key, "platform", currentValue) }
             }
             // Performance profile: frame cap + FSR upscaling (Steam games: set in Steam).
             RowLayout {

@@ -7,6 +7,9 @@ import re
 
 # (pattern, cause, fix, detail) — first match wins, most specific first.
 RULES = [
+    (r"error while loading shared libraries: (\S+?):", "A Linux library is missing", "native",
+     "This Linux version needs a library your system does not have. Install it, or use the game's "
+     "Windows version instead (Options > Version), which runs through Proton."),
     (r"No space left on device", "The drive is full", "storage",
      "The game could not write its files. Free some space and try again."),
     (r"VK_ERROR_INITIALIZATION_FAILED|vkEnumeratePhysicalDevices|No Vulkan|DXVK: No adapters|"
@@ -37,7 +40,7 @@ def explain(text):
     for pattern, cause, fix, detail in RULES:
         m = re.search(pattern, text)
         if m:
-            if fix == "proton" and m.groups() and m.group(1):
+            if fix in ("proton", "native") and m.groups() and m.group(1):
                 detail = f"It needs {m.group(1)}. " + detail
             return {"cause": cause, "fix": fix, "detail": detail}
     return {}

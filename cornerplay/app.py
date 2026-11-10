@@ -260,6 +260,8 @@ class LibraryModel(QAbstractListModel):
         d["steamAppId"] = _appid(g)
         d["favourite"] = shelves.in_group(group or [g], shelves.FAV)
         d["collections"] = [c for c in shelves.names() if shelves.in_group(group or [g], c)]
+        d["linuxVersion"] = bool(g.extra.get("linux"))   # GOG: the game has a Linux version
+        d["platform"] = g.extra.get("platform", "")      # installed as "linux" or "windows"
         d["status"] = shelves.meta(group or [g], "status")
         d["rating"] = int(shelves.meta(group or [g], "rating") or 0)
         d["note"] = shelves.meta(group or [g], "note")
@@ -1792,6 +1794,50 @@ class AioLaunch(QObject):
     def _set_ge(self, **values):
         self._ge = dict(self._ge, **values)
         self.geStatusChanged.emit()
+
+    # Proton-CachyOS: the same as GE, from CachyOS's GitHub releases (v3 build on newer CPUs).
+    cachyStatusChanged = Signal()
+    _cachy = {"latest": "", "installed": "", "busy": False, "progress": 0.0, "error": "", "upToDate": False}
+    cachyStatus = Property("QVariantMap", lambda s: s._cachy, notify=cachyStatusChanged)
+
+    def _set_cachy(self, **values):
+        self._cachy = dict(self._cachy, **values)
+        self.cachyStatusChanged.emit()
+
+    @Slot()
+    def checkCachy(self):
+        def work():
+            try:
+                tag, url, _ = proton.latest_cachyos()
+            except Exception as e:
+                return lambda msg=f"Could not check: {type(e).__name__}": self._set_cachy(error=msg)
+            stem = os.path.basename(url).removesuffix(".tar.xz")
+            have = proton.installed_cachyos()
+            return lambda: self._set_cachy(latest=tag.replace("cachyos-", ""), installed=have[0] if have else "",
+                                           error="", upToDate=stem in have)
+        self._bg(work)
+
+    @Slot()
+    def downloadCachy(self):
+        if self._cachy.get("busy"):
+            return
+        self._set_cachy(busy=True, progress=0.0, error="")
+
+        def report(pct):
+            self._after.emit(lambda: self._set_cachy(progress=pct))
+
+        def work():
+            try:
+                name, fresh = proton.download_cachyos(report)
+            except Exception as e:
+                return lambda msg=str(e)[:160]: (self._set_cachy(busy=False, error=msg), self.toast.emit("Proton-CachyOS download failed"))
+
+            def done():
+                self._set_cachy(busy=False, installed=name, upToDate=True, progress=100.0)
+                self.protonsChanged.emit()
+                self.toast.emit(f"{name} installed: pick it under Proton version" if fresh else f"{name} is already the newest")
+            return done
+        self._bg(work)
 
     @Slot()
     def checkGe(self):

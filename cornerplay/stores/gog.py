@@ -12,7 +12,7 @@ from ..net import requests
 from pathlib import Path
 
 from ..config import CACHE_DIR, CONFIG_DIR, XDG_CONFIG, find_tool, read_json, settings, write_json
-from ..runner import StoreError, wine_env, wrapper_argv
+from ..runner import StoreError, extras, wine_env, wrapper_argv
 from .base import Command, Game, PartialResult, Store
 
 # GOG Galaxy's public client credentials, the same ones gogdl and Heroic use.
@@ -108,6 +108,14 @@ class Gog(Store):
         out = {}
         # Cornerplay's GOG folder, and the folders games were moved to (Storage > Move).
         roots = [self.base_dir()] + [p for p in (settings.get("library_dirs") or []) if isinstance(p, str)]
+        # Linux versions: no goggame-<id>.info, but a "gameinfo" file whose 5th line is the id.
+        for gi in (i for r in roots for i in glob.glob(os.path.join(str(r), "*", "gameinfo"))):
+            try:
+                lines = open(gi, encoding="utf-8", errors="replace").read().splitlines()
+            except OSError:
+                continue
+            if len(lines) >= 5 and lines[4].strip().isdigit():
+                out[lines[4].strip()] = (os.path.dirname(gi), {"name": lines[0].strip(), "platform": "linux"})
         infos = [i for r in roots for i in glob.glob(os.path.join(str(r), "*", "goggame-*.info"))]
         for info_path in infos:
             info = read_json(info_path) or {}
@@ -127,6 +135,9 @@ class Gog(Store):
         for gid, (path, info) in installed.items():
             g = games.setdefault(gid, Game(store=self.id, id=gid, title=info.get("name", gid)))
             g.installed, g.install_path = True, path
+            g.extra["platform"] = info.get("platform", "windows")
+            if g.extra["platform"] == "linux":
+                g.extra["linux"] = True
         for gid in self._updates(installed):
             games[gid].extra["update"] = True
         if error:
@@ -178,6 +189,7 @@ class Gog(Store):
                 wide = ("https:" + img + "_392.jpg") if img.startswith("//") else ""
                 games[gid] = Game(store=self.id, id=gid, title=p.get("title", gid),
                                   cover=wide, cover_fallback=wide)
+                games[gid].extra["linux"] = bool((p.get("worksOn") or {}).get("Linux"))
             page += 1
 
         # Vertical box art lives on a per-game endpoint; cached, and looked at again every week
@@ -274,6 +286,17 @@ class Gog(Store):
         return self.update(game)
 
     # --- actions ---------------------------------------------------------
+    def platform_for(self, game):
+        """"linux" when the game has a Linux version and the user wants it (per game, else the
+        Settings default), otherwise "windows" (through Proton)."""
+        if game.installed:
+            return game.extra.get("platform", "windows")
+        from ..config import game_options
+        choice = game_options.get(game.key).get("platform")
+        if choice in ("linux", "windows"):
+            return choice if (choice == "windows" or game.extra.get("linux")) else "windows"
+        return "linux" if game.extra.get("linux") and settings.get("gog_native") else "windows"
+
     def install(self, game):
         tool = find_tool("gogdl")
         if not tool:
@@ -281,8 +304,11 @@ class Gog(Store):
         self._token()  # make sure the token file is fresh before gogdl reads it
         base = self.base_dir()
         base.mkdir(parents=True, exist_ok=True)
+        platform = self.platform_for(game)
+        if platform == "linux":
+            _gogdl_exclude(game.id)
         return Command([tool, "--auth-config-path", str(AUTH_FILE), "download", game.id,
-                        "--platform", "windows", "--path", str(base), "--with-dlcs", "--lang", "en-US"])
+                        "--platform", platform, "--path", str(base), "--with-dlcs", "--lang", "en-US"])
 
     def update(self, game):
         tool = find_tool("gogdl")
@@ -292,8 +318,11 @@ class Gog(Store):
             raise StoreError("Game files not found; try Refresh")
         self._token()
         # For "update", gogdl takes the game's own folder as --path (for "download" it is the parent).
+        platform = self.platform_for(game)
+        if platform == "linux":
+            _gogdl_exclude(game.id)
         return Command([tool, "--auth-config-path", str(AUTH_FILE), "update", game.id,
-                        "--platform", "windows", "--path", game.install_path, "--with-dlcs", "--lang", "en-US"])
+                        "--platform", platform, "--path", game.install_path, "--with-dlcs", "--lang", "en-US"])
 
     def verify(self, game):
         cmd = self.update(game)  # same arguments; "repair" checks every file against GOG's manifest
@@ -315,6 +344,12 @@ class Gog(Store):
         if not found:
             raise StoreError("Game files not found; try Refresh")
         path, info = found
+        if info.get("platform") == "linux":
+            # A Linux version: its own start script, no Proton (GameMode / MangoHud still apply).
+            script = os.path.join(path, "start.sh")
+            if not os.path.isfile(script):
+                raise StoreError("This Linux version has no start.sh; try Repair files")
+            return Command([*extras(), script], env=perf_env_native(), cwd=path)
         tasks = [t for t in info.get("playTasks", []) if t.get("type") == "FileTask" and t.get("path")]
         task = next((t for t in tasks if t.get("isPrimary")), tasks[0] if tasks else None)
         if not task:
@@ -323,6 +358,23 @@ class Gog(Store):
         cwd = _resolve(path, task.get("workingDir") or "") if task.get("workingDir") else os.path.dirname(exe)
         args = shlex.split(task.get("arguments") or "", posix=False)
         return Command([*wrapper_argv(), exe, *args], env=wine_env(self.id, game.id), cwd=cwd)
+
+
+def _gogdl_exclude(game_id):
+    """gogdl's Linux downloads read ~/.config/heroic_gogdl/exclude/<id> (files to skip); an empty
+    one means "everything". Heroic writes it; without Heroic it has to exist anyway."""
+    folder = os.path.join(XDG_CONFIG, "heroic_gogdl", "exclude")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, str(game_id))
+    if not os.path.exists(path):
+        open(path, "w").close()
+
+
+def perf_env_native():
+    """MangoHud settings (FPS counter, frame cap) for a native game; DXVK settings do not apply."""
+    from ..runner import perf_env
+    env = perf_env("gog", "native")
+    return {k: v for k, v in env.items() if k == "MANGOHUD_CONFIG"}
 
 
 def _resolve(root, rel):
