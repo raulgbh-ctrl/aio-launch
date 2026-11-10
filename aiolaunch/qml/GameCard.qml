@@ -116,10 +116,31 @@ Item {
                 }
             }
 
+            // Only wide art for this game: show all of it, centred, over a blurred, enlarged
+            // copy that fills the card (rather than cropping a slice out of the middle).
+            readonly property bool wideArt: img.status === Image.Ready && img.implicitWidth > img.implicitHeight * 1.1
+            Image {
+                id: wideBack
+                anchors.fill: parent
+                visible: false
+                source: parent.wideArt ? img.source : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                sourceSize.width: 160
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: wideBack
+                visible: parent.wideArt && !app.light && wideBack.status === Image.Ready
+                blurEnabled: true; blur: 1.0; blurMax: 48
+                brightness: -0.15
+                opacity: img.opacity
+            }
             ArtImage {
                 id: img
                 anchors.fill: parent
                 sources: card.covers
+                fillMode: parent.wideArt ? Image.PreserveAspectFit : Image.PreserveAspectCrop
                 sourceSize.width: Math.min(app.light ? 280 : 400, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.78) : 0
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }

@@ -267,6 +267,14 @@ def _cached_lookups(kind, titles, fn):
     return {t: cache.get(f"{kind}:{norm(t)}") for t in titles}
 
 
+def _unique_list(urls):
+    out = []
+    for u in urls:
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
 def _add(lst, *urls):
     for u in urls:
         if u and u not in lst:
@@ -294,10 +302,14 @@ def add_backup_art(games):
         covers, heroes = [], list(g.extra.get("store_heroes") or [])
         # Steam's current capsule (its URL changes whenever the art does) goes first; the
         # store's own art, which can be an old copy, becomes a backup.
-        g.extra["current_cover"] = a.get("cover", "")
+        # Steam's own "portrait.png" is a stand-in it generates when a publisher uploaded no cover
+        # (the wide banner on a blurred background): never above real art, only as a last resort.
+        generated = "portrait.png" in (a.get("cover") or "")
+        g.extra["current_cover"] = "" if generated else a.get("cover", "")
         if g.extra["current_cover"] and g.cover:
             _add(covers, g.cover)
-        _add(covers, a.get("cover2x"))
+        if not generated:
+            _add(covers, a.get("cover2x"))
         if appid(g):
             _add(covers, f"{STEAM_CDN}/{appid(g)}/library_600x900.jpg")
         _add(heroes, a.get("hero"), sgdb.get(g.title))
@@ -307,7 +319,9 @@ def add_backup_art(games):
         logos = list(g.extra.get("store_logos") or [])
         if appid(g):
             _add(logos, f"{STEAM_ASSETS}steam/apps/{appid(g)}/logo.png")
+        if generated:
+            covers = [u for u in covers if "portrait" not in u] + [a.get("cover"), a.get("cover2x")]
         primary = g.extra["current_cover"] or g.cover
-        g.extra["covers"] = [u for u in covers if u != primary]
+        g.extra["covers"] = [u for u in _unique_list(covers) if u and u != primary]
         g.extra["heroes"] = heroes
         g.extra["logos"] = logos
