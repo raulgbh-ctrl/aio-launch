@@ -38,11 +38,58 @@ FocusScope {
     }
     readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
 
-    function sync() { cur = app.game(library.keyAt(grid.currentIndex)) }
+    // Shelves: Continue playing, Favourites, collections, Recently added, Library. Up / down.
+    property var shelfList: []
+    property int shelfAt: 0
+    readonly property var shelf: shelfList[shelfAt] || ({ id: "", name: "Library" })
+    function loadShelves() {
+        const keep = tvLibrary.shelf
+        shelfList = app.shelfList()
+        const i = shelfList.findIndex(s => s.id === keep)
+        shelfAt = i >= 0 ? i : shelfList.length - 1
+        if (!searching && tvLibrary.search === "") tvLibrary.shelf = shelf.id
+    }
+    function stepShelf(step) {
+        if (tvLibrary.search !== "") return
+        const i = Math.max(0, Math.min(shelfList.length - 1, shelfAt + step))
+        if (i === shelfAt) return
+        app.uiSound("move")
+        shelfAt = i
+        tvLibrary.shelf = shelf.id
+        grid.currentIndex = 0
+        grid.contentX = 0
+        sync()
+    }
+    Connections {
+        target: app
+        function onCollectionsChanged() { tv.loadShelves() }
+        function onStoresChanged() { if (tv.visible) Qt.callLater(tv.loadShelves) }
+    }
+
+    // Search: an on-screen keyboard for the controller; a real keyboard just types.
+    property bool searching: false
+    function openSearch(first) {
+        if (!searching) { searching = true; tvLibrary.shelf = "" }
+        if (first) tvLibrary.search = tvLibrary.search + first
+        keys.forceActiveFocus()
+        grid.currentIndex = 0; sync()
+    }
+    function closeSearch(keepResults) {
+        searching = false
+        if (!keepResults || tvLibrary.search === "") clearSearch()
+        grid.forceActiveFocus(); sync()
+    }
+    function clearSearch() {
+        tvLibrary.search = ""
+        tvLibrary.shelf = shelf.id
+        grid.currentIndex = 0; sync()
+    }
+
+    function sync() { cur = app.game(tvLibrary.keyAt(grid.currentIndex)) }
     function cycleStore(step) {
         app.uiSound("move")
-        const i = storeIds.indexOf(library.storeFilter)
-        library.storeFilter = storeIds[(i + step + storeIds.length) % storeIds.length]
+        const i = storeIds.indexOf(tvLibrary.storeFilter)
+        tvLibrary.storeFilter = storeIds[(i + step + storeIds.length) % storeIds.length]
         grid.currentIndex = 0
         sync()
     }
@@ -69,12 +116,13 @@ FocusScope {
             else out.push({ label: "Install from " + c.storeName, act: "install", key: c.key })
         }
         for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
+        out.push({ label: cur.favourite ? "Remove from favourites" : "Add to favourites", act: "fav", key: cur.key })
         out.push({ label: cur.hidden ? "Unhide game" : "Hide game", act: cur.hidden ? "unhide" : "hide", key: cur.key })
         out.push({ label: "Close", act: "close", key: "" })
         return out
     }
 
-    function grab() { grid.forceActiveFocus(); sync() }
+    function grab() { loadShelves(); grid.forceActiveFocus(); sync() }
     onVisibleChanged: if (visible) grab()
     Component.onCompleted: if (visible) Qt.callLater(grab)
     Connections {
@@ -259,7 +307,7 @@ FocusScope {
                 model: tv.storeIds
                 Rectangle {
                     required property string modelData
-                    readonly property bool active: library.storeFilter === modelData
+                    readonly property bool active: tvLibrary.storeFilter === modelData
                     readonly property var info: app.storesInfo.find(s => s.id === modelData) || ({ name: "All games", color: "" })
                     implicitWidth: tabRow.implicitWidth + 36
                     implicitHeight: 46
@@ -287,7 +335,7 @@ FocusScope {
                             font.weight: parent.parent.active ? Font.DemiBold : Font.Normal
                         }
                     }
-                    TapHandler { onTapped: { library.storeFilter = parent.modelData; grid.currentIndex = 0; tv.sync() } }
+                    TapHandler { onTapped: { tvLibrary.storeFilter = parent.modelData; grid.currentIndex = 0; tv.sync() } }
                 }
             }
             Item { Layout.fillWidth: true }
@@ -484,14 +532,19 @@ FocusScope {
             Layout.fillWidth: true
             Layout.bottomMargin: -6
             spacing: 12
+            Icon {
+                name: tvLibrary.search !== "" ? "search" : ({ playing: "history", fav: "star", added: "gift", "": "library" })[tv.shelf.id] || "bookmark"
+                size: 20
+                color: tv.tint.primary
+            }
             Text {
-                text: (library.storeFilter ? (app.storesInfo.find(s => s.id === library.storeFilter) || {}).name || "Library" : "Library")
+                text: tvLibrary.search !== "" ? "Results for \u201c" + tvLibrary.search + "\u201d" : tv.shelf.name
                 color: theme.onSurface
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
             }
             Rectangle {
-                visible: library.installedOnly
+                visible: tvLibrary.installedOnly
                 height: 26; radius: 13
                 width: instText.implicitWidth + 22
                 color: Qt.alpha(tv.tint.primary, 0.2)
@@ -504,6 +557,20 @@ FocusScope {
                 color: theme.onSurfaceVariant
                 font.pixelSize: 17
             }
+            Item { Layout.fillWidth: true }
+            // The shelves above and below: up / down goes there.
+            Text {
+                visible: tvLibrary.search === "" && tv.shelfAt > 0
+                text: "\u25B2  " + (tv.shelfList[tv.shelfAt - 1] || {}).name
+                color: theme.onSurfaceVariant; opacity: 0.7
+                font.pixelSize: 15
+            }
+            Text {
+                visible: tvLibrary.search === "" && tv.shelfAt < tv.shelfList.length - 1
+                text: "\u25BC  " + (tv.shelfList[tv.shelfAt + 1] || {}).name
+                color: theme.onSurfaceVariant; opacity: 0.7
+                font.pixelSize: 15
+            }
         }
 
         // One row of covers along the bottom; left / right to browse.
@@ -514,7 +581,7 @@ FocusScope {
             Layout.preferredHeight: Math.round(Math.max(220, tv.height * 0.34))
             focus: true
             clip: false
-            model: library
+            model: tvLibrary
             flow: GridView.FlowTopToBottom
             cellHeight: height
             cellWidth: Math.round(height / 1.46)
@@ -560,7 +627,13 @@ FocusScope {
             }
             Keys.onReturnPressed: tv.accept()
             Keys.onEnterPressed: tv.accept()
-            Keys.onEscapePressed: { app.uiSound("back"); tv.exit() }
+            Keys.onEscapePressed: {
+                app.uiSound("back")
+                if (tvLibrary.search !== "") tv.clearSearch()
+                else tv.exit()
+            }
+            Keys.onUpPressed: tv.stepShelf(-1)
+            Keys.onDownPressed: tv.stepShelf(1)
             Keys.onPressed: event => {
                 grid.fast = event.isAutoRepeat
                 if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && (event.modifiers & Qt.ShiftModifier)) {
@@ -569,7 +642,11 @@ FocusScope {
                 else if (event.key === Qt.Key_Home) { grid.jump(0); event.accepted = true }
                 else if (event.key === Qt.Key_End) { grid.jump(count - 1); event.accepted = true }
                 else if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
-                else if (event.key === Qt.Key_F3 || (event.key === Qt.Key_Space && pad.deck && !pad.connected)) { library.installedOnly = !library.installedOnly; event.accepted = true }
+                else if (event.key === Qt.Key_F4 || event.key === Qt.Key_Slash) { tv.openSearch(""); event.accepted = true }
+                else if (event.text && /^[a-z0-9]$/i.test(event.text) && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier))) {
+                    tv.openSearch(event.text.toLowerCase()); event.accepted = true  // just start typing
+                }
+                else if (event.key === Qt.Key_F3 || (event.key === Qt.Key_Space && pad.deck && !pad.connected)) { tvLibrary.installedOnly = !tvLibrary.installedOnly; event.accepted = true }
                 else if (event.key === Qt.Key_PageUp) { tv.cycleStore(-1); event.accepted = true }
                 else if (event.key === Qt.Key_PageDown) { tv.cycleStore(1); event.accepted = true }
             }
@@ -591,12 +668,12 @@ FocusScope {
             Repeater {
                 model: pad.connected
                        ? [{ b: ["a"], t: "Play" }, { b: ["x"], t: "Actions" }, { b: ["y"], t: "Installed only" },
-                          { b: ["lt", "rt"], t: "Jump" }, { b: ["lb", "rb"], t: "Store" }, { b: ["b"], t: "Back" }]
+                          { b: ["lt", "rt"], t: "Jump" }, { b: ["lb", "rb"], t: "Store" }, { b: ["back"], t: "Search" }, { b: ["b"], t: "Back" }]
                        : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
                        ? [{ b: ["a"], t: "Play" }, { k: "F2", t: "Actions" }, { b: ["y"], t: "Installed only" },
                           { b: ["b"], t: "Back" }]
                        : [{ k: "Enter", t: "Play" }, { k: "F2", t: "Actions" }, { k: "F3", t: "Installed only" },
-                          { k: "Shift ←/→", t: "Jump" }, { k: "PgUp / PgDn", t: "Store" }, { k: "Esc", t: "Back" }]
+                          { k: "↑ ↓", t: "Shelf" }, { k: "Shift ←/→", t: "Jump" }, { k: "PgUp / PgDn", t: "Store" }, { k: "Type", t: "Search" }, { k: "Esc", t: "Back" }]
                 Row {
                     required property var modelData
                     spacing: 8
@@ -618,6 +695,90 @@ FocusScope {
                         color: theme.onSurfaceVariant
                         font.pixelSize: 15
                     }
+                }
+            }
+        }
+    }
+
+    // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),
+    // View closes and keeps the results; a real keyboard types straight into it.
+    Rectangle {
+        id: searchBox
+        visible: tv.searching
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 120 }
+        width: Math.min(parent.width - 96, 760)
+        height: searchCol.implicitHeight + 40
+        radius: 24
+        color: Qt.alpha(theme.surfaceContainer, 0.97)
+        border.width: 1; border.color: theme.outlineVariant
+        z: 5
+        ColumnLayout {
+            id: searchCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+            spacing: 14
+            Rectangle {
+                Layout.fillWidth: true
+                height: 56; radius: 28
+                color: theme.surfaceContainerHighest
+                Icon { x: 20; anchors.verticalCenter: parent.verticalCenter; name: "search"; size: 22; color: theme.onSurfaceVariant }
+                Text {
+                    x: 54; anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 74
+                    elide: Text.ElideLeft
+                    text: tvLibrary.search !== "" ? tvLibrary.search : "Search your games"
+                    color: tvLibrary.search !== "" ? theme.onSurface : theme.onSurfaceVariant
+                    font.pixelSize: 22
+                }
+                Text {
+                    anchors { right: parent.right; rightMargin: 22; verticalCenter: parent.verticalCenter }
+                    text: grid.count + (grid.count === 1 ? " game" : " games")
+                    color: theme.onSurfaceVariant; font.pixelSize: 16
+                }
+            }
+            GridView {
+                id: keys
+                readonly property var letters: "abcdefghijklmnopqrstuvwxyz1234567890".split("").concat(["space", "del", "done"])
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.ceil(letters.length / 10) * cellHeight
+                interactive: false
+                cellWidth: Math.floor(width / 10)
+                cellHeight: 58
+                model: letters
+                keyNavigationWraps: true
+                delegate: Rectangle {
+                    required property string modelData
+                    required property int index
+                    readonly property bool wide: modelData.length > 1
+                    width: keys.cellWidth - 8; height: keys.cellHeight - 8
+                    radius: 12
+                    color: GridView.isCurrentItem && keys.activeFocus ? tv.tint.primary : theme.surfaceContainerHigh
+                    Text {
+                        anchors.centerIn: parent
+                        text: ({ space: "\u2423", del: "\u232B", done: "\u2713" })[parent.modelData] || parent.modelData.toUpperCase()
+                        color: parent.GridView.isCurrentItem && keys.activeFocus ? tv.tint.onPrimary : theme.onSurface
+                        font.pixelSize: parent.wide ? 24 : 20
+                        font.weight: Font.DemiBold
+                    }
+                    TapHandler { onTapped: { keys.currentIndex = parent.index; keys.press(parent.modelData) } }
+                }
+                function press(k) {
+                    app.uiSound("move")
+                    if (k === "done") tv.closeSearch(true)
+                    else if (k === "del") tvLibrary.search = tvLibrary.search.slice(0, -1)
+                    else tvLibrary.search = (tvLibrary.search + (k === "space" ? " " : k)).replace(/^ +/, "")
+                    grid.currentIndex = 0; tv.sync()
+                }
+                Keys.onReturnPressed: press(letters[currentIndex])
+                Keys.onEnterPressed: press(letters[currentIndex])
+                Keys.onEscapePressed: {
+                    if (tvLibrary.search !== "") press("del")
+                    else { app.uiSound("back"); tv.closeSearch(false) }
+                }
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_F4) { tv.closeSearch(true); event.accepted = true }
+                    else if (event.key === Qt.Key_Backspace) { press("del"); event.accepted = true }
+                    else if (event.key === Qt.Key_Space) { press("space"); event.accepted = true }
+                    else if (event.text && /^[a-z0-9]$/i.test(event.text)) { press(event.text.toLowerCase()); event.accepted = true }
                 }
             }
         }
@@ -663,6 +824,7 @@ FocusScope {
             else if (a.act === "cancel") app.cancel(a.key)
             else if (a.act === "uninstall") app.uninstall(a.key)
             else if (a.act === "hide" || a.act === "unhide") app.setHidden(a.key, a.act === "hide")
+            else if (a.act === "fav") app.toggleFavourite(a.key)
             hide()
         }
         visible: false

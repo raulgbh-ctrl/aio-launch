@@ -192,7 +192,9 @@ ApplicationWindow {
                     property string count: ""
                     property bool active: false
                     property bool dim: false
+                    property bool removable: false
                     signal picked()
+                    signal remove()
                     Layout.fillWidth: true
                     height: 40
                     radius: 10
@@ -230,20 +232,31 @@ ApplicationWindow {
                     }
                     Text {
                         anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        visible: !(nav.removable && navHover.hovered)
                         text: nav.count
                         color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
                         font.pixelSize: 12
                     }
                     HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: nav.picked() }
+                    // Remove (collections): an x where the count was, while pointed at.
+                    Rectangle {
+                        visible: nav.removable && navHover.hovered
+                        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                        width: 24; height: 24; radius: 12
+                        color: removeHover.hovered ? theme.errorContainer || theme.surfaceContainerHighest : "transparent"
+                        Icon { anchors.centerIn: parent; name: "x"; size: 14; color: removeHover.hovered ? theme.error : theme.onSurfaceVariant }
+                        HoverHandler { id: removeHover }
+                        TapHandler { onTapped: nav.remove() }
+                    }
                 }
 
                 NavItem {
                     label: "All games"
                     icon: "library"
                     count: app.totalCount
-                    active: library.storeFilter === "" && !library.showHidden
-                    onPicked: { library.showHidden = false; library.storeFilter = "" }
+                    active: library.storeFilter === "" && !library.showHidden && library.shelf === ""
+                    onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = "" }
                 }
                 Repeater {
                     model: app.storesInfo
@@ -254,9 +267,32 @@ ApplicationWindow {
                         store: modelData.id
                         dim: !modelData.loggedIn && modelData.count === 0
                         count: modelData.refreshing ? "…" : modelData.count
-                        active: library.storeFilter === modelData.id && !library.showHidden
-                        onPicked: { library.showHidden = false; library.storeFilter = modelData.id }
+                        active: library.storeFilter === modelData.id && !library.showHidden && library.shelf === ""
+                        onPicked: { library.showHidden = false; library.shelf = ""; library.storeFilter = modelData.id }
                     }
+                }
+
+                Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
+
+                // Favourites and the user's own collections.
+                Repeater {
+                    model: app.sidebarShelves
+                    NavItem {
+                        required property var modelData
+                        label: modelData.name
+                        icon: modelData.id === "fav" ? "star" : "bookmark"
+                        count: modelData.count
+                        removable: modelData.id !== "fav"
+                        active: library.shelf === modelData.id && !library.showHidden
+                        onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = modelData.id }
+                        onRemove: { removeColl.name = modelData.name; removeColl.open() }
+                    }
+                }
+                NavItem {
+                    label: "New collection"
+                    icon: "plus"
+                    dim: true
+                    onPicked: newColl.ask("")
                 }
 
                 Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
@@ -709,7 +745,8 @@ ApplicationWindow {
 
                         Text {
                             x: 8
-                            text: "Library"
+                            text: library.shelf === "" ? "Library"
+                                  : library.shelf === "fav" ? "Favourites" : library.shelf.replace(/^c:/, "")
                             color: theme.onSurfaceVariant
                             font.pixelSize: 13; font.weight: Font.DemiBold
                         }
@@ -1105,6 +1142,18 @@ ApplicationWindow {
                     }
                     KButton {
                         theme: detail.tint
+                        text: win.selected.favourite ? "Favourited" : "Favourite"
+                        iconName: win.selected.favourite ? "star-filled" : "star"
+                        onClicked: app.toggleFavourite(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Collections"
+                        iconName: "bookmark"
+                        onClicked: collPick.show(win.selectedKey, win.selected.title)
+                    }
+                    KButton {
+                        theme: detail.tint
                         text: "Options"
                         iconName: "settings-2"
                         onClicked: gameOpts.show(win.selectedKey)
@@ -1190,6 +1239,99 @@ ApplicationWindow {
                 text: "Play without syncing this time"
                 onClicked: { conflict.close(); app.resolveConflict(conflict.key, "skip") }
             }
+        }
+    }
+
+    // -------------------------------------------------------------------- collections
+    // Which collections a game is in: one row per collection, tap to add or remove.
+    KDialog {
+        id: collPick
+        theme: win.theme
+        property string key: ""
+        property var inList: []
+        heading: "Collections"
+        headingIcon: "bookmark"
+        width: Math.min(win.width - 60, 420)
+        function show(k, title) { key = k; heading = title; inList = app.game(k).collections || []; open() }
+        Connections { target: app; function onCollectionsChanged() { if (collPick.opened) collPick.inList = app.game(collPick.key).collections || [] } }
+        contentItem: ColumnLayout {
+            spacing: 8
+            Text {
+                visible: app.collections.length === 0
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "No collections yet. Make one for the games you play together, a backlog, anything."
+                color: theme.onSurfaceVariant; font.pixelSize: 13
+            }
+            Repeater {
+                model: app.collections
+                Rectangle {
+                    required property string modelData
+                    readonly property bool on: collPick.inList.indexOf(modelData) !== -1
+                    Layout.fillWidth: true
+                    height: 44; radius: 10
+                    color: rowHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    Rectangle {
+                        x: 12; anchors.verticalCenter: parent.verticalCenter
+                        width: 20; height: 20; radius: 6
+                        color: parent.on ? theme.primary : "transparent"
+                        border.width: parent.on ? 0 : 2; border.color: theme.outline
+                        Icon { anchors.centerIn: parent; visible: parent.parent.on; name: "check"; size: 14; color: theme.onPrimary }
+                    }
+                    Text { x: 44; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData; color: theme.onSurface; font.pixelSize: 14 }
+                    HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.setInCollection(collPick.key, parent.modelData, !parent.on) }
+                }
+            }
+            KButton {
+                theme: win.theme
+                Layout.fillWidth: true
+                text: "New collection"
+                iconName: "plus"
+                onClicked: { const k = collPick.key; collPick.close(); newColl.ask(k) }
+            }
+        }
+    }
+    KDialog {
+        id: newColl
+        theme: win.theme
+        property string addKey: ""   // a game to put in the new collection straight away
+        heading: "New collection"
+        headingIcon: "bookmark"
+        width: Math.min(win.width - 60, 420)
+        function ask(k) { addKey = k; collName.text = ""; open() }
+        onOpened: collName.forceActiveFocus()
+        function create() {
+            const made = app.createCollection(collName.text)
+            if (!made) { collName.text = ""; return }
+            if (addKey) app.setInCollection(addKey, made, true)
+            close()
+        }
+        contentItem: ColumnLayout {
+            spacing: 14
+            KField {
+                id: collName
+                theme: win.theme
+                Layout.fillWidth: true
+                placeholderText: "Name, e.g. Co-op nights"
+                Keys.onReturnPressed: newColl.create()
+                Keys.onEnterPressed: newColl.create()
+            }
+            KButton { theme: win.theme; primary: true; Layout.fillWidth: true; text: "Create"; enabled: collName.text.trim() !== ""; onClicked: newColl.create() }
+        }
+    }
+    KDialog {
+        id: removeColl
+        theme: win.theme
+        property string name: ""
+        heading: "Delete \u201c" + name + "\u201d?"
+        width: Math.min(win.width - 60, 420)
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                   text: "The collection goes away; the games stay in your library." }
+            KButton { theme: win.theme; danger: true; Layout.fillWidth: true; text: "Delete collection"; iconName: "trash-2"
+                      onClicked: { app.deleteCollection(removeColl.name); removeColl.close() } }
         }
     }
 

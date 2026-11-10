@@ -8,7 +8,7 @@ Item {
     property string button: "a"
     property string style: "xbox"
     property int size: 26
-    readonly property bool shoulder: ["lb", "rb", "lt", "rt", "start"].indexOf(button) !== -1
+    readonly property bool shoulder: ["lb", "rb", "lt", "rt", "start", "back"].indexOf(button) !== -1
     implicitWidth: shoulder ? label.implicitWidth + size * 0.7 : size
     implicitHeight: size
     width: implicitWidth
@@ -18,9 +18,9 @@ Item {
     readonly property var nintendo: ({ a: "B", b: "A", x: "Y", y: "X" })   // by position: bottom is B on a Switch pad
     readonly property var psColour: ({ a: "#7fa9ec", b: "#ec6f6f", x: "#d58ad8", y: "#41c7a0" })
     readonly property var shoulders: ({
-        xbox: { lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "☰" },
-        playstation: { lb: "L1", rb: "R1", lt: "L2", rt: "R2", start: "OPTIONS" },
-        nintendo: { lb: "L", rb: "R", lt: "ZL", rt: "ZR", start: "+" } })
+        xbox: { lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "☰", back: "⧉" },
+        playstation: { lb: "L1", rb: "R1", lt: "L2", rt: "R2", start: "OPTIONS", back: "CREATE" },
+        nintendo: { lb: "L", rb: "R", lt: "ZL", rt: "ZR", start: "+", back: "−" } })
 
     // PlayStation face symbols as SVG (cross, circle, square, triangle).
     function psSvg(b, c) {

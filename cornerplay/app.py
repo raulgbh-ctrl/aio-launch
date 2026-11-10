@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, details, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, details, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -31,8 +31,8 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
-         "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb"]
-GROUP_ROLES = ("copies", "playtime", "lastPlayed")
+         "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite"]
+GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite")
 SORTS = ("name", "recent", "playtime")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
 
@@ -106,6 +106,7 @@ _FIELDS = {
     "title": lambda m, g: g.title,
     "cover": lambda m, g: _cover(g),
     "coverFallback": lambda m, g: g.cover_fallback,
+    "favourite": lambda m, g: shelves.FAV in shelves.ids_of(g.key),
     "installed": lambda m, g: g.installed,
     "job": lambda m, g: _job(m, g).get("kind", ""),
     "progress": lambda m, g: _job(m, g).get("progress", 0.0),
@@ -188,6 +189,8 @@ class LibraryModel(QAbstractListModel):
         """Row-level values: a game owned on several stores counts the time played on each."""
         if role == "copies":
             return len(group)
+        if role == "favourite":
+            return shelves.in_group(group, shelves.FAV)
         times = [playtime.of(g, self.played) for g in group]
         return sum(t[0] for t in times) if role == "playtime" else max(t[1] for t in times)
 
@@ -225,6 +228,8 @@ class LibraryModel(QAbstractListModel):
         d["protondbTrending"] = pdb.get("trending", "")
         d["protondbReports"] = pdb.get("reports", 0)
         d["steamAppId"] = _appid(g)
+        d["favourite"] = shelves.in_group(group or [g], shelves.FAV)
+        d["collections"] = [c for c in shelves.names() if shelves.in_group(group or [g], c)]
         d["playtime"] = self.group_value(group or [g], "playtime")
         d["lastPlayed"] = self.group_value(group or [g], "lastPlayed")
         return d
@@ -258,6 +263,7 @@ class LibraryProxy(QSortFilterProxyModel):
     def __init__(self, model):
         super().__init__()
         self._store, self._installed, self._search, self._hidden = "", False, "", False
+        self._shelf = ""  # "", "fav", "c:<name>", "playing" (played, most recent first), "added" (newest first)
         self._sort = settings.get("sort") if settings.get("sort") in SORTS else "name"
         self._keys, self._keys_gen = {}, None
         self.setSourceModel(model)
@@ -278,22 +284,42 @@ class LibraryProxy(QSortFilterProxyModel):
             group = [g for g in group if g.store == self._store]
         if self._installed:
             group = [g for g in group if g.installed]
+        if group and self._shelf and not self._on_shelf(model, model.groups[row]):
+            return False
         return bool(group) and (not self._search or any(self._search in g.title.lower() for g in group))
+
+    def _on_shelf(self, model, group):
+        s = self._shelf
+        if s == "fav":
+            return shelves.in_group(group, shelves.FAV)
+        if s.startswith("c:"):
+            return shelves.in_group(group, s[2:])
+        if s == "playing":
+            return model.group_value(group, "lastPlayed") > 0
+        if s == "added":
+            return shelves.is_recent(group)
+        return True
+
+    def _sort_mode(self):
+        return {"playing": "recent", "added": "added"}.get(self._shelf, self._sort)
 
     def _key(self, row):
         """Sort key for a source row, worked out once per library change (a sort compares
         each row many times; recomputing titles and playtimes each time made it slow)."""
         model = self.sourceModel()
-        if self._keys_gen != (model.generation, self._sort):
-            self._keys, self._keys_gen = {}, (model.generation, self._sort)
+        sort = self._sort_mode()
+        if self._keys_gen != (model.generation, sort):
+            self._keys, self._keys_gen = {}, (model.generation, sort)
         key = self._keys.get(row)
         if key is None:
             group = model.groups[row]
             title = model.rep(group).title.lower()
-            if self._sort == "name":
+            if sort == "name":
                 key = (title,)
+            elif sort == "added":
+                key = (-shelves.added(group), title)
             else:  # most recent / most played first; never-played games fall to the end
-                value = model.group_value(group, "lastPlayed" if self._sort == "recent" else "playtime")
+                value = model.group_value(group, "lastPlayed" if sort == "recent" else "playtime")
                 key = (-value, title)
             self._keys[row] = key
         return key
@@ -313,6 +339,8 @@ class LibraryProxy(QSortFilterProxyModel):
     def _set(self, attr, value):
         if getattr(self, attr) != value:
             setattr(self, attr, value)
+            if attr == "_shelf":
+                self.invalidate()  # the shelf can change the order too
             if attr == "_store":
                 self.sourceModel().focus_store = value
                 self.sourceModel().touch()
@@ -324,6 +352,7 @@ class LibraryProxy(QSortFilterProxyModel):
     search = Property(str, lambda s: s._search, lambda s, v: s._set("_search", v.strip().lower()), notify=filterChanged)
     # False: the normal library (hidden games left out). True: only the hidden games.
     showHidden = Property(bool, lambda s: s._hidden, lambda s, v: s._set("_hidden", v), notify=filterChanged)
+    shelf = Property(str, lambda s: s._shelf, lambda s, v: s._set("_shelf", v), notify=filterChanged)
 
     def refilter(self):
         self.invalidateFilter()
@@ -361,6 +390,7 @@ class AioLaunch(QObject):
         self.stores = {s.id: s for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet())}
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
+        self.tvProxy = LibraryProxy(self.model)  # TV mode's own list: its shelves leave the main view alone
         self.pool = ThreadPoolExecutor(min(4, os.cpu_count() or 2))
         self.procs: dict[str, QProcess] = {}
         self.logs: dict[str, list] = {}
@@ -735,6 +765,8 @@ class AioLaunch(QObject):
 
     def _on_fetched(self, store_id, games, error):
         self._pending.discard(store_id)
+        if games:
+            shelves.note(store_id, [g.key for g in games])
         if games is not None:
             self.model.replace_store(store_id, games)
             write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
@@ -907,6 +939,82 @@ class AioLaunch(QObject):
         self.gameChanged.emit(key)
         title = group[0].title if group else "Game"
         self.toast.emit(f"{title} hidden. Find it under Hidden games." if hidden else f"{title} is back in your library")
+
+    # --- favourites and collections ---------------------------------------
+    collectionsChanged = Signal()
+
+    def _refilter_all(self, key=None):
+        self.proxy.refilter()
+        self.tvProxy.refilter()
+        self.model.touch(key)
+        self.collectionsChanged.emit()
+        self.storesChanged.emit()  # the sidebar's counts
+        if key:
+            self.gameChanged.emit(key)
+
+    collections = Property("QVariantList", lambda s: shelves.names(), notify=collectionsChanged)
+
+    @Slot(str, str, bool)
+    def setInCollection(self, key, cid, on):
+        """cid: "fav" for favourites, else a collection's name."""
+        group = self.model.group_of(key)
+        if not group:
+            return
+        shelves.set_member(group, cid, on)
+        self._refilter_all(key)
+
+    @Slot(str)
+    def toggleFavourite(self, key):
+        group = self.model.group_of(key)
+        if not group:
+            return
+        on = not shelves.in_group(group, shelves.FAV)
+        self.setInCollection(key, shelves.FAV, on)
+        self.toast.emit(f"{group[0].title} {'added to' if on else 'removed from'} Favourites")
+
+    @Slot(str, result=str)
+    def createCollection(self, name):
+        made = shelves.create(name)
+        if made:
+            self.collectionsChanged.emit()
+        return made
+
+    @Slot(str)
+    def deleteCollection(self, name):
+        shelves.delete(name)
+        for proxy in (self.proxy, self.tvProxy):
+            if proxy.shelf == "c:" + name:
+                proxy.shelf = ""
+        self._refilter_all()
+
+    @Slot(result="QVariantList")
+    def shelfList(self):
+        """TV mode's rows, in order; empty ones are left out. Library is always there."""
+        groups = [g for g in self.model.groups if not self.model.is_hidden(g)]
+        out = []
+
+        def add(sid, name, test):
+            n = sum(1 for g in groups if test(g))
+            if n:
+                out.append({"id": sid, "name": name, "count": n})
+        add("playing", "Continue playing", lambda g: self.model.group_value(g, "lastPlayed") > 0)
+        add("fav", "Favourites", lambda g: shelves.in_group(g, shelves.FAV))
+        for c in shelves.names():
+            add("c:" + c, c, lambda g, c=c: shelves.in_group(g, c))
+        add("added", "Recently added", shelves.is_recent)
+        out.append({"id": "", "name": "Library", "count": len(groups)})
+        return out
+
+    def _sidebar_shelves(self):
+        """Favourites and the collections, with counts, for the sidebar (shown even when empty)."""
+        groups = [g for g in self.model.groups if not self.model.is_hidden(g)]
+        out = [{"id": "fav", "name": "Favourites",
+                "count": sum(1 for g in groups if shelves.in_group(g, shelves.FAV))}]
+        for c in shelves.names():
+            out.append({"id": "c:" + c, "name": c, "count": sum(1 for g in groups if shelves.in_group(g, c))})
+        return out
+
+    sidebarShelves = Property("QVariantList", _sidebar_shelves, notify=storesChanged)
 
     def _hidden_count(self):
         return sum(1 for grp in self.model.groups if self.model.is_hidden(grp))

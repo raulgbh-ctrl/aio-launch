@@ -17,7 +17,7 @@ DEVICE_ADDED, DEVICE_REMOVED = 0x653, 0x654
 AXIS_MOTION, BUTTON_DOWN, BUTTON_UP = 0x650, 0x651, 0x652
 
 BUTTONS = {
-    0: Qt.Key_Return, 1: Qt.Key_Escape, 2: Qt.Key_F2, 3: Qt.Key_F3,
+    0: Qt.Key_Return, 1: Qt.Key_Escape, 2: Qt.Key_F2, 3: Qt.Key_F3, 4: Qt.Key_F4,  # 4: View / Select: search
     6: Qt.Key_F11, 9: Qt.Key_PageUp, 10: Qt.Key_PageDown,
     11: Qt.Key_Up, 12: Qt.Key_Down, 13: Qt.Key_Left, 14: Qt.Key_Right,
 }

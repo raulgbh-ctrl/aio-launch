@@ -22,6 +22,7 @@ Item {
     required property int copies
     required property bool update
     required property string protondb
+    required property bool favourite
     property bool showProtonDb: true
     property int cornerRadius: 14
     property bool showBadge: true
@@ -283,6 +284,15 @@ Item {
             color: "#cc000000"
             StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: "protondb"; color: ProtonDB.color(card.protondb) }
             Text { id: pdbText; x: 23; anchors.verticalCenter: parent.verticalCenter; text: ProtonDB.label(card.protondb); color: "white"; font.pixelSize: 11 }
+        }
+
+        // Favourite marker, top right (moves left of the update marker when both show).
+        Rectangle {
+            visible: card.favourite
+            anchors { right: parent.right; top: parent.top; margins: 10; rightMargin: card.installed && card.update && card.job === "" ? 38 : 10 }
+            width: 22; height: 22; radius: 11
+            color: "#cc000000"
+            Icon { anchors.centerIn: parent; name: "star-filled"; size: 12; color: "#ffd166" }
         }
 
         // Update-available marker.
