@@ -809,7 +809,8 @@ FocusScope {
                            shelves ? { k: "\u2191 \u2193", t: "Shelf" } : null, jump ? { k: "Shift \u2190/\u2192", t: "Jump" } : null,
                            stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
                            { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
-                    return all.filter(h => h && !h.pad)
+                    // Four at most: the rest are listed on a game's page (More).
+                    return all.filter(h => h && !h.pad && ["Play", "Install", "More", "Search", "Back", "Clear search"].indexOf(h.t) !== -1)
                 }
                 Hint { required property var modelData; hint: modelData }
             }
@@ -1086,6 +1087,14 @@ FocusScope {
                 Keys.onLeftPressed: panel.hide()
             }
         }
+        }
+        // The other controls (the home screen only shows four), listed on the page.
+        Text {
+            anchors { left: parent.left; bottom: parent.bottom; margins: 30 }
+            visible: tv.width >= 900
+            text: pad.connected ? "Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only"
+                                : "Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only"
+            color: theme.outline; font.pixelSize: 14
         }
         // The page's own hints: only what works here.
         Row {

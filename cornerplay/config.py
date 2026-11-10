@@ -49,7 +49,8 @@ DEFAULTS = {
     "auto_update_to": 6,
     "gog_native": True,    # GOG: install the Linux version when the game has one (no Proton)
     "view": "grid",            # main window: "grid" of covers or "list" (a table)
-    "home_collapsed": [],      # home sections folded away: "banner", "continue", "free"
+    "home_collapsed": ["free"],  # home sections folded away: "banner", "continue", "free" (Free on Epic starts as one line)
+    "epic_free_hidden_until": 0,  # Free on Epic hidden until the current offers end
     "home_order": ["continue", "free"],
     "ui_scale": 1.0,           # interface size (1.0, 1.15, 1.3); applies after a restart
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)

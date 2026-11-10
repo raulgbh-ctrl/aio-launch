@@ -1205,6 +1205,8 @@ class AioLaunch(QObject):
         owned = {covers.norm(g.title) for g in self.model.games if g.store == "epic"}
         now = time.time()
         out = []
+        if now < (settings.get("epic_free_hidden_until") or 0):
+            return []  # hidden until this week's offers end
         for g in self._epic_free:
             if g.get("end") and g["end"] < now:
                 continue  # the offer ran out since the list was fetched
@@ -1215,6 +1217,14 @@ class AioLaunch(QObject):
         return out
 
     epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
+
+    @Slot()
+    def hideEpicFreeForNow(self):
+        """Hide Free on Epic until this week's offers end (it comes back with the next ones)."""
+        ends = [g.get("end", 0) for g in self._epic_free if g.get("now")]
+        settings.set("epic_free_hidden_until", int(max(ends)) if ends else int(time.time() + 7 * 86400))
+        self.settingsChanged.emit()
+        self.epicFreeChanged.emit()
 
     # --- animated art (TV mode) ----------------------------------------------------
     animatedArtReady = Signal(str, "QVariantMap")

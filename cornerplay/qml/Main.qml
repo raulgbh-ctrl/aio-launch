@@ -61,6 +61,7 @@ ApplicationWindow {
         app.setSetting("home_order", order)
     }
     // The cover under the pointer: its colour tints the library; resting on it shows a preview.
+    property bool showFilters: false
     property string hoverKey: ""
     property string hoverAccent: ""
     Connections { target: app; function onGameColourReady(key, colour) { if (key === win.hoverKey) win.hoverAccent = colour } }
@@ -141,7 +142,8 @@ ApplicationWindow {
 
     // The banner shows one of the last few games played, turning to the next every 9 s.
     property int heroAt: 0
-    readonly property int heroCount: Math.min(4, app.recentGames.length)
+    // The banner shows the last game you played (still: the others are in Continue playing below).
+    readonly property int heroCount: Math.min(1, app.recentGames.length)
     readonly property var heroInfo: heroCount ? app.recentGames[heroAt % heroCount] : ({})
     property bool heroPaused: false
     Timer {
@@ -156,7 +158,7 @@ ApplicationWindow {
     // land on the game underneath).
     readonly property bool popupOpen: detail.visible || gameOpts.visible || dlc.visible || accounts.visible
                                       || prefs.visible || viewer.visible || conflict.visible || login.visible
-                                      || sortBox.popup.visible
+                                      || viewMenu.visible
     property bool justClosed: false
     onPopupOpenChanged: if (!popupOpen) { justClosed = true; closeGuard.restart() }
     Timer { id: closeGuard; interval: 450; onTriggered: win.justClosed = false }
@@ -330,7 +332,7 @@ ApplicationWindow {
                     }
                     Text {
                         anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                        visible: !(nav.removable && navHover.hovered)
+                        visible: !(nav.removable && navHover.hovered) && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
                         text: nav.count
                         color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
                         font.pixelSize: 12
@@ -360,7 +362,7 @@ ApplicationWindow {
                     model: app.storesInfo
                     NavItem {
                         required property var modelData
-                        visible: modelData.id !== "custom" || modelData.count > 0
+                        visible: modelData.count > 0 || (modelData.id !== "custom" && modelData.loggedIn)
                         label: modelData.name
                         dot: modelData.color
                         store: modelData.id
@@ -490,56 +492,66 @@ ApplicationWindow {
                     Keys.onDownPressed: grid.forceActiveFocus()
                     Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
                 }
-                Item { Layout.fillWidth: true }
-                // Covers or a table.
-                Row {
-                    spacing: 2
-                    Repeater {
-                        model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "list", i: "list", t: "List" }]
-                        Rectangle {
-                            required property var modelData
-                            readonly property bool on: (app.settingsMap.view || "grid") === modelData.v
-                            width: 38; height: 38; radius: 10
-                            color: on ? theme.primaryContainer : vHover.hovered ? theme.surfaceContainerHigh : "transparent"
-                            Icon { anchors.centerIn: parent; name: modelData.i; size: 17; color: parent.on ? theme.onPrimaryContainer : theme.onSurfaceVariant }
-                            HoverHandler { id: vHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: app.setSetting("view", modelData.v) }
-                            ToolTip.visible: vHover.hovered; ToolTip.text: modelData.t; ToolTip.delay: 400
-                        }
-                    }
-                }
-                // Installed only: a filter, so it sits with search and sort.
-                Rectangle {
-                    implicitWidth: instRow.implicitWidth + 26; implicitHeight: 38; radius: 10
-                    color: library.installedOnly ? theme.primaryContainer : theme.surfaceContainerHigh
-                    border.width: library.installedOnly ? 0 : 1; border.color: theme.outlineVariant
-                    Row {
-                        id: instRow
-                        anchors.centerIn: parent
-                        spacing: 7
-                        Icon { anchors.verticalCenter: parent.verticalCenter; name: library.installedOnly ? "check" : "download"; size: 15
-                               color: library.installedOnly ? theme.onPrimaryContainer : theme.onSurfaceVariant }
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Installed"; font.pixelSize: 13
-                               color: library.installedOnly ? theme.onPrimaryContainer : theme.onSurface }
-                    }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: library.installedOnly = !library.installedOnly }
-                }
-                KCombo {
-                    id: sortBox
-                    theme: win.theme
-                    Layout.preferredWidth: 190
-                    model: [{ label: "Sort: Name", value: "name" },
-                            { label: "Sort: Recently played", value: "recent" },
-                            { label: "Sort: Most played", value: "playtime" },
-                            { label: "Sort: My rating", value: "rating" }]
-                    Component.onCompleted: select(library.sortMode)
-                    onActivated: library.sortMode = currentValue
-                }
+                // How many games, when it tells you something (a search, a filter, a store or a list).
                 Text {
+                    visible: !!library.search || (library.tags || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf
                     text: grid.count + (grid.count === 1 ? " game" : " games")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
+                }
+                Item { Layout.fillWidth: true }
+                // Filters: the chip row shows while this is on, or while a filter is set.
+                TopButton {
+                    icon: "filter"; label: "Filters"
+                    badge: (library.tags || []).length
+                    on: win.showFilters || (library.tags || []).length > 0
+                    onPicked: win.showFilters = !win.showFilters
+                }
+                // View: covers or list, sort, installed only, cover size.
+                TopButton {
+                    id: viewButton
+                    icon: (app.settingsMap.view || "grid") === "list" ? "list" : "layout-grid"; label: "View"
+                    badge: library.installedOnly ? 1 : 0
+                    onPicked: viewMenu.opened ? viewMenu.close() : viewMenu.open()
+                    Popup {
+                        id: viewMenu
+                        y: parent.height + 6
+                        x: parent.width - width
+                        width: 270
+                        padding: 14
+                        background: Rectangle { radius: 14; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+                        contentItem: ColumnLayout {
+                            spacing: 10
+                            Text { text: "Show as"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            RowLayout {
+                                spacing: 6
+                                Repeater {
+                                    model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "list", i: "list", t: "List" }]
+                                    Chip2 { required property var modelData; label: modelData.t; icon: modelData.i
+                                            on: (app.settingsMap.view || "grid") === modelData.v; onPicked: app.setSetting("view", modelData.v) }
+                                }
+                            }
+                            Text { text: "Sort by"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Repeater {
+                                    model: [{ v: "name", t: "Name" }, { v: "recent", t: "Recently played" }, { v: "playtime", t: "Most played" },
+                                            { v: "rating", t: "My rating" }, { v: "size", t: "Size" }]
+                                    Chip2 { required property var modelData; label: modelData.t
+                                            on: library.sortMode === modelData.v; onPicked: library.sortMode = modelData.v }
+                                }
+                            }
+                            RowLayout {
+                                Text { Layout.fillWidth: true; text: "Installed only"; color: theme.onSurface; font.pixelSize: 13 }
+                                Switch { checked: library.installedOnly; onToggled: library.installedOnly = checked }
+                            }
+                            Text { visible: (app.settingsMap.view || "grid") !== "list"; text: "Cover size"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            KSlider { visible: (app.settingsMap.view || "grid") !== "list"; theme: win.theme; Layout.fillWidth: true
+                                      from: 130; to: 320; stepSize: 2; value: app.settingsMap.card_size
+                                      onMoved: app.setSetting("card_size", value) }
+                        }
+                    }
                 }
                 KButton {
                     theme: win.theme
@@ -547,12 +559,19 @@ ApplicationWindow {
                     iconName: "plus"
                     onClicked: addBox.show()
                 }
-                KButton {
-                    theme: win.theme
-                    text: app.refreshing ? "Refreshing…" : "Refresh"
-                    iconName: "refresh-cw"
-                    enabled: !app.refreshing
-                    onClicked: app.refresh("", true)
+                // Refresh: Cornerplay refreshes on its own at start and when you come back to it.
+                Rectangle {
+                    width: 38; height: 38; radius: 19
+                    color: rfHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    Icon {
+                        id: rfIcon
+                        anchors.centerIn: parent; name: "refresh-cw"; size: 17; color: theme.onSurfaceVariant
+                        RotationAnimation on rotation { running: app.refreshing && !app.light; from: 0; to: 360; duration: 1100; loops: Animation.Infinite
+                                                        onRunningChanged: if (!running) rfIcon.rotation = 0 }
+                    }
+                    HoverHandler { id: rfHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { enabled: !app.refreshing; onTapped: app.refresh("", true) }
+                    ToolTip.visible: rfHover.hovered; ToolTip.text: app.refreshing ? "Refreshing…" : "Refresh (Ctrl+R)"; ToolTip.delay: 300
                 }
             }
 
@@ -569,6 +588,7 @@ ApplicationWindow {
             // Filter chips: pick several; a genre from the details fetched so far.
             Flow {
                 id: chips
+                visible: win.showFilters || (library.tags || []).length > 0
                 Layout.fillWidth: true
                 Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
                 spacing: 6
@@ -728,8 +748,8 @@ ApplicationWindow {
                         // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
                         onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(grid.positionViewAtBeginning)
                         topPadding: 4
-                        bottomPadding: 14
-                        spacing: 18
+                        bottomPadding: 20
+                        spacing: 24
 
                         // The banner folded away: one slim line to bring it back.
                         RowLayout {
@@ -833,7 +853,7 @@ ApplicationWindow {
                             CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16; rotation: -90; tone: hero.tint.primary; opacity: 0.85 }
                             Rectangle {
                                 anchors.fill: parent; radius: 18; color: "transparent"
-                                border.width: 1; border.color: theme.outlineVariant
+                                border.width: 0; border.color: theme.outlineVariant
                             }
                             // Dots: which of the recent games is showing; click one to jump to it.
                             Row {
@@ -989,7 +1009,7 @@ ApplicationWindow {
                                 }
                                 Rectangle {
                                     anchors.fill: parent; radius: recentTile.radius; color: "transparent"; z: 1
-                                    border.width: recentHover.hovered ? 2 : 1
+                                    border.width: recentHover.hovered ? 2 : 0
                                     border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
                                 }
                                 Column {
@@ -1036,7 +1056,13 @@ ApplicationWindow {
                             width: parent.width - 16
                             spacing: 10
                             bottomPadding: 18
-                            SectionHead { sid: "free"; title: "Free on Epic"; icon: "gift" }
+                            SectionHead {
+                                sid: "free"; icon: "gift"
+                                readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
+                                title: "Free on Epic" + (nowFree ? "  \u00B7  " + nowFree + " this week" : "")
+                                extra: "Hide until next week"
+                                onExtraPicked: app.hideEpicFreeForNow()
+                            }
                             ListView {
                                 visible: !win.homeFolded("free")
                                 width: parent.width
@@ -1063,7 +1089,7 @@ ApplicationWindow {
                                     }
                                     Rectangle {
                                         anchors.fill: parent; radius: freeTile.radius; color: "transparent"; z: 1
-                                        border.width: freeHover.hovered ? 2 : 1
+                                        border.width: freeHover.hovered ? 2 : 0
                                         border.color: freeHover.hovered ? theme.primary : theme.outlineVariant
                                     }
                                     Column {
@@ -1100,10 +1126,10 @@ ApplicationWindow {
 
                         Text {
                             x: 8
-                            text: library.shelf === "" ? "Library"
+                            text: (library.shelf === "" ? "Library" + "  \u00B7  " + grid.count + " games"
                                   : library.shelf === "fav" ? "Favourites"
                                   : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
-                                  : library.shelf.replace(/^c:/, "")
+                                  : library.shelf.replace(/^c:/, ""))
                             color: theme.onSurfaceVariant
                             font.pixelSize: 13; font.weight: Font.DemiBold
                         }
@@ -1432,59 +1458,19 @@ ApplicationWindow {
                         visible: played !== ""
                         label: played
                     }
-                    Pill {
-                        visible: win.selected.store === "gog" && (win.selected.platform === "linux" || (!win.selected.installed && !!win.selected.linuxVersion))
-                        label: win.selected.platform === "linux" ? "\u{1F427}  Linux version" : "\u{1F427}  Has a Linux version"
-                    }
-                    // Controller support (Steam's store data); not full: Steam Input can map one.
-                    Pill {
-                        visible: detail.info.controller !== undefined && !!win.selected.steamAppId
-                        label: (detail.info.controller === "full" ? "\u{1F3AE}  Full controller support"
-                               : detail.info.controller === "partial" ? "\u{1F3AE}  Partial controller support"
-                               : "\u2328  Mouse and keyboard")
-                               + (win.selected.store === "steam" && detail.info.controller !== "full" ? "  \u00B7  set up \u2197" : "")
-                        accent: false
-                        HoverHandler { cursorShape: win.selected.store === "steam" && detail.info.controller !== "full" ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                        TapHandler {
-                            enabled: win.selected.store === "steam" && detail.info.controller !== "full"
-                            onTapped: app.openUrl("steam://controllerconfig/" + win.selected.steamAppId)
-                        }
-                    }
-                    Pill {
-                        visible: !!detail.ach.total
-                        label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + " achievements"
-                        accent: !!detail.ach.total && detail.ach.done === detail.ach.total
-                    }
-                    Pill {
-                        visible: !!win.selected.protondb
-                        store: "protondb"
-                        dot: ProtonDB.color(win.selected.protondb)
-                        label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
-                               + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb
-                                  ? " (trending " + ProtonDB.label(win.selected.protondbTrending) + ")" : "")
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
-                    }
                 }
                 // Your take on the game: backlog status, stars, a note.
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    Repeater {
-                        model: app.statusNames
-                        Rectangle {
-                            required property var modelData
-                            readonly property bool on: win.selected.status === modelData.id
-                            height: 30; radius: 15
-                            width: stText.implicitWidth + 26
-                            color: on ? detail.tint.primary : "transparent"
-                            border.width: on ? 0 : 1
-                            border.color: theme.outlineVariant
-                            Text { id: stText; anchors.centerIn: parent; text: parent.modelData.name; font.pixelSize: 12; font.weight: Font.DemiBold
-                                   color: parent.on ? detail.tint.onPrimary : theme.onSurfaceVariant }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: app.setStatus(win.selectedKey, parent.on ? "" : parent.modelData.id) }
-                        }
+                    KCombo {
+                        id: statusBox
+                        theme: detail.tint
+                        Layout.preferredWidth: 190
+                        model: [{ label: "No status", value: "" }].concat(app.statusNames.map(x => ({ label: x.name, value: x.id })))
+                        Component.onCompleted: select(win.selected.status || "")
+                        Connections { target: win; function onSelectedChanged() { statusBox.select(win.selected.status || "") } }
+                        onActivated: app.setStatus(win.selectedKey, currentValue)
                     }
                     Item { Layout.fillWidth: true }
                     Row {
@@ -1563,6 +1549,44 @@ ApplicationWindow {
                     elide: Text.ElideRight
                     opacity: text ? 1 : 0
                     Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
+                }
+                // About how it runs: Linux version, controller, achievements, ProtonDB.
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Pill {
+                        visible: win.selected.store === "gog" && (win.selected.platform === "linux" || (!win.selected.installed && !!win.selected.linuxVersion))
+                        label: win.selected.platform === "linux" ? "\u{1F427}  Linux version" : "\u{1F427}  Has a Linux version"
+                    }
+                    // Controller support (Steam's store data); not full: Steam Input can map one.
+                    Pill {
+                        visible: detail.info.controller !== undefined && !!win.selected.steamAppId
+                        label: (detail.info.controller === "full" ? "\u{1F3AE}  Full controller support"
+                               : detail.info.controller === "partial" ? "\u{1F3AE}  Partial controller support"
+                               : "\u2328  Mouse and keyboard")
+                               + (win.selected.store === "steam" && detail.info.controller !== "full" ? "  \u00B7  set up \u2197" : "")
+                        accent: false
+                        HoverHandler { cursorShape: win.selected.store === "steam" && detail.info.controller !== "full" ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                        TapHandler {
+                            enabled: win.selected.store === "steam" && detail.info.controller !== "full"
+                            onTapped: app.openUrl("steam://controllerconfig/" + win.selected.steamAppId)
+                        }
+                    }
+                    Pill {
+                        visible: !!detail.ach.total
+                        label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + " achievements"
+                        accent: !!detail.ach.total && detail.ach.done === detail.ach.total
+                    }
+                    Pill {
+                        visible: !!win.selected.protondb
+                        store: "protondb"
+                        dot: ProtonDB.color(win.selected.protondb)
+                        label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
+                               + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb
+                                  ? " (trending " + ProtonDB.label(win.selected.protondbTrending) + ")" : "")
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
+                    }
                 }
                 // Screenshots: click one to see it full size.
                 ListView {
@@ -1712,36 +1736,36 @@ ApplicationWindow {
                         iconName: win.selected.favourite ? "star-filled" : "star"
                         onClicked: app.toggleFavourite(win.selectedKey)
                     }
+                    // Everything else, one click away.
                     KButton {
+                        id: moreBtn
                         theme: detail.tint
-                        text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Collections"
-                        iconName: "bookmark"
-                        onClicked: collPick.show(win.selectedKey, win.selected.title)
-                    }
-                    KButton {
-                        theme: detail.tint
-                        text: "Options"
-                        iconName: "settings-2"
-                        onClicked: gameOpts.show(win.selectedKey)
-                    }
-                    KButton {
-                        theme: detail.tint
-                        text: win.selected.hidden ? "Unhide" : "Hide"
-                        iconName: win.selected.hidden ? "eye" : "eye-off"
-                        onClicked: { app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() }
-                    }
-                    KButton {
-                        id: confirmRemove
-                        property bool armed: false
-                        theme: detail.tint
-                        danger: true
-                        visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
-                        text: armed ? "Really uninstall?" : "Uninstall"
-                        iconName: "trash-2"
-                        onClicked: {
-                            if (!armed) { armed = true; return }
-                            armed = false
-                            app.uninstall(win.selectedKey)
+                        text: "More"
+                        iconName: "ellipsis"
+                        onClicked: moreMenu.opened ? moreMenu.close() : moreMenu.open()
+                        Popup {
+                            id: moreMenu
+                            y: -height - 8
+                            width: 240
+                            padding: 6
+                            onClosed: confirmRemove.armed = false
+                            background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+                            contentItem: Column {
+                                spacing: 2
+                                MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Add to a collection"
+                                          onPicked: { moreMenu.close(); collPick.show(win.selectedKey, win.selected.title) } }
+                                MenuRow { icon: "settings-2"; text: "Options"; onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
+                                MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? "Unhide" : "Hide"
+                                          onPicked: { moreMenu.close(); app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() } }
+                                MenuRow {
+                                    id: confirmRemove
+                                    property bool armed: false
+                                    visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
+                                    icon: "trash-2"; danger: true
+                                    text: armed ? "Really uninstall?" : "Uninstall"
+                                    onPicked: { if (!armed) { armed = true; return } armed = false; moreMenu.close(); app.uninstall(win.selectedKey) }
+                                }
+                            }
                         }
                     }
                 }
@@ -3003,6 +3027,44 @@ ApplicationWindow {
     }
 
     // A small rounded label: optional store logo, text, optional accent colour.
+    // One row of a small menu.
+    component MenuRow: Rectangle {
+        id: mr
+        property string icon
+        property string text
+        property bool danger: false
+        signal picked()
+        width: parent ? parent.width : 220; height: 38; radius: 8
+        color: mrHover.hovered ? app.theme.surfaceContainerHighest : "transparent"
+        Icon { x: 12; anchors.verticalCenter: parent.verticalCenter; name: mr.icon; size: 16; color: mr.danger ? app.theme.error : app.theme.onSurfaceVariant }
+        Text { x: 40; anchors.verticalCenter: parent.verticalCenter; text: mr.text; font.pixelSize: 13; color: mr.danger ? app.theme.error : app.theme.onSurface }
+        HoverHandler { id: mrHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: mr.picked() }
+    }
+
+    // A quiet top-bar button: icon + label, a count badge, an "on" state.
+    component TopButton: Rectangle {
+        id: tb
+        property string icon
+        property string label
+        property int badge: 0
+        property bool on: false
+        signal picked()
+        implicitWidth: tbRow.implicitWidth + 24; implicitHeight: 38; radius: 10
+        color: on ? app.theme.primaryContainer : tbHover.hovered ? app.theme.surfaceContainerHigh : "transparent"
+        Row {
+            id: tbRow
+            anchors.centerIn: parent
+            spacing: 7
+            Icon { anchors.verticalCenter: parent.verticalCenter; name: tb.icon; size: 16; color: tb.on ? app.theme.onPrimaryContainer : app.theme.onSurfaceVariant }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: tb.label; font.pixelSize: 13; color: tb.on ? app.theme.onPrimaryContainer : app.theme.onSurface }
+            Rectangle { visible: tb.badge > 0; anchors.verticalCenter: parent.verticalCenter; width: 18; height: 18; radius: 9; color: app.theme.primary
+                        Text { anchors.centerIn: parent; text: tb.badge; color: app.theme.onPrimary; font.pixelSize: 10; font.weight: Font.Bold } }
+        }
+        HoverHandler { id: tbHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: tb.picked() }
+    }
+
     // A filter chip (on / off).
     component Chip2: Rectangle {
         id: c2
@@ -3033,6 +3095,8 @@ ApplicationWindow {
         property string sid
         property string title
         property string icon: ""
+        property string extra: ""
+        signal extraPicked()
         width: parent ? parent.width : 0
         spacing: 8
         Icon { visible: sh.icon !== ""; name: sh.icon; size: 15; color: app.theme.primary }
@@ -3054,6 +3118,12 @@ ApplicationWindow {
                     TapHandler { onTapped: win.moveHome(sh.sid, modelData.d) }
                 }
             }
+        }
+        Text {  // an extra, quiet action (Free on Epic: hide until the offers change)
+            visible: sh.extra !== "" && shHover.hovered
+            text: sh.extra; color: app.theme.primary; font.pixelSize: 12
+            TapHandler { onTapped: sh.extraPicked() }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
         HoverHandler { id: shHover }
         TapHandler { onTapped: win.toggleHome(sh.sid) }
@@ -4022,8 +4092,6 @@ ApplicationWindow {
                 height: Math.max(44, toastText.height + 24)
                 radius: 14
                 color: theme.surfaceContainerHighest
-                border.width: 1
-                border.color: theme.outlineVariant
                 // Slide up and fade in.
                 opacity: 0
                 transform: Translate { id: toastShift; y: 14 }
