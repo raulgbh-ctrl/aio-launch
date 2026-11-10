@@ -466,7 +466,15 @@ FocusScope {
         anchors.fill: parent
         visible: panel.visible
         color: "#b0000000"
-        TapHandler { onTapped: panel.hide() }
+        // A MouseArea, not a TapHandler: it takes the click (and the hover), so the cover
+        // underneath never gets it. A tap outside the panel closes it.
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onClicked: panel.hide()
+            onWheel: wheel => wheel.accepted = true
+        }
     }
     Rectangle {
         id: panel
@@ -474,6 +482,14 @@ FocusScope {
         property int armed: -1
         function show() { if (!tv.cur.key) return; app.uiSound("select"); rows = tv.buildActions(); armed = -1; list.currentIndex = 0; visible = true; list.forceActiveFocus() }
         function hide() { app.uiSound("back"); visible = false; grid.forceActiveFocus() }
+        // Swallow clicks and hover on the panel's empty parts too (its rows sit on top of this).
+        MouseArea {
+            anchors.fill: parent
+            z: -1
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onWheel: wheel => wheel.accepted = true
+        }
         function run(i) {
             const a = rows[i]
             if (!a) return

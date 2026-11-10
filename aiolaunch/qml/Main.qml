@@ -2147,7 +2147,10 @@ ApplicationWindow {
                     font.pixelSize: 13
                 }
                 Timer { interval: 5000; running: true; onTriggered: toasts.remove(0) }
-                TapHandler { onTapped: toasts.remove(toast.index) }
+                MouseArea {  // takes the click, so a card under the message does not open
+                    anchors.fill: parent
+                    onClicked: toasts.remove(toast.index)
+                }
             }
         }
     }
