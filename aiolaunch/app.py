@@ -132,6 +132,7 @@ class LibraryModel(QAbstractListModel):
         self.jobs: dict[str, dict] = {}  # key -> {"kind": str, "progress": float}
         self.focus_store = ""            # the sidebar's store filter decides which copy is shown
         self.played = playtime.load()    # AIO Launch's own playtime record
+        self.generation = 0              # bumped on every change, so cached sort keys know they are stale
 
     def roleNames(self):
         return {Qt.UserRole + i: QByteArray(r.encode()) for i, r in enumerate(ROLES)}
@@ -215,6 +216,7 @@ class LibraryModel(QAbstractListModel):
         return d
 
     def set_games(self, games):
+        self.generation += 1
         self.beginResetModel()
         self.games = list(games)
         self.regroup()
@@ -224,6 +226,7 @@ class LibraryModel(QAbstractListModel):
         self.set_games([g for g in self.games if g.store != store_id] + list(games))
 
     def touch(self, key=None):
+        self.generation += 1
         if key is None:
             if self.groups:
                 self.dataChanged.emit(self.index(0), self.index(len(self.groups) - 1))
@@ -242,6 +245,7 @@ class LibraryProxy(QSortFilterProxyModel):
         super().__init__()
         self._store, self._installed, self._search, self._hidden = "", False, "", False
         self._sort = settings.get("sort") if settings.get("sort") in SORTS else "name"
+        self._keys, self._keys_gen = {}, None
         self.setSourceModel(model)
         self.setSortCaseSensitivity(Qt.CaseInsensitive)
         self.setDynamicSortFilter(True)
@@ -258,15 +262,26 @@ class LibraryProxy(QSortFilterProxyModel):
             group = [g for g in group if g.installed]
         return bool(group) and (not self._search or any(self._search in g.title.lower() for g in group))
 
-    def lessThan(self, left, right):
+    def _key(self, row):
+        """Sort key for a source row, worked out once per library change (a sort compares
+        each row many times; recomputing titles and playtimes each time made it slow)."""
         model = self.sourceModel()
-        a, b = model.groups[left.row()], model.groups[right.row()]
-        if self._sort != "name":
-            role = "lastPlayed" if self._sort == "recent" else "playtime"
-            va, vb = model.group_value(a, role), model.group_value(b, role)
-            if va != vb:
-                return va > vb  # most recent / most played first; never-played games fall to the end
-        return model.rep(a).title.lower() < model.rep(b).title.lower()
+        if self._keys_gen != (model.generation, self._sort):
+            self._keys, self._keys_gen = {}, (model.generation, self._sort)
+        key = self._keys.get(row)
+        if key is None:
+            group = model.groups[row]
+            title = model.rep(group).title.lower()
+            if self._sort == "name":
+                key = (title,)
+            else:  # most recent / most played first; never-played games fall to the end
+                value = model.group_value(group, "lastPlayed" if self._sort == "recent" else "playtime")
+                key = (-value, title)
+            self._keys[row] = key
+        return key
+
+    def lessThan(self, left, right):
+        return self._key(left.row()) < self._key(right.row())
 
     def _set_sort(self, mode):
         if mode in SORTS and mode != self._sort:
@@ -333,6 +348,7 @@ class AioLaunch(QObject):
         self._updates_seen = set()
         self._colour_pending = set()
         self._details_pending = set()
+        self._sounds = None  # TV-mode sound effects, created on first use
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         self._worker_toast.connect(self.toast)
@@ -450,6 +466,26 @@ class AioLaunch(QObject):
     _ui_icons = {p.stem: re.sub(r"<!--.*?-->", "", p.read_text(), flags=re.S).strip()
                  for p in (Path(__file__).parent / "icons" / "ui").glob("*.svg")}
     uiIcons = Property("QVariantMap", lambda s: s._ui_icons, constant=True)
+
+    @Slot(str)
+    def uiSound(self, name):
+        """A soft click in TV mode ("move", "select" or "back"), when turned on in Settings."""
+        if not settings.get("tv_sounds"):
+            return
+        if self._sounds is None:
+            self._sounds = {}
+            try:  # Qt Multimedia is optional; without it there is simply no sound
+                from PySide6.QtMultimedia import QSoundEffect
+            except ImportError:
+                return
+            for n in ("move", "select", "back"):
+                effect = QSoundEffect(self)
+                effect.setSource(QUrl.fromLocalFile(str(Path(__file__).parent / "sounds" / f"{n}.wav")))
+                effect.setVolume(0.6)
+                self._sounds[n] = effect
+        effect = self._sounds.get(name)
+        if effect:
+            effect.play()
 
     gameColourReady = Signal(str, str)  # key, accent ("" = no clear colour)
     detailsReady = Signal(str, "QVariantMap")  # key, {description, genres, developer, year}
@@ -587,10 +623,23 @@ class AioLaunch(QObject):
             error = f"{store.name}: {type(e).__name__}: {e}"
         if games:
             try:
-                error = error or covers.fill_all(games)
+                error = error or covers.fill(games)
             except Exception as e:  # cover art is never worth failing a refresh
                 error = error or f"Cover lookup: {type(e).__name__}: {e}"
         self._fetched.emit(store.id, games, error)
+        # The library is on screen now. Backup covers, banners and logos can take a while the
+        # first time (each game is matched to Steam once), so they fill in afterwards.
+        if games:
+            try:
+                covers.add_backup_art(games)
+            except Exception:
+                return
+            self._after.emit(self._art_added)
+
+    def _art_added(self):
+        self.model.touch()
+        self.storesChanged.emit()
+        write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
 
     def _on_fetched(self, store_id, games, error):
         self._pending.discard(store_id)
@@ -827,7 +876,7 @@ class AioLaunch(QObject):
             try:
                 tag, _, _ = proton.latest_ge()
             except Exception as e:
-                return lambda: self._set_ge(error=f"Could not check: {type(e).__name__}")
+                return lambda msg=f"Could not check: {type(e).__name__}": self._set_ge(error=msg)
             have = proton.installed_ge()
             return lambda: self._set_ge(latest=tag, installed=have[0] if have else "", error="",
                                         upToDate=bool(have) and have[0].startswith(tag))
@@ -846,7 +895,7 @@ class AioLaunch(QObject):
             try:
                 name, fresh = proton.download_ge(report)
             except Exception as e:
-                return lambda: (self._set_ge(busy=False, error=str(e)[:160]), self.toast.emit("GE-Proton download failed"))
+                return lambda msg=str(e)[:160]: (self._set_ge(busy=False, error=msg), self.toast.emit("GE-Proton download failed"))
 
             def done():
                 self._set_ge(busy=False, installed=name, upToDate=True, progress=100.0)

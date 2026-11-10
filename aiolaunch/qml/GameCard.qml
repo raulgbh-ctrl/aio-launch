@@ -117,7 +117,7 @@ Item {
                 id: img
                 anchors.fill: parent
                 sources: card.covers
-                sourceSize.width: app.light ? 280 : 400
+                sourceSize.width: Math.min(app.light ? 280 : 400, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.55) : 0
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
             }

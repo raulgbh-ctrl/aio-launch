@@ -6,6 +6,18 @@ import sys
 from pathlib import Path
 
 
+def load_fonts(app):
+    """Use the bundled Inter font (OFL, aiolaunch/fonts) so the app looks the same on every desktop."""
+    from PySide6.QtGui import QFont, QFontDatabase
+    ok = [QFontDatabase.addApplicationFont(str(f)) >= 0
+          for f in sorted((Path(__file__).parent / "fonts").glob("*.ttf"))]
+    if any(ok):
+        font = QFont("Inter")
+        font.setPointSizeF(app.font().pointSizeF())
+        font.setHintingPreference(QFont.PreferNoHinting)
+        app.setFont(font)
+
+
 def fetch_backends():
     """Download the legendary / gogdl / nile release binaries into AIO Launch's data dir."""
     import requests
@@ -107,6 +119,7 @@ def main():
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtGui import QGuiApplication
         _app = QGuiApplication(sys.argv[:1])  # needed to draw the artwork
+        load_fonts(_app)
         from . import steamshortcut, theme
         try:
             n = steamshortcut.add_with_restart(theme.current())
@@ -156,6 +169,7 @@ def main():
     app.setApplicationName("aiolaunch")
     app.setApplicationDisplayName("AIO Launch")
     app.setDesktopFileName("aiolaunch")  # the Wayland app id
+    load_fonts(app)
     here = Path(__file__).parent
     icon = QIcon(str(here / "aiolaunch.svg"))
     for png in sorted((here / "icons" / "app").glob("aiolaunch-*.png")):
@@ -175,6 +189,8 @@ def main():
     ctx.setContextProperty("pad", gamepad)
     ctx.setContextProperty("startTv", args.tv)
     ctx.setContextProperty("webLogin", web_login)
+    # TV-mode trailers need Qt Multimedia's QML module; without it they are simply left out.
+    ctx.setContextProperty("canPlayVideo", (qml_dir / "QtMultimedia" / "qmldir").is_file())
     engine.load(QUrl.fromLocalFile(str(here / "qml" / "Main.qml")))
     if not engine.rootObjects():
         return 1

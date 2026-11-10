@@ -23,6 +23,10 @@ FocusScope {
     // Description and genres, asked for once the focus rests (no store requests while scrolling past).
     property var info: ({})
     property string infoKey: ""
+    // The trailer starts after the focus has rested a moment (and stops as soon as it moves).
+    property string trailerUrl: ""
+    Timer { id: trailerTimer; interval: 2500; onTriggered: tv.trailerUrl = tv.info.trailer || "" }
+    onInfoChanged: { trailerUrl = ""; if (info.trailer) trailerTimer.restart(); else trailerTimer.stop() }
     Timer { id: infoTimer; interval: 350; onTriggered: tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({}) }
     onCurChanged: {
         if ((cur.key || "") === infoKey) return  // same game, just refreshed
@@ -35,6 +39,7 @@ FocusScope {
 
     function sync() { cur = app.game(library.keyAt(grid.currentIndex)) }
     function cycleStore(step) {
+        app.uiSound("move")
         const i = storeIds.indexOf(library.storeFilter)
         library.storeFilter = storeIds[(i + step + storeIds.length) % storeIds.length]
         grid.currentIndex = 0
@@ -42,6 +47,7 @@ FocusScope {
     }
     function accept() {
         if (!cur.key) return
+        app.uiSound("select")
         const target = app.launchTarget(cur.key)
         if (target) app.play(target)
         else panel.show()
@@ -81,9 +87,25 @@ FocusScope {
     component ArtLayer: ArtImage {
         property string tag: ""
         anchors.fill: parent
-        sourceSize.width: app.light ? 1280 : 1920
+        sourceSize.width: Math.min(app.light ? 1280 : 1920, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
         horizontalAlignment: Image.AlignRight
         Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+        // Slow pan and zoom while the art is showing (off in Light mode).
+        transformOrigin: Item.Right
+        transform: Translate { id: drift }
+        readonly property bool drifting: opacity > 0 && status === Image.Ready && !app.light && tv.visible
+        SequentialAnimation on scale {
+            running: drifting
+            loops: Animation.Infinite
+            NumberAnimation { from: 1.0; to: 1.08; duration: 18000; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1.08; to: 1.0; duration: 18000; easing.type: Easing.InOutSine }
+        }
+        SequentialAnimation {
+            running: drifting
+            loops: Animation.Infinite
+            NumberAnimation { target: drift; property: "x"; from: 0; to: -40; duration: 18000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: drift; property: "x"; from: -40; to: 0; duration: 18000; easing.type: Easing.InOutSine }
+        }
         onStatusChanged: {
             if (stage.incoming !== tag) return
             if (status === Image.Ready) {
@@ -128,6 +150,14 @@ FocusScope {
 
         ArtLayer { id: artA; tag: "a"; opacity: !stage.none && stage.showA ? 1 : 0 }
         ArtLayer { id: artB; tag: "b"; opacity: !stage.none && !stage.showA ? 1 : 0 }
+        Loader {
+            anchors.fill: parent
+            active: typeof canPlayVideo !== "undefined" && canPlayVideo && app.settingsMap.tv_trailers
+                    && !app.light && tv.visible && tv.trailerUrl !== ""
+                    && Qt.application.state === Qt.ApplicationActive  // never behind a running game
+            source: "TvTrailer.qml"
+            onLoaded: item.source = Qt.binding(() => tv.trailerUrl)
+        }
 
         Image {
             id: backdrop
@@ -344,7 +374,7 @@ FocusScope {
             }
             NumberAnimation { id: glide; target: grid; property: "contentX"; duration: app.light ? 0 : 220; easing.type: Easing.OutCubic }
             onWidthChanged: Qt.callLater(reveal)
-            onCurrentIndexChanged: { tv.sync(); reveal() }
+            onCurrentIndexChanged: { tv.sync(); reveal(); if (tv.visible) app.uiSound("move") }
             onCountChanged: { if (currentIndex < 0 && count > 0) currentIndex = 0; tv.sync() }
             delegate: GameCard {
                 required property int index
@@ -363,7 +393,7 @@ FocusScope {
             }
             Keys.onReturnPressed: tv.accept()
             Keys.onEnterPressed: tv.accept()
-            Keys.onEscapePressed: tv.exit()
+            Keys.onEscapePressed: { app.uiSound("back"); tv.exit() }
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
                 else if (event.key === Qt.Key_F3) { library.installedOnly = !library.installedOnly; event.accepted = true }
@@ -428,8 +458,8 @@ FocusScope {
         id: panel
         property var rows: []
         property int armed: -1
-        function show() { if (!tv.cur.key) return; rows = tv.buildActions(); armed = -1; list.currentIndex = 0; visible = true; list.forceActiveFocus() }
-        function hide() { visible = false; grid.forceActiveFocus() }
+        function show() { if (!tv.cur.key) return; app.uiSound("select"); rows = tv.buildActions(); armed = -1; list.currentIndex = 0; visible = true; list.forceActiveFocus() }
+        function hide() { app.uiSound("back"); visible = false; grid.forceActiveFocus() }
         function run(i) {
             const a = rows[i]
             if (!a) return
@@ -493,7 +523,7 @@ FocusScope {
                     }
                     TapHandler { onTapped: { list.currentIndex = parent.index; panel.run(parent.index) } }
                 }
-                onCurrentIndexChanged: panel.armed = -1
+                onCurrentIndexChanged: { panel.armed = -1; if (panel.visible) app.uiSound("move") }
                 Keys.onReturnPressed: panel.run(currentIndex)
                 Keys.onEnterPressed: panel.run(currentIndex)
                 Keys.onEscapePressed: panel.hide()
