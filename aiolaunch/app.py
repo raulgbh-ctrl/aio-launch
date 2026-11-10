@@ -45,6 +45,19 @@ def _short_date(stamp, with_year=False):
     return f"{t.tm_mday} {MONTHS[t.tm_mon - 1]}" + (f" {t.tm_year}" if with_year else "")
 
 
+STEAM_ART = re.compile(r"/steam/apps/(\d+)/")
+
+
+def _hero_art(g):
+    """Steam's wide library_hero art for a game with a known Steam id ("" if none).
+    Covers that came from Steam's store carry the id in their URL."""
+    appid = g.id if g.store == "steam" else str(g.extra.get("steam_appid") or "")
+    if not appid:
+        m = STEAM_ART.search(_cover(g) or "")
+        appid = m.group(1) if m else ""
+    return f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_hero.jpg" if appid else ""
+
+
 def _cover(g):
     custom = game_options.get(g.key).get("cover", "")
     if custom.startswith("/"):
@@ -363,6 +376,7 @@ class AioLaunch(QObject):
         for last, group in rows[:RECENT_ROW]:
             g = m.rep(group)
             out.append({"key": g.key, "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
+                        "hero": _hero_art(g),
                         "storeName": self.stores[g.store].name, "storeColor": self.stores[g.store].color,
                         "lastPlayed": last})
         return out

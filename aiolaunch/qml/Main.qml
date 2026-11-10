@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Effects
 import QtQuick.Dialogs
 
 ApplicationWindow {
@@ -251,81 +252,6 @@ ApplicationWindow {
                 }
             }
 
-            // Continue playing: the last games you played, one click away.
-            ColumnLayout {
-                visible: app.recentGames.length > 0 && !library.search && !library.storeFilter
-                         && !library.showHidden && library.sortMode !== "recent"
-                Layout.fillWidth: true
-                Layout.leftMargin: 20
-                Layout.rightMargin: 20
-                Layout.bottomMargin: 6
-                spacing: 8
-                Text { text: "Continue playing"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
-                ListView {
-                    id: recentRow
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 132
-                    orientation: ListView.Horizontal
-                    spacing: 12
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: app.recentGames
-                    delegate: Rectangle {
-                        id: recentTile
-                        required property var modelData
-                        width: 236; height: 132
-                        radius: 12
-                        color: theme.surfaceContainerHigh
-                        border.width: recentHover.hovered ? 2 : 1
-                        border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
-                        clip: true
-                        Image {
-                            id: recentArt
-                            width: 84; height: parent.height
-                            source: recentTile.modelData.cover || ""
-                            asynchronous: true
-                            fillMode: Image.PreserveAspectCrop
-                            sourceSize.width: 168
-                            onStatusChanged: {
-                                const fb = recentTile.modelData.coverFallback || ""
-                                if (status === Image.Error && fb && source != fb) source = fb
-                            }
-                        }
-                        Column {
-                            anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                            spacing: 6
-                            Text {
-                                width: parent.width
-                                text: recentTile.modelData.title
-                                color: theme.onSurface
-                                font.pixelSize: 14; font.weight: Font.DemiBold
-                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                            }
-                            Row {
-                                spacing: 6
-                                Rectangle { width: 8; height: 8; radius: 4; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
-                            }
-                            Text {
-                                width: parent.width
-                                text: {
-                                    const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
-                                    return s.charAt(0).toUpperCase() + s.slice(1)
-                                }
-                                color: theme.outline
-                                font.pixelSize: 12
-                                elide: Text.ElideRight
-                            }
-                        }
-                        HoverHandler { id: recentHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            onSingleTapped: win.select(recentTile.modelData.key)
-                            onDoubleTapped: win.activate(recentTile.modelData.key)
-                        }
-                    }
-                }
-            }
-
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -346,6 +272,261 @@ ApplicationWindow {
                     highlightFollowsCurrentItem: true
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
+                    // Hero banner for the last game you played, then the rest of "Continue playing".
+                    // Part of the grid's header, so it scrolls away with the library.
+                    header: Column {
+                        width: grid.width
+                        readonly property bool shown: app.recentGames.length > 0 && !library.search
+                                                      && !library.storeFilter && !library.showHidden
+                        visible: shown
+                        height: shown ? implicitHeight : 0
+                        // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
+                        onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(grid.positionViewAtBeginning)
+                        topPadding: 4
+                        bottomPadding: 14
+                        spacing: 18
+
+                        Item {
+                            id: hero
+                            property var info: app.recentGames.length ? app.recentGames[0] : ({})
+                            property var game: info.key ? app.game(info.key) : ({})
+                            Connections {
+                                target: app
+                                function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
+                            }
+                            x: 8
+                            width: parent.width - 16
+                            height: Math.round(Math.min(340, Math.max(250, width * 0.28)))
+
+                            Item {
+                                id: heroArt
+                                anchors.fill: parent
+                                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                                layer.effect: MultiEffect { maskEnabled: true; maskSource: heroMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+
+                                Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                                // No wide art: the cover, blurred, fills the banner.
+                                Image {
+                                    id: heroCover
+                                    anchors.fill: parent
+                                    source: heroWide.status === Image.Ready ? "" : (hero.info.cover || "")
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    sourceSize.width: 320
+                                    visible: app.light && status === Image.Ready
+                                    opacity: 0.45
+                                }
+                                MultiEffect {
+                                    anchors.fill: parent
+                                    source: heroCover
+                                    visible: !app.light && heroCover.status === Image.Ready && heroWide.status !== Image.Ready
+                                    blurEnabled: true; blur: 1.0; blurMax: 64
+                                    saturation: 0.2
+                                    opacity: 0.7
+                                }
+                                Image {
+                                    id: heroWide
+                                    anchors.fill: parent
+                                    source: hero.info.hero || ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    horizontalAlignment: Image.AlignRight
+                                    asynchronous: true
+                                    sourceSize.width: 1920
+                                    opacity: status === Image.Ready ? 1 : 0
+                                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
+                                }
+                                // Shade the left side so the text always reads, whatever the art.
+                                Rectangle {
+                                    anchors.fill: parent
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.94) }
+                                        GradientStop { position: 0.45; color: Qt.alpha(theme.background, 0.72) }
+                                        GradientStop { position: 0.8; color: Qt.alpha(theme.background, 0.08) }
+                                    }
+                                }
+                                Rectangle {
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                    height: parent.height * 0.4
+                                    gradient: Gradient {
+                                        GradientStop { position: 0; color: "transparent" }
+                                        GradientStop { position: 1; color: Qt.alpha(theme.background, 0.55) }
+                                    }
+                                }
+                            }
+                            Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
+                            Rectangle {
+                                anchors.fill: parent; radius: 18; color: "transparent"
+                                border.width: 1; border.color: theme.outlineVariant
+                            }
+
+                            Row {
+                                anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
+                                spacing: 26
+                                Rectangle {
+                                    id: heroThumb
+                                    width: Math.round(hero.height * 0.62); height: Math.round(width * 1.46)
+                                    radius: 12
+                                    color: theme.surfaceContainerHighest
+                                    border.width: 1; border.color: Qt.alpha("white", 0.12)
+                                    visible: hero.width >= 620
+                                    clip: true
+                                    Image {
+                                        anchors.fill: parent; anchors.margins: 1
+                                        source: hero.info.cover || ""
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        sourceSize.width: 300
+                                        onStatusChanged: {
+                                            const fb = hero.info.coverFallback || ""
+                                            if (status === Image.Error && fb && source != fb) source = fb
+                                        }
+                                    }
+                                }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.min(560, hero.width - (heroThumb.visible ? heroThumb.width + 26 : 0) - 56)
+                                    spacing: 10
+                                    Text {
+                                        text: "JUMP BACK IN"
+                                        color: theme.primary
+                                        font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: hero.info.title || ""
+                                        color: theme.onSurface
+                                        font.pixelSize: hero.height > 290 ? 38 : 32
+                                        font.weight: Font.Black
+                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                    }
+                                    Row {
+                                        spacing: 8
+                                        Rectangle {
+                                            height: 24; radius: 12
+                                            width: heroStore.implicitWidth + 28
+                                            color: Qt.alpha(theme.surfaceContainerHighest, 0.85)
+                                            Rectangle { x: 10; anchors.verticalCenter: parent.verticalCenter; width: 8; height: 8; radius: 4; color: hero.info.storeColor || "gray" }
+                                            Text { id: heroStore; x: 22; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: app.playedText(hero.game.playtime, hero.game.lastPlayed)
+                                            color: theme.onSurfaceVariant
+                                            font.pixelSize: 13
+                                        }
+                                    }
+                                    Item { width: 1; height: 6 }
+                                    Row {
+                                        spacing: 10
+                                        KButton {
+                                            theme: win.theme
+                                            primary: true
+                                            visible: !hero.game.job
+                                            text: "▶  Resume"
+                                            onClicked: win.activate(hero.info.key)
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            visible: !hero.game.job && !!hero.game.update
+                                            text: "↑  Update"
+                                            onClicked: app.update(hero.info.key)
+                                        }
+                                        Text {
+                                            visible: !!hero.game.job
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: hero.game.job === "update" ? "Updating " + Math.max(0, Math.floor(hero.game.progress)) + "%" : "Working…"
+                                            color: theme.primary
+                                            font.pixelSize: 14; font.weight: Font.DemiBold
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            text: "Details"
+                                            onClicked: win.select(hero.info.key)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: app.recentGames.length > 1
+                            x: 8
+                            width: parent.width - 16
+                            spacing: 10
+                            Text { text: "Continue playing"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            ListView {
+                                id: recentRow
+                                width: parent.width
+                                height: 132
+                                orientation: ListView.Horizontal
+                                spacing: 12
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: app.recentGames.slice(1)
+                            delegate: Rectangle {
+                                id: recentTile
+                                required property var modelData
+                                width: 236; height: 132
+                                radius: 12
+                                color: theme.surfaceContainerHigh
+                                border.width: recentHover.hovered ? 2 : 1
+                                border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
+                                clip: true
+                                Image {
+                                    id: recentArt
+                                    width: 84; height: parent.height
+                                    source: recentTile.modelData.cover || ""
+                                    asynchronous: true
+                                    fillMode: Image.PreserveAspectCrop
+                                    sourceSize.width: 168
+                                    onStatusChanged: {
+                                        const fb = recentTile.modelData.coverFallback || ""
+                                        if (status === Image.Error && fb && source != fb) source = fb
+                                    }
+                                }
+                                Column {
+                                    anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                                    spacing: 6
+                                    Text {
+                                        width: parent.width
+                                        text: recentTile.modelData.title
+                                        color: theme.onSurface
+                                        font.pixelSize: 14; font.weight: Font.DemiBold
+                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                    }
+                                    Row {
+                                        spacing: 6
+                                        Rectangle { width: 8; height: 8; radius: 4; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                                        Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: {
+                                            const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
+                                            return s.charAt(0).toUpperCase() + s.slice(1)
+                                        }
+                                        color: theme.outline
+                                        font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                HoverHandler { id: recentHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler {
+                                    onSingleTapped: win.select(recentTile.modelData.key)
+                                    onDoubleTapped: win.activate(recentTile.modelData.key)
+                                }
+                            }
+                            }
+                        }
+
+                        Text {
+                            x: 8
+                            text: "Library"
+                            color: theme.onSurfaceVariant
+                            font.pixelSize: 13; font.weight: Font.DemiBold
+                        }
+                    }
                     delegate: GameCard {
                         width: grid.cellWidth
                         height: grid.cellHeight
