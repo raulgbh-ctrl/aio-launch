@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2c2142"/>
+      <stop offset="1" stop-color="#110d1a"/>
+    </linearGradient>
+    <!-- warm lamplight pooling in the corner -->
+    <radialGradient id="glow" cx="0.3" cy="0.72" r="0.62">
+      <stop offset="0" stop-color="#ffb38a" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#d48bff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#d48bff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- one stroke from the wall down into the floor: lavender to warm pink -->
+    <linearGradient id="corner" gradientUnits="userSpaceOnUse" x1="64" y1="50" x2="206" y2="192">
+      <stop offset="0" stop-color="#c3a2ff"/>
+      <stop offset="0.55" stop-color="#e59ad8"/>
+      <stop offset="1" stop-color="#ffa98f"/>
+    </linearGradient>
+    <linearGradient id="play" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff6ec"/>
+      <stop offset="1" stop-color="#ffd2a8"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+  <rect width="256" height="256" rx="58" fill="url(#glow)"/>
+  <rect x="2" y="2" width="252" height="252" rx="56" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4"/>
+  <!-- the corner: a wall coming down and the floor going out, meeting in a soft curve -->
+  <path d="M64 50 L64 156 Q64 192 100 192 L206 192" fill="none" stroke="url(#corner)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- play, settled into the corner -->
+  <path d="M112 84 L170 120 L112 156 Z" fill="url(#play)" stroke="url(#play)" stroke-width="14" stroke-linejoin="round"/>
+</svg>

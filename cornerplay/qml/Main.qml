@@ -1,0 +1,2291 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import QtQuick.Effects
+import QtQuick.Dialogs
+import "protondb.js" as ProtonDB
+
+ApplicationWindow {
+    id: win
+    width: 1320
+    height: 840
+    minimumWidth: 760
+    minimumHeight: 480
+    visible: true
+    title: "Cornerplay"
+    color: theme.background
+
+    readonly property var theme: app.theme
+    property bool tv: startTv
+    visibility: tv ? Window.FullScreen : Window.Windowed
+    onTvChanged: { if (tv) tvUsed = true; else grid.forceActiveFocus() }
+    property string selectedKey: ""
+    property var selected: ({})
+
+    // The theme with a game's own colour as its accent (see app.gameColour); unchanged for "".
+    function tinted(accent) {
+        if (!accent) return win.theme
+        const c = Qt.darker(accent, 1.0)
+        const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
+        return Object.assign({}, win.theme, { primary: accent, onPrimary: lum > 0.55 ? "#1b1b1f" : "#ffffff",
+                                              primaryContainer: Qt.tint(win.theme.surfaceContainerHigh, Qt.alpha(accent, 0.3)) })
+    }
+
+    function select(key) {
+        selectedKey = key
+        selected = app.game(key)
+        if (selected.key) detail.open()
+    }
+    // Play straight away when it is clear which copy to start; otherwise open the game's panel.
+    function activate(key) {
+        const target = app.launchTarget(key)
+        if (target) { app.play(target); return }
+        select(key)
+        const g = app.game(key)
+        if (g.copies.filter(c => c.installed).length > 1)
+            toasts.append({ message: "Installed from several stores: pick the launcher to use" })
+    }
+    function storeInfo(id) {
+        const all = app.storesInfo
+        for (let i = 0; i < all.length; i++) if (all[i].id === id) return all[i]
+        return {}
+    }
+
+    onActiveChanged: if (active) app.windowActivated()
+
+    Connections {
+        target: app
+        function onGameChanged(key) {
+            if (win.selectedKey && (key === "" || key === win.selectedKey)) {
+                const g = app.game(win.selectedKey)
+                if (g.key) win.selected = g
+                else detail.close()
+            }
+        }
+        function onToast(message) { toasts.append({ message: message }) }
+        function onLoginWeb(store, name, url) {
+            loginWindow.active = true
+            loginWindow.item.begin(store, name, url)
+        }
+        function onLoginReady(store, url, prompt) {
+            login.store = store; login.url = url; login.prompt = prompt
+            login.error = ""; login.busy = false
+            code.text = ""
+            login.open()
+            app.openUrl(url)
+        }
+        function onLoginDone(store, ok, message) {
+            login.busy = false
+            if (ok) { login.close(); toasts.append({ message: message }) }
+            else login.error = message
+        }
+    }
+
+    Shortcut { sequence: "Ctrl+F"; onActivated: search.forceActiveFocus() }
+    Shortcut { sequence: "Ctrl+R"; onActivated: app.refresh() }
+    Shortcut { sequence: "F5"; onActivated: app.refresh() }
+    Shortcut { sequence: "F11"; onActivated: win.tv = !win.tv }
+    Shortcut { sequence: "Ctrl+Q"; onActivated: Qt.quit() }
+
+    // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
+    property bool tvUsed: startTv
+
+    // The banner shows one of the last few games played, turning to the next every 9 s.
+    property int heroAt: 0
+    readonly property int heroCount: Math.min(4, app.recentGames.length)
+    readonly property var heroInfo: heroCount ? app.recentGames[heroAt % heroCount] : ({})
+    property bool heroPaused: false
+    Timer {
+        interval: 9000
+        repeat: true
+        running: win.heroCount > 1 && !win.heroPaused && win.active && !win.tv && !win.popupOpen
+        onTriggered: win.heroAt = (win.heroAt + 1) % win.heroCount
+    }
+
+    // Any pop-up open over the library? Cards and tiles then ignore the pointer, and keep
+    // ignoring it for a moment after the pop-up closes (the click that closed it must not
+    // land on the game underneath).
+    readonly property bool popupOpen: detail.visible || gameOpts.visible || dlc.visible || accounts.visible
+                                      || prefs.visible || viewer.visible || conflict.visible || login.visible
+                                      || sortBox.popup.visible
+    property bool justClosed: false
+    onPopupOpenChanged: if (!popupOpen) { justClosed = true; closeGuard.restart() }
+    Timer { id: closeGuard; interval: 450; onTriggered: win.justClosed = false }
+    readonly property bool cardsLive: !popupOpen && !justClosed
+    Loader {
+        anchors.fill: parent
+        z: 50
+        active: win.tvUsed
+        opacity: win.tv ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 280; easing.type: Easing.InOutQuad } }
+        enabled: win.tv
+        focus: win.tv
+        sourceComponent: TvView {
+            focus: true
+            theme: win.theme
+            onExit: win.tv = false
+        }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        spacing: 0
+        opacity: win.tv ? 0 : 1
+        visible: opacity > 0
+        Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 280; easing.type: Easing.InOutQuad } }
+        enabled: !win.tv
+
+        // ---------------------------------------------------------------- sidebar
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 236
+            color: theme.surfaceContainerLow
+            // Lamplight: a warm glow pooling in the sidebar's bottom corner, like the icon.
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: parent.height * 0.45
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.alpha(theme.primary, 0.10) }
+                }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 4
+
+                RowLayout {
+                    Layout.margins: 8
+                    Layout.bottomMargin: 16
+                    spacing: 10
+                    Image { source: "../cornerplay.svg"; sourceSize: Qt.size(68, 68); Layout.preferredWidth: 34; Layout.preferredHeight: 34 }
+                    Text {
+                        textFormat: Text.StyledText
+                        text: "Corner<b><font color=\"" + theme.primary + "\">play</font></b>"
+                        color: theme.onSurface
+                        font.pixelSize: 21
+                        font.weight: Font.Light
+                        font.letterSpacing: 0.3
+                    }
+                }
+
+                component NavItem: Rectangle {
+                    id: nav
+                    readonly property var theme: app.theme
+                    property string label
+                    property string dot: ""
+                    property string store: ""
+                    property string icon: ""
+                    property string count: ""
+                    property bool active: false
+                    property bool dim: false
+                    signal picked()
+                    Layout.fillWidth: true
+                    height: 40
+                    radius: 10
+                    color: active ? theme.primaryContainer : navHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    Behavior on color { enabled: !app.light; ColorAnimation { duration: 120 } }
+                    // Accent bar on the selected item.
+                    Rectangle {
+                        visible: nav.active
+                        x: 0; anchors.verticalCenter: parent.verticalCenter
+                        width: 4; height: 20; radius: 2
+                        color: theme.primary
+                    }
+                    StoreIcon {
+                        visible: nav.dot !== ""
+                        x: 12; anchors.verticalCenter: parent.verticalCenter
+                        size: 17
+                        store: nav.store
+                        color: nav.dot || "transparent"
+                        opacity: nav.dim ? 0.35 : 1
+                    }
+                    Icon {
+                        visible: nav.dot === "" && nav.icon !== ""
+                        x: 13; anchors.verticalCenter: parent.verticalCenter
+                        name: nav.icon; size: 17
+                        color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                    }
+                    Text {
+                        x: nav.dot !== "" || nav.icon !== "" ? 38 : 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: nav.label
+                        color: nav.active ? theme.onPrimaryContainer : theme.onSurface
+                        opacity: nav.dim ? 0.6 : 1
+                        font.pixelSize: 14
+                        font.weight: nav.active ? Font.DemiBold : Font.Normal
+                    }
+                    Text {
+                        anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        text: nav.count
+                        color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                        font.pixelSize: 12
+                    }
+                    HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: nav.picked() }
+                }
+
+                NavItem {
+                    label: "All games"
+                    icon: "library"
+                    count: app.totalCount
+                    active: library.storeFilter === "" && !library.showHidden
+                    onPicked: { library.showHidden = false; library.storeFilter = "" }
+                }
+                Repeater {
+                    model: app.storesInfo
+                    NavItem {
+                        required property var modelData
+                        label: modelData.name
+                        dot: modelData.color
+                        store: modelData.id
+                        dim: !modelData.loggedIn && modelData.count === 0
+                        count: modelData.refreshing ? "…" : modelData.count
+                        active: library.storeFilter === modelData.id && !library.showHidden
+                        onPicked: { library.showHidden = false; library.storeFilter = modelData.id }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
+
+                RowLayout {
+                    Layout.leftMargin: 14; Layout.rightMargin: 6
+                    Text { text: "Installed only"; color: theme.onSurface; font.pixelSize: 14; Layout.fillWidth: true }
+                    Switch {
+                        id: instSwitch
+                        checked: library.installedOnly
+                        onToggled: library.installedOnly = checked
+                        indicator: Rectangle {
+                            implicitWidth: 40; implicitHeight: 22; radius: 11
+                            y: parent.height / 2 - height / 2
+                            color: instSwitch.checked ? theme.primary : theme.surfaceContainerHighest
+                            Rectangle {
+                                x: instSwitch.checked ? parent.width - width - 3 : 3
+                                y: 3; width: 16; height: 16; radius: 8
+                                color: instSwitch.checked ? theme.onPrimary : theme.outline
+                                Behavior on x { NumberAnimation { duration: 100 } }
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                NavItem {
+                    visible: app.hiddenCount > 0 || library.showHidden
+                    label: "Hidden games"
+                    icon: "eye-off"
+                    count: app.hiddenCount
+                    active: library.showHidden
+                    onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
+                }
+                NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                NavItem { label: "Accounts"; icon: "user-round"; onPicked: accounts.open() }
+                NavItem { label: "Settings"; icon: "sliders-horizontal"; onPicked: prefs.open() }
+            }
+        }
+
+        // ---------------------------------------------------------------- library
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+
+            // Ambient light: the banner game's art, blurred and faint, behind the top of the page.
+            // A zero-height item drawn first, so it sits under the toolbar and the grid.
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 0
+                z: -1
+                visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software && !!win.heroInfo.key
+                Item {
+                    width: parent.width
+                    height: 620
+                    ArtImage {
+                        id: ambientArt
+                        anchors.fill: parent
+                        sources: win.heroInfo.heroes || win.heroInfo.covers || []
+                        sourceSize.width: 480
+                        visible: false
+                    }
+                    MultiEffect {
+                        anchors.fill: parent
+                        source: ambientArt
+                        blurEnabled: true; blur: 1.0; blurMax: 64
+                        saturation: 0.3
+                        opacity: ambientArt.status === Image.Ready ? 0.32 : 0
+                        Behavior on opacity { NumberAnimation { duration: 800 } }
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.25) }
+                            GradientStop { position: 1.0; color: theme.background }
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.margins: 20
+                Layout.bottomMargin: 8
+                spacing: 12
+                KField {
+                    id: search
+                    theme: win.theme
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 460
+                    iconName: "search"
+                    placeholderText: "Search your games  (Ctrl+F)"
+                    onTextChanged: library.search = text
+                    Keys.onDownPressed: grid.forceActiveFocus()
+                    Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
+                }
+                Item { Layout.fillWidth: true }
+                KCombo {
+                    id: sortBox
+                    theme: win.theme
+                    Layout.preferredWidth: 190
+                    model: [{ label: "Sort: Name", value: "name" },
+                            { label: "Sort: Recently played", value: "recent" },
+                            { label: "Sort: Most played", value: "playtime" }]
+                    Component.onCompleted: select(library.sortMode)
+                    onActivated: library.sortMode = currentValue
+                }
+                Text {
+                    text: grid.count + (grid.count === 1 ? " game" : " games")
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 13
+                }
+                KButton {
+                    theme: win.theme
+                    text: app.refreshing ? "Refreshing…" : "Refresh"
+                    iconName: "refresh-cw"
+                    enabled: !app.refreshing
+                    onClicked: app.refresh()
+                }
+            }
+
+            // A hairline under the toolbar once the library has scrolled.
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20
+                Layout.preferredHeight: 1
+                color: theme.outlineVariant
+                opacity: grid.contentY > grid.originY + 4 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                GridView {
+                    id: grid
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    clip: true
+                    focus: true
+                    model: library
+                    readonly property int columns: Math.max(2, Math.floor(width / app.settingsMap.card_size))
+                    property int hoverIndex: -1
+                    cellWidth: Math.floor(width / columns)
+                    cellHeight: Math.round(cellWidth * 1.46)
+                    cacheBuffer: app.light ? 0 : cellHeight * 2
+                    keyNavigationEnabled: true
+                    // Follow the selection only when it moves (keys, controller). Following it always made
+                    // a short window open scrolled past the banner to keep the first card in view.
+                    highlightFollowsCurrentItem: false
+                    onCurrentIndexChanged: {
+                        if (!activeFocus) return
+                        if (currentIndex <= 0) positionViewAtBeginning()
+                        else positionViewAtIndex(currentIndex, GridView.Contain)
+                    }
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: KScrollBar { }
+                    populate: Transition {
+                        enabled: !app.light
+                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
+                        NumberAnimation { property: "y"; from: ViewTransition.destination.y + 24; duration: 360; easing.type: Easing.OutCubic }
+                    }
+                    // Hero banner for the last game you played, then the rest of "Continue playing".
+                    // Part of the grid's header, so it scrolls away with the library.
+                    header: Column {
+                        width: grid.width
+                        readonly property bool shown: app.recentGames.length > 0 && !library.search
+                                                      && !library.storeFilter && !library.showHidden
+                        visible: shown
+                        height: shown ? implicitHeight : 0
+                        // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
+                        onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(grid.positionViewAtBeginning)
+                        topPadding: 4
+                        bottomPadding: 14
+                        spacing: 18
+
+                        Item {
+                            id: hero
+                            property var info: win.heroInfo
+                            property var game: info.key ? app.game(info.key) : ({})
+                            property string accent: info.key ? app.gameColour(info.key) : ""
+                            readonly property var tint: win.tinted(accent)
+                            onInfoChanged: { accent = info.key ? app.gameColour(info.key) : ""; heroFade.restart() }
+                            // Cross-fade to the next game.
+                            ParallelAnimation {
+                                id: heroFade
+                                NumberAnimation { target: heroArt; property: "opacity"; from: app.light ? 1 : 0.15; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: heroContent; property: "opacity"; from: app.light ? 1 : 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
+                            }
+                            HoverHandler { onHoveredChanged: win.heroPaused = hovered }
+                            Connections {
+                                target: app
+                                function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
+                                function onGameColourReady(key, colour) { if (key === hero.info.key) hero.accent = colour }
+                            }
+                            x: 8
+                            width: parent.width - 16
+                            height: Math.round(Math.min(340, Math.max(250, width * 0.28)))
+
+                            Item {
+                                id: heroArt
+                                anchors.fill: parent
+                                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                                layer.effect: MultiEffect { maskEnabled: true; maskSource: heroMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+
+                                Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                                // No wide art: the cover, blurred, fills the banner.
+                                ArtImage {
+                                    id: heroCover
+                                    anchors.fill: parent
+                                    sources: heroWide.status === Image.Ready ? [] : (hero.info.covers || [])
+                                    sourceSize.width: 320
+                                    visible: app.light && status === Image.Ready
+                                    opacity: 0.45
+                                }
+                                MultiEffect {
+                                    anchors.fill: parent
+                                    source: heroCover
+                                    visible: !app.light && heroCover.status === Image.Ready && heroWide.status !== Image.Ready
+                                    blurEnabled: true; blur: 1.0; blurMax: 64
+                                    saturation: 0.2
+                                    opacity: 0.7
+                                }
+                                ArtImage {
+                                    id: heroWide
+                                    anchors.fill: parent
+                                    sources: hero.info.heroes || []
+                                    horizontalAlignment: Image.AlignRight
+                                    sourceSize.width: Math.min(1920, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                    opacity: status === Image.Ready ? 1 : 0
+                                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
+                                }
+                                // Shade the left side so the text always reads, whatever the art.
+                                Rectangle {
+                                    anchors.fill: parent
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.94) }
+                                        GradientStop { position: 0.45; color: Qt.alpha(theme.background, 0.72) }
+                                        GradientStop { position: 0.8; color: Qt.alpha(theme.background, 0.08) }
+                                    }
+                                }
+                                Rectangle {
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                    height: parent.height * 0.4
+                                    gradient: Gradient {
+                                        GradientStop { position: 0; color: "transparent" }
+                                        GradientStop { position: 1; color: Qt.alpha(theme.background, 0.55) }
+                                    }
+                                }
+                            }
+                            Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
+                            // Corner brackets, the icon's corner, framing the banner.
+                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 16; rotation: 180; tone: hero.tint.primary; opacity: 0.85 }
+                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16; rotation: -90; tone: hero.tint.primary; opacity: 0.85 }
+                            Rectangle {
+                                anchors.fill: parent; radius: 18; color: "transparent"
+                                border.width: 1; border.color: theme.outlineVariant
+                            }
+                            // Dots: which of the recent games is showing; click one to jump to it.
+                            Row {
+                                visible: win.heroCount > 1
+                                anchors { right: parent.right; bottom: parent.bottom; rightMargin: 60; bottomMargin: 18 }
+                                spacing: 6
+                                Repeater {
+                                    model: win.heroCount
+                                    Rectangle {
+                                        required property int index
+                                        readonly property bool on: index === win.heroAt % win.heroCount
+                                        width: on ? 22 : 8; height: 8; radius: 4
+                                        color: on ? hero.tint.primary : Qt.alpha("white", 0.45)
+                                        Behavior on width { enabled: !app.light; NumberAnimation { duration: 200 } }
+                                        TapHandler { enabled: win.cardsLive; onTapped: win.heroAt = parent.index }
+                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+
+                            Row {
+                                id: heroContent
+                                anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
+                                spacing: 26
+                                Rectangle {
+                                    id: heroThumb
+                                    width: Math.round(hero.height * 0.62); height: Math.round(width * 1.46)
+                                    radius: 12
+                                    color: theme.surfaceContainerHighest
+                                    border.width: 1; border.color: Qt.alpha("white", 0.12)
+                                    visible: hero.width >= 620
+                                    clip: true
+                                    ArtImage {
+                                        anchors.fill: parent; anchors.margins: 1
+                                        sources: hero.info.covers || []
+                                        sourceSize.width: Math.min(300, Math.max(120, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                    }
+                                }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.min(560, hero.width - (heroThumb.visible ? heroThumb.width + 26 : 0) - 56)
+                                    spacing: 10
+                                    Text {
+                                        text: "BACK IN YOUR CORNER"
+                                        color: hero.tint.primary
+                                        font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
+                                    }
+                                    LogoTitle {
+                                        logos: hero.info.logos || []
+                                        title: hero.info.title || ""
+                                        color: theme.onSurface
+                                        pixelSize: hero.height > 290 ? 38 : 32
+                                        logoHeight: Math.round(hero.height * 0.3)
+                                        maxWidth: parent.width
+                                    }
+                                    Row {
+                                        spacing: 8
+                                        Rectangle {
+                                            height: 24; radius: 12
+                                            width: heroStore.implicitWidth + 37
+                                            color: Qt.alpha(theme.surfaceContainerHighest, 0.85)
+                                            StoreIcon { x: 8; anchors.verticalCenter: parent.verticalCenter; size: 14; store: hero.info.store || ""; color: hero.info.storeColor || "gray" }
+                                            Text { id: heroStore; x: 27; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: app.playedText(hero.game.playtime, hero.game.lastPlayed)
+                                            color: theme.onSurfaceVariant
+                                            font.pixelSize: 13
+                                        }
+                                    }
+                                    Item { width: 1; height: 6 }
+                                    Row {
+                                        spacing: 10
+                                        KButton {
+                                            theme: hero.tint
+                                            primary: true
+                                            visible: !hero.game.job
+                                            // Played on another PC (or uninstalled since): install it from here.
+                                            text: hero.game.installed ? "Resume" : "Install"
+                                            iconName: hero.game.installed ? "play" : "download"
+                                            onClicked: {
+                                                if (hero.game.installed) win.activate(hero.info.key)
+                                                else { app.preferCopy(hero.info.key); app.install(hero.info.key) }
+                                            }
+                                        }
+                                        KButton {
+                                            theme: hero.tint
+                                            visible: !hero.game.job && !!hero.game.update
+                                            text: "Update"
+                                            iconName: "arrow-up"
+                                            onClicked: app.update(hero.info.key)
+                                        }
+                                        Text {
+                                            visible: !!hero.game.job
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: hero.game.job === "update" ? "Updating " + Math.max(0, Math.floor(hero.game.progress)) + "%" : "Working…"
+                                            color: theme.primary
+                                            font.pixelSize: 14; font.weight: Font.DemiBold
+                                        }
+                                        KButton {
+                                            theme: hero.tint
+                                            text: "Details"
+                                            onClicked: win.select(hero.info.key)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: app.recentGames.length > 1
+                            x: 8
+                            width: parent.width - 16
+                            spacing: 10
+                            Text { text: "Continue playing"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            ListView {
+                                id: recentRow
+                                width: parent.width
+                                height: 132
+                                orientation: ListView.Horizontal
+                                spacing: 12
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: app.recentGames.slice(1)
+                            delegate: Rectangle {
+                                id: recentTile
+                                required property var modelData
+                                width: 236; height: 132
+                                radius: 12
+                                color: theme.surfaceContainerHigh
+                                border.width: recentHover.hovered ? 2 : 1
+                                border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
+                                clip: true
+                                ArtImage {
+                                    id: recentArt
+                                    width: 84; height: parent.height
+                                    sources: recentTile.modelData.covers || []
+                                    sourceSize.width: 168
+                                }
+                                Column {
+                                    anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                                    spacing: 6
+                                    Text {
+                                        width: parent.width
+                                        text: recentTile.modelData.title
+                                        color: theme.onSurface
+                                        font.pixelSize: 14; font.weight: Font.DemiBold
+                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                    }
+                                    Row {
+                                        spacing: 6
+                                        StoreIcon { size: 13; store: recentTile.modelData.store; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                                        Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: {
+                                            const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
+                                            return s.charAt(0).toUpperCase() + s.slice(1)
+                                        }
+                                        color: theme.outline
+                                        font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                HoverHandler { id: recentHover; enabled: win.cardsLive; cursorShape: Qt.PointingHandCursor }
+                                TapHandler {
+                                    enabled: win.cardsLive
+                                    onSingleTapped: if (win.cardsLive) win.select(recentTile.modelData.key)
+                                    onDoubleTapped: if (win.cardsLive) win.activate(recentTile.modelData.key)
+                                }
+                            }
+                            }
+                        }
+
+                        Text {
+                            x: 8
+                            text: "Library"
+                            color: theme.onSurfaceVariant
+                            font.pixelSize: 13; font.weight: Font.DemiBold
+                        }
+                    }
+                    delegate: GameCard {
+                        width: grid.cellWidth
+                        height: grid.cellHeight
+                        theme: win.theme
+                        cornerRadius: app.settingsMap.card_radius
+                        showBadge: app.settingsMap.show_badges
+                        showProtonDb: app.settingsMap.show_protondb
+                        showTitle: app.settingsMap.show_titles
+                        dim: app.settingsMap.dim_uninstalled
+                        // One highlight at a time: while the pointer is over a card, the keyboard
+                        // selection steps back.
+                        interactive: win.cardsLive
+                        current: GridView.isCurrentItem && grid.activeFocus && grid.hoverIndex < 0
+                        onHoveredChanged: grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
+                        onOpened: { grid.currentIndex = index; win.select(key) }
+                        onActivated: { grid.currentIndex = index; win.activate(key) }
+                        required property int index
+                    }
+                    Keys.onReturnPressed: {
+                        const key = library.keyAt(currentIndex)
+                        if (key) win.activate(key)
+                    }
+                    Keys.onSpacePressed: { const key = library.keyAt(currentIndex); if (key) win.select(key) }
+                }
+
+                // Empty state.
+                Column {
+                    visible: grid.count === 0
+                    anchors.centerIn: parent
+                    spacing: 14
+                    width: Math.min(parent.width - 60, 460)
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        color: theme.onSurface
+                        font.pixelSize: 20
+                        font.weight: Font.DemiBold
+                        text: library.showHidden ? "No hidden games"
+                              : app.refreshing ? "Loading your libraries…"
+                              : app.totalCount === 0 ? "Your corner is empty" : "Nothing matches"
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: theme.onSurfaceVariant
+                        font.pixelSize: 14
+                        visible: !app.refreshing && !library.showHidden
+                        text: app.totalCount === 0
+                              ? "Pull up a chair: connect your stores in Accounts and every game you own settles in here."
+                              : "Try a different search, store, or turn off Installed only."
+                    }
+                    KButton {
+                        theme: win.theme
+                        primary: true
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: !app.refreshing && app.totalCount === 0 && !library.showHidden
+                        text: "Connect stores"
+                        onClicked: accounts.open()
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- game detail
+    KDialog {
+        id: detail
+        objectName: "detail"
+        theme: win.theme
+        heading: ""
+        // The panel takes on the game's own colour (from its cover).
+        property string accent: ""
+        readonly property var tint: win.tinted(accent)
+        Connections {
+            target: app
+            function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
+            function onDetailsReady(key, d) { if (key === win.selectedKey) detail.info = d }
+            function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
+        }
+        // Description, genres, developer and year (see details.py); filled in when they arrive.
+        property var info: ({})
+        property int dlcCount: -1   // -1 until known
+        onOpened: {
+            accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
+            dlcCount = -1
+            if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
+        }
+        width: Math.min(win.width - 60, 860)
+        // The game's wide art runs across the top; the cover and title start inside its faded lower part.
+        readonly property int bannerH: Math.round(width * 0.34)
+        topPadding: bannerH - 118
+        onClosed: { win.selectedKey = ""; confirmRemove.armed = false }
+        background: Rectangle {
+            radius: 18
+            color: theme.surfaceContainer
+            border.width: 1
+            border.color: theme.outlineVariant
+            Item {
+                id: detailBanner
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
+                height: detail.bannerH
+                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                layer.effect: MultiEffect { maskEnabled: true; maskSource: detailMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+                Rectangle { anchors.fill: parent; color: Qt.darker(win.selected.storeColor || theme.surfaceContainerHigh, 2.6) }
+                ArtImage {
+                    anchors.fill: parent
+                    sources: detail.visible ? (win.selected.heroes || []) : []
+                    sourceSize.width: Math.min(1600, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                    opacity: status === Image.Ready ? 1 : 0
+                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.alpha(theme.surfaceContainer, 0.0) }
+                        GradientStop { position: 0.5; color: Qt.alpha(theme.surfaceContainer, 0.35) }
+                        GradientStop { position: 1.0; color: theme.surfaceContainer }
+                    }
+                }
+            }
+            Rectangle { id: detailMask; anchors.fill: detailBanner; radius: 17; layer.enabled: true; visible: false }
+            Rectangle {
+                anchors { right: parent.right; top: parent.top; margins: 14 }
+                width: 34; height: 34; radius: 17
+                color: closeHover.hovered ? Qt.alpha("black", 0.7) : Qt.alpha("black", 0.45)
+                Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 15 }
+                HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: detail.close() }
+            }
+        }
+        contentItem: RowLayout {
+            spacing: 26
+            Rectangle {
+                Layout.preferredWidth: 220
+                Layout.preferredHeight: 320
+                Layout.alignment: Qt.AlignTop
+                radius: 12
+                color: theme.surfaceContainerHigh
+                border.width: 1
+                border.color: Qt.alpha("white", 0.14)
+                clip: true
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                    text: win.selected.title || ""
+                    color: theme.onSurfaceVariant
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: detailArt.status !== Image.Ready
+                }
+                ArtImage {
+                    id: detailArt
+                    anchors.fill: parent
+                    sources: win.selected.covers || []
+                    sourceSize.width: Math.min(400, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 10
+                Item { Layout.preferredHeight: 34 }
+                LogoTitle {
+                    Layout.fillWidth: true
+                    logos: detail.visible ? (win.selected.logos || []) : []
+                    title: win.selected.title || ""
+                    color: theme.onSurface
+                    pixelSize: 30
+                    logoHeight: 84
+                    maxWidth: Math.min(width, 440)
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Pill { store: win.selected.store || ""; dot: win.selected.storeColor || ""; label: win.selected.storeName || "" }
+                    Pill {
+                        label: !win.selected.installed ? "Not installed" : win.selected.update ? "↑  Update available" : "Installed"
+                        accent: !!win.selected.update
+                    }
+                    Pill {
+                        readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
+                        visible: played !== ""
+                        label: played
+                    }
+                    Pill {
+                        visible: !!win.selected.protondb
+                        store: "protondb"
+                        dot: ProtonDB.color(win.selected.protondb)
+                        label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
+                               + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb
+                                  ? " (trending " + ProtonDB.label(win.selected.protondbTrending) + ")" : "")
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!win.selected.installPath
+                    text: win.selected.installPath || ""
+                    color: theme.outline
+                    font.pixelSize: 12
+                    elide: Text.ElideMiddle
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.openFolder(win.selected.installPath) }
+                }
+
+                // Genres, developer · year, and a short description.
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: (detail.info.genres || []).length > 0
+                    Repeater {
+                        model: detail.info.genres || []
+                        Rectangle {
+                            required property string modelData
+                            height: 24; radius: 12
+                            width: genreText.implicitWidth + 20
+                            color: "transparent"
+                            border.width: 1
+                            border.color: detail.tint.primary
+                            Text { id: genreText; anchors.centerIn: parent; text: modelData; color: detail.tint.primary; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    text: [detail.info.developer || "", detail.info.year || ""].filter(x => x).join("  ·  ")
+                    color: theme.outline
+                    font.pixelSize: 12
+                }
+                Text {
+                    id: detailAbout
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    text: detail.info.description || ""
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 13
+                    lineHeight: 1.25
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 5
+                    elide: Text.ElideRight
+                    opacity: text ? 1 : 0
+                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
+                }
+                // Screenshots: click one to see it full size.
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 84
+                    Layout.topMargin: 4
+                    visible: count > 0
+                    orientation: ListView.Horizontal
+                    spacing: 8
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: detail.info.screenshots || []
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        width: 150; height: 84; radius: 8
+                        color: theme.surfaceContainerHigh
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            source: modelData.thumb
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            sourceSize.width: 300
+                            opacity: status === Image.Ready ? 1 : 0
+                            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
+                        }
+                        Rectangle {
+                            anchors.fill: parent; radius: 8; color: "transparent"
+                            border.width: shotHover.hovered ? 2 : 1
+                            border.color: shotHover.hovered ? detail.tint.primary : Qt.alpha("white", 0.1)
+                        }
+                        HoverHandler { id: shotHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: viewer.show(detail.info.screenshots, index) }
+                    }
+                }
+
+                // The same game owned on several stores: choose which copy to use.
+                ColumnLayout {
+                    visible: (win.selected.copies || []).length > 1
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    spacing: 8
+                    Text {
+                        text: "You own this on " + (win.selected.copies || []).length + " stores. Launcher to use:"
+                        color: theme.onSurfaceVariant
+                        font.pixelSize: 12
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Repeater {
+                            model: win.selected.copies || []
+                            Chip {
+                                required property var modelData
+                                label: modelData.storeName + (modelData.installed ? " · installed" : "")
+                                dot: modelData.storeColor
+                                store: modelData.key.split(":")[0]
+                                active: modelData.key === win.selectedKey
+                                onPicked: {
+                                    const k = modelData.key
+                                    app.preferCopy(k)
+                                    win.selectedKey = k
+                                    win.selected = app.game(k)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                // Job progress.
+                ColumnLayout {
+                    visible: !!win.selected.job
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text {
+                        color: theme.onSurface
+                        font.pixelSize: 13
+                        text: win.selected.job === "uninstall" ? "Removing…"
+                              : win.selected.progress < 0 ? "Starting…"
+                              : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
+                                + (win.selected.progress || 0).toFixed(1) + "%"
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 6; radius: 3
+                        color: theme.surfaceContainerHighest
+                        Rectangle {
+                            height: parent.height; radius: 3
+                            color: theme.primary
+                            width: parent.width * Math.max(0.02, (win.selected.progress || 0) / 100)
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.selected.store === "battlenet" && win.selected.key === "battlenet:battlenet-app"
+                    wrapMode: Text.WordWrap
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 12
+                    text: win.selected.installed
+                          ? "Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles."
+                          : "Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton."
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    KButton {
+                        theme: detail.tint
+                        primary: true
+                        visible: !win.selected.job
+                        text: win.selected.installed ? "Play" : "Install"
+                        iconName: win.selected.installed ? "play" : "download"
+                        onClicked: {
+                            app.preferCopy(win.selectedKey)
+                            win.selected.installed ? app.play(win.selectedKey) : app.install(win.selectedKey)
+                        }
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !win.selected.job && !!win.selected.update
+                        text: "Update"
+                        iconName: "arrow-up"
+                        onClicked: app.update(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !!win.selected.job
+                        text: "Cancel"
+                        iconName: "x"
+                        onClicked: app.cancel(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !!win.selected.hasDlc && detail.dlcCount !== 0
+                        text: detail.dlcCount > 0 ? "DLC · " + detail.dlcCount : "DLC"
+                        iconName: "puzzle"
+                        onClicked: dlc.show(win.selectedKey, win.selected.title)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        text: "Options"
+                        iconName: "settings-2"
+                        onClicked: gameOpts.show(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        text: win.selected.hidden ? "Unhide" : "Hide"
+                        iconName: win.selected.hidden ? "eye" : "eye-off"
+                        onClicked: { app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() }
+                    }
+                    KButton {
+                        id: confirmRemove
+                        property bool armed: false
+                        theme: detail.tint
+                        danger: true
+                        visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
+                        text: armed ? "Really uninstall?" : "Uninstall"
+                        iconName: "trash-2"
+                        onClicked: {
+                            if (!armed) { armed = true; return }
+                            armed = false
+                            app.uninstall(win.selectedKey)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- save conflict
+    Connections {
+        target: app
+        function onSaveConflict(key, local, cloud) {
+            conflict.key = key
+            conflict.title = app.game(key).title || ""
+            conflict.local = local
+            conflict.cloud = cloud
+            conflict.open()
+        }
+    }
+    KDialog {
+        id: conflict
+        theme: win.theme
+        property string key: ""
+        property string title: ""
+        property string local: ""
+        property string cloud: ""
+        heading: "Which saves should " + title + " use?"
+        onOpened: useCloud.forceActiveFocus()
+        width: Math.min(win.width - 60, 560)
+        closePolicy: Popup.CloseOnEscape
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                text: "Saves changed both on this PC and in the cloud since the last sync, probably because you played on another computer. The one you don't pick is replaced."
+            }
+            KButton {
+                id: useCloud
+                theme: win.theme; primary: true; Layout.fillWidth: true
+                KeyNavigation.down: keepLocal
+                Keys.onReturnPressed: clicked()
+                text: "Use the cloud save" + (conflict.cloud ? "  (" + conflict.cloud + ")" : "")
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "cloud") }
+            }
+            KButton {
+                id: keepLocal
+                theme: win.theme; Layout.fillWidth: true
+                KeyNavigation.up: useCloud
+                KeyNavigation.down: skipSync
+                Keys.onReturnPressed: clicked()
+                text: "Keep this PC's save" + (conflict.local ? "  (" + conflict.local + ")" : "")
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "local") }
+            }
+            KButton {
+                id: skipSync
+                theme: win.theme; Layout.fillWidth: true
+                KeyNavigation.up: keepLocal
+                Keys.onReturnPressed: clicked()
+                text: "Play without syncing this time"
+                onClicked: { conflict.close(); app.resolveConflict(conflict.key, "skip") }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- DLC
+    KDialog {
+        id: dlc
+        objectName: "dlc"
+        theme: win.theme
+        property string key: ""
+        property var rows: []
+        property string note: ""
+        property bool loading: false
+        property string error: ""
+        property bool busy: false   // a DLC install for this game is running
+        heading: "DLC"
+        headingIcon: "puzzle"
+        width: Math.min(win.width - 60, 680)
+        function show(k, title) {
+            key = k; rows = []; note = ""; error = ""; loading = true
+            busy = app.game(k).job === "dlc"
+            heading = "DLC · " + title
+            open()
+            app.loadDlcs(k)
+        }
+        Connections {
+            target: app
+            function onDlcsReady(key, rows, note) {
+                if (key !== dlc.key) return
+                dlc.rows = rows; dlc.loading = false
+                // a store message without rows is an error; with rows it is a note
+                const isNote = note.indexOf("Steam installs") === 0 || note.indexOf("Epic lists") === 0
+                if (rows.length) { dlc.note = note; dlc.error = "" } else { dlc.error = isNote ? "" : note; dlc.note = "" }
+            }
+            function onGameChanged(key) {
+                // the DLC install finished: show the new state
+                if (key === dlc.key && dlc.busy && app.game(key).job !== "dlc") { dlc.busy = false; app.loadDlcs(key, true) }
+            }
+        }
+        contentItem: ColumnLayout {
+            spacing: 12
+            readonly property var counts: {
+                const c = { installed: 0, owned: 0, missing: 0, available: 0 }
+                for (const r of dlc.rows) c[r.status] = (c[r.status] || 0) + 1
+                return c
+            }
+            // Summary: how many, and what you have.
+            Text {
+                Layout.fillWidth: true
+                visible: dlc.rows.length > 0
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                text: {
+                    const c = parent.counts, parts = [dlc.rows.length + " DLC"]
+                    if (c.installed) parts.push(c.installed + " installed")
+                    if (c.owned) parts.push(c.owned + " owned, not installed")
+                    if (c.available) parts.push(c.available + " to buy")
+                    return parts.join("  ·  ")
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: dlc.loading || dlc.rows.length === 0
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+                text: dlc.loading ? "Looking up DLC…" : (dlc.error || "No DLC found for this game.")
+            }
+            // Install all owned DLC at once (GOG installs them together anyway).
+            KButton {
+                theme: win.theme
+                primary: true
+                iconName: "download"
+                visible: !dlc.busy && dlc.rows.filter(r => r.canInstall).length > 1
+                text: "Install all owned DLC"
+                onClicked: { const r = dlc.rows.find(r => r.canInstall); if (r) { dlc.busy = true; app.installDlc(dlc.key, r.id) } }
+            }
+            Text {
+                visible: dlc.busy
+                color: theme.primary
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                text: "Installing DLC… " + (win.selected.job === "dlc" && win.selected.progress >= 0 ? Math.floor(win.selected.progress) + "%" : "")
+            }
+            ListView {
+                id: dlcList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight, Math.max(240, win.height - 320))
+                visible: dlc.rows.length > 0
+                clip: true
+                spacing: 8
+                model: dlc.rows
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: KScrollBar { }
+                delegate: Rectangle {
+                    id: dlcRow
+                    required property var modelData
+                    readonly property var info: ({
+                        installed: { label: "Installed", icon: "check" },
+                        owned: { label: "Owned", icon: "check" },
+                        missing: { label: "Not installed", icon: "" },
+                        available: { label: "Not owned", icon: "" } })[modelData.status] || { label: modelData.status, icon: "" }
+                    width: dlcList.width - 10
+                    height: 76
+                    radius: 12
+                    color: theme.surfaceContainerHigh
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        anchors.rightMargin: 12
+                        spacing: 14
+                        // The DLC's own art (wide), or a placeholder tile.
+                        Rectangle {
+                            Layout.preferredWidth: 128
+                            Layout.preferredHeight: 60
+                            radius: 8
+                            color: theme.surfaceContainerHighest
+                            clip: true
+                            Icon { anchors.centerIn: parent; name: "puzzle"; size: 22; color: theme.outline; visible: dlcArt.status !== Image.Ready }
+                            Image {
+                                id: dlcArt
+                                anchors.fill: parent
+                                source: dlcRow.modelData.image || ""
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 256
+                                opacity: status === Image.Ready ? (dlcRow.modelData.status === "available" ? 0.7 : 1) : 0
+                                Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 5
+                            Text {
+                                Layout.fillWidth: true
+                                text: dlcRow.modelData.title
+                                color: theme.onSurface
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Row {
+                                spacing: 8
+                                Rectangle {
+                                    readonly property bool have: dlcRow.modelData.status === "installed" || dlcRow.modelData.status === "owned"
+                                    height: 22; radius: 11
+                                    width: stRow.implicitWidth + 18
+                                    color: have ? theme.primaryContainer : "transparent"
+                                    border.width: have ? 0 : 1
+                                    border.color: theme.outlineVariant
+                                    Row {
+                                        id: stRow
+                                        anchors.centerIn: parent
+                                        spacing: 5
+                                        Icon { visible: dlcRow.info.icon !== ""; name: dlcRow.info.icon; size: 12; color: theme.onPrimaryContainer; anchors.verticalCenter: parent.verticalCenter }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: dlcRow.info.label
+                                            font.pixelSize: 11
+                                            font.weight: Font.DemiBold
+                                            color: parent.parent.have ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: !!dlcRow.modelData.price
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: dlcRow.modelData.price || ""
+                                    color: theme.onSurfaceVariant
+                                    font.pixelSize: 12
+                                }
+                            }
+                        }
+                        KButton {
+                            theme: win.theme
+                            implicitHeight: 34
+                            primary: true
+                            iconName: "download"
+                            visible: !!dlcRow.modelData.canInstall && !dlc.busy
+                            text: "Install"
+                            onClicked: { dlc.busy = true; app.installDlc(dlc.key, dlcRow.modelData.id) }
+                        }
+                        KButton {
+                            theme: win.theme
+                            implicitHeight: 34
+                            iconName: "external-link"
+                            visible: !dlcRow.modelData.canInstall && !!dlcRow.modelData.url
+                            text: dlcRow.modelData.url.indexOf("steam://") === 0 ? "Open in Steam" : "Store page"
+                            onClicked: app.openUrl(dlcRow.modelData.url)
+                        }
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: dlc.note !== "" && dlc.rows.length > 0
+                wrapMode: Text.WordWrap
+                color: theme.outline
+                font.pixelSize: 12
+                text: dlc.note
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- accounts
+    KDialog {
+        id: accounts
+        objectName: "accounts"
+        theme: win.theme
+        heading: "Accounts"
+        headingIcon: "user-round"
+        width: Math.min(win.width - 60, 620)
+        contentItem: ColumnLayout {
+            spacing: 10
+            Repeater {
+                model: app.storesInfo
+                Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    height: Math.max(78, accountRow.implicitHeight + 34)
+                    radius: 14
+                    color: theme.surfaceContainerHigh
+                    border.width: 1
+                    border.color: modelData.loggedIn ? Qt.alpha(modelData.color, 0.45) : theme.outlineVariant
+                    RowLayout {
+                        id: accountRow
+                        anchors.fill: parent
+                        anchors.leftMargin: 14; anchors.rightMargin: 12
+                        spacing: 14
+                        // The store's logo on a soft tile of its colour.
+                        Rectangle {
+                            Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                            radius: 12
+                            color: Qt.alpha(modelData.color, 0.16)
+                            StoreIcon { anchors.centerIn: parent; size: 28; store: modelData.id; color: modelData.color }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text { text: modelData.name; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Row {
+                                spacing: 7
+                                Layout.fillWidth: true
+                                Rectangle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 8; height: 8; radius: 4
+                                    color: modelData.problem ? theme.error : modelData.loggedIn ? "#6fd08c" : theme.outline
+                                }
+                                Text {
+                                    width: parent.parent.width - 15
+                                    elide: Text.ElideRight
+                                    font.pixelSize: 12
+                                    color: modelData.problem ? theme.error : theme.onSurfaceVariant
+                                text: modelData.problem ? modelData.problem
+                                      : modelData.loggedIn ? ("Connected" + (modelData.account ? " · " + modelData.account : ""))
+                                      : modelData.id === "battlenet" ? "Install the Battle.net app from the library first"
+                                      : "Not connected"
+                                }
+                            }
+                            // Steam without a Web API key: say what is listed, and where to get the rest.
+                            Text {
+                                Layout.fillWidth: true
+                                visible: modelData.id === "steam" && modelData.loggedIn && !app.settingsMap.steam_api_key
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: 11
+                                color: theme.outline
+                                linkColor: theme.primary
+                                text: "Showing installed games and games you have played. For every game you own, "
+                                      + "<a href=\"key\">add a Steam Web API key</a>."
+                                onLinkActivated: { accounts.close(); prefs.tab = 2; prefs.open() }
+                                HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                            }
+                        }
+                        KButton {
+                            theme: win.theme
+                            visible: modelData.loginKind === "paste" && modelData.loggedIn
+                            text: "Sign out"
+                            iconName: "log-out"
+                            onClicked: app.logout(modelData.id)
+                        }
+                        KButton {
+                            theme: win.theme
+                            primary: !modelData.loggedIn
+                            visible: !(modelData.loginKind === "paste" && modelData.loggedIn)
+                            enabled: modelData.id === "gog" || !modelData.problem
+                            text: modelData.loginKind === "external" ? "Open" : "Sign in"
+                            iconName: modelData.loginKind === "external" ? "external-link" : "log-in"
+                            onClicked: app.loginBegin(modelData.id)
+                        }
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                wrapMode: Text.WordWrap
+                color: theme.outline
+                font.pixelSize: 12
+                text: "Sign-ins happen in your browser or in the store's own client. Cornerplay never sees your passwords; it only keeps the session tokens the stores hand back."
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- paste-code sign-in
+    KDialog {
+        id: login
+        theme: win.theme
+        property string store: ""
+        property string url: ""
+        property string prompt: ""
+        property string error: ""
+        property bool busy: false
+        heading: "Sign in to " + (win.storeInfo(store).name || "")
+        width: Math.min(win.width - 60, 560)
+        closePolicy: Popup.CloseOnEscape
+        function submit() {
+            if (!code.text.trim() || busy) return
+            busy = true; error = ""
+            app.loginFinish(store, code.text)
+        }
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                lineHeight: 1.25
+                text: login.prompt
+            }
+            RowLayout {
+                spacing: 10
+                KButton { theme: win.theme; iconName: "external-link"; text: "Open login page again"; onClicked: app.openUrl(login.url) }
+                KButton { theme: win.theme; text: "Copy link"; onClicked: { app.copy(login.url); toasts.append({ message: "Link copied" }) } }
+            }
+            KField {
+                id: code
+                theme: win.theme
+                Layout.fillWidth: true
+                placeholderText: "Paste here"
+                onAccepted: login.submit()
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: login.error !== ""
+                wrapMode: Text.WordWrap
+                color: theme.error
+                font.pixelSize: 12
+                text: login.error
+            }
+            KButton {
+                theme: win.theme
+                primary: true
+                Layout.alignment: Qt.AlignRight
+                enabled: code.text.trim() !== "" && !login.busy
+                text: login.busy ? "Checking…" : "Finish sign-in"
+                onClicked: login.submit()
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- settings
+    // One setting, as a card: name, the control, and an optional hint underneath.
+    component Row2: Rectangle {
+        id: r2
+        readonly property var theme: app.theme
+        property string label
+        property string hint: ""
+        default property alias body: slot.data
+        Layout.fillWidth: true
+        implicitHeight: r2col.implicitHeight + 28
+        radius: 12
+        color: theme.surfaceContainerHigh
+        ColumnLayout {
+            id: r2col
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+            spacing: 8
+            Text { visible: r2.label !== ""; text: r2.label; color: r2.theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+            ColumnLayout { id: slot; Layout.fillWidth: true }
+            Text {
+                visible: r2.hint !== ""
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: r2.hint
+                color: r2.theme.outline
+                font.pixelSize: 12
+                lineHeight: 1.15
+                linkColor: r2.theme.primary
+                onLinkActivated: link => app.openUrl(link)
+            }
+        }
+    }
+    // An on/off setting, as a card row.
+    component Toggle: Rectangle {
+        id: tg
+        readonly property var theme: app.theme
+        property string label
+        property string settingKey
+        Layout.fillWidth: true
+        implicitHeight: 48
+        radius: 12
+        color: theme.surfaceContainerHigh
+        Text {
+            anchors { left: parent.left; leftMargin: 14; right: sw.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+            text: tg.label; color: tg.theme.onSurface; font.pixelSize: 13; elide: Text.ElideRight
+        }
+        Switch {
+            anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            id: sw
+            checked: app.settingsMap[tg.settingKey] === true
+            onToggled: app.setSetting(tg.settingKey, checked)
+            indicator: Rectangle {
+                implicitWidth: 40; implicitHeight: 22; radius: 11
+                y: parent.height / 2 - height / 2
+                color: sw.checked ? theme.primary : theme.surfaceContainerHighest
+                Rectangle {
+                    x: sw.checked ? parent.width - width - 3 : 3
+                    y: 3; width: 16; height: 16; radius: 8
+                    color: sw.checked ? theme.onPrimary : theme.outline
+                }
+            }
+        }
+    }
+    // A round icon button for the screenshot viewer.
+    component Round: Rectangle {
+        id: rb
+        property string icon
+        signal tapped()
+        width: 48; height: 48; radius: 24
+        color: rbHover.hovered ? Qt.alpha("white", 0.22) : Qt.alpha("white", 0.12)
+        Icon { anchors.centerIn: parent; name: rb.icon; size: 22; color: "white" }
+        HoverHandler { id: rbHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: rb.tapped() }
+    }
+    // An L-shaped corner mark (the icon's corner); rotate it to frame any corner.
+    component CornerMark: Item {
+        property color tone: "white"
+        width: 30; height: 30
+        Rectangle { width: 4; height: parent.height; radius: 2; color: parent.tone }
+        Rectangle { y: parent.height - 4; width: parent.width; height: 4; radius: 2; color: parent.tone }
+    }
+
+    // A small rounded label: optional store logo, text, optional accent colour.
+    component Pill: Rectangle {
+        id: pill
+        readonly property var theme: app.theme
+        property string label: ""
+        property string store: ""
+        property string dot: ""
+        property bool accent: false
+        height: 28
+        radius: 14
+        width: pillRow.implicitWidth + 24
+        color: accent ? theme.primary : Qt.alpha(theme.surfaceContainerHighest, 0.9)
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 7
+            Rectangle {
+                visible: pill.store === "" && pill.dot !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                width: 9; height: 9; radius: 5
+                color: pill.dot || "transparent"
+            }
+            StoreIcon {
+                visible: pill.store !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                size: 14; store: pill.store; color: pill.dot || "white"
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: pill.label
+                color: pill.accent ? theme.onPrimary : theme.onSurface
+                font.pixelSize: 12
+                font.weight: pill.accent ? Font.DemiBold : Font.Normal
+            }
+        }
+    }
+
+    component Chip: Rectangle {
+        id: chip
+        readonly property var theme: app.theme
+        property string label
+        property bool active: false
+        property string dot: ""
+        property string store: ""
+        property string icon: ""
+        signal picked()
+        implicitWidth: chipText.implicitWidth + (dot || icon ? 42 : 26)
+        implicitHeight: 32
+        radius: 16
+        color: active ? theme.primaryContainer : chipHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
+        border.width: 1
+        border.color: active ? theme.primary : theme.outlineVariant
+        StoreIcon { visible: chip.dot !== ""; x: 11; anchors.verticalCenter: parent.verticalCenter; size: 14; store: chip.store; color: chip.dot || "transparent" }
+        Icon {
+            visible: chip.dot === "" && chip.icon !== ""
+            x: 12; anchors.verticalCenter: parent.verticalCenter
+            name: chip.icon; size: 15
+            color: chip.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+        }
+        Text {
+            id: chipText
+            x: chip.dot || chip.icon ? 31 : 13
+            anchors.verticalCenter: parent.verticalCenter
+            text: chip.label
+            color: chip.active ? theme.onPrimaryContainer : theme.onSurface
+            font.pixelSize: 13
+        }
+        HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: chip.picked() }
+    }
+
+    KDialog {
+        id: prefs
+        objectName: "prefs"
+        theme: win.theme
+        heading: "Settings"
+        headingIcon: "sliders-horizontal"
+        width: Math.min(win.width - 60, 640)
+        property int tab: 0
+        onTabChanged: prefsScroll.contentY = 0
+        property bool wasOpened: false
+        onAboutToShow: wasOpened = true
+
+        contentItem: ColumnLayout {
+            spacing: 18
+            RowLayout {
+                spacing: 8
+                Repeater {
+                    model: [{ name: "Appearance", icon: "eye" }, { name: "Compatibility", icon: "gamepad-2" },
+                            { name: "Library", icon: "library" }]
+                    Chip {
+                        required property var modelData
+                        required property int index
+                        label: modelData.name
+                        icon: modelData.icon
+                        active: prefs.tab === index
+                        onPicked: prefs.tab = index
+                    }
+                }
+            }
+
+            // The pages scroll when they are taller than the window.
+            Flickable {
+                id: prefsScroll
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(prefsStack.implicitHeight, win.height - 220)
+                contentHeight: prefsStack.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: KScrollBar { }
+                // The pages are built the first time Settings opens.
+                Loader {
+                    id: prefsStack
+                    active: prefs.wasOpened
+                    width: prefsScroll.width - 12
+                    sourceComponent: StackLayout {
+                        currentIndex: prefs.tab
+
+                        // ---- Appearance
+                        ColumnLayout {
+                            spacing: 16
+                            Row2 {
+                                label: "Theme"
+                                hint: "Follow wallpaper picks Cornerplay's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway."
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Chip {
+                                        label: "Follow wallpaper"
+                                        active: app.settingsMap.theme_mode === "ryoku"
+                                        onPicked: app.setSetting("theme_mode", "ryoku")
+                                    }
+                                    Repeater {
+                                        model: app.themePresets
+                                        Chip {
+                                            required property string modelData
+                                            label: modelData
+                                            active: app.settingsMap.theme_mode === modelData
+                                            onPicked: app.setSetting("theme_mode", modelData)
+                                        }
+                                    }
+                                    Chip {
+                                        label: "Custom"
+                                        active: app.settingsMap.theme_mode === "custom"
+                                        onPicked: app.setCustomColor("theme_accent", win.theme.primary)
+                                    }
+                                }
+                            }
+                            Row2 {
+                                label: "Accent colour"
+                                Swatches {
+                                    theme: win.theme
+                                    Layout.fillWidth: true
+                                    choices: app.accentChoices
+                                    value: win.theme.primary
+                                    onPicked: colour => app.setCustomColor("theme_accent", colour)
+                                }
+                            }
+                            Row2 {
+                                label: "Background colour"
+                                hint: "Picking a colour switches to a custom theme; text and panel shades are worked out from these two."
+                                Swatches {
+                                    theme: win.theme
+                                    Layout.fillWidth: true
+                                    choices: app.backgroundChoices
+                                    value: win.theme.background
+                                    onPicked: colour => app.setCustomColor("theme_bg", colour)
+                                }
+                            }
+                            Row2 {
+                                label: "Cover size"
+                                KSlider {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    from: 130; to: 320; stepSize: 2
+                                    value: app.settingsMap.card_size
+                                    onMoved: app.setSetting("card_size", value)
+                                }
+                            }
+                            Row2 {
+                                label: "Corner roundness"
+                                KSlider {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    from: 0; to: 28; stepSize: 1
+                                    value: app.settingsMap.card_radius
+                                    onMoved: app.setSetting("card_radius", value)
+                                }
+                            }
+                            Toggle { label: "Show the store on a cover when pointed at"; settingKey: "show_badges" }
+                            Toggle { label: "Always show game titles"; settingKey: "show_titles" }
+                            Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
+                        Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: "TV mode: play the focused game's trailer (muted)"; settingKey: "tv_trailers" }
+                        Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
+                        Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
+                            Row2 {
+                                label: "Performance"
+                                hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
+                                KCombo {
+                                    id: perfBox
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
+                                            { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
+                                    Component.onCompleted: select(app.settingsMap.performance)
+                                    onActivated: app.setSetting("performance", currentValue)
+                                }
+                            }
+                        }
+
+                        // ---- Compatibility
+                        ColumnLayout {
+                            spacing: 16
+                            Row2 {
+                                label: "Default Proton version"
+                                hint: "Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam."
+                                KCombo {
+                                    id: protonBox
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: app.protonVersions
+                                    onModelChanged: select(app.settingsMap.proton)
+                                    Component.onCompleted: select(app.settingsMap.proton)
+                                    onActivated: app.setSetting("proton", currentValue)
+                                }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: geCol.implicitHeight + 28
+                                radius: 12
+                                color: theme.surfaceContainerHigh
+                                Component.onCompleted: app.checkGe()
+                                ColumnLayout {
+                                    id: geCol
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                                    spacing: 8
+                                    RowLayout {
+                                        spacing: 10
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text { text: "GE-Proton"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.WordWrap
+                                                font.pixelSize: 12
+                                                color: app.geStatus.error ? theme.error : theme.onSurfaceVariant
+                                                text: app.geStatus.error ? app.geStatus.error
+                                                      : app.geStatus.busy ? "Downloading " + Math.floor(app.geStatus.progress) + "%  (about 570 MB)"
+                                                      : (app.geStatus.installed ? "Installed: " + app.geStatus.installed.replace("-x86_64", "") : "Not downloaded yet")
+                                                        + (app.geStatus.latest ? (app.geStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.geStatus.latest) : "")
+                                            }
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            primary: !app.geStatus.upToDate
+                                            enabled: !app.geStatus.busy
+                                            text: app.geStatus.upToDate ? "Check again" : "Download latest"
+                                            onClicked: app.geStatus.upToDate ? app.checkGe() : app.downloadGe()
+                                        }
+                                    }
+                                    Rectangle {
+                                        visible: !!app.geStatus.busy
+                                        Layout.fillWidth: true
+                                        height: 5; radius: 3
+                                        color: theme.surfaceContainerHighest
+                                        Rectangle { height: parent.height; radius: 3; color: theme.primary; width: parent.width * (app.geStatus.progress || 0) / 100 }
+                                    }
+                                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                                    RowLayout {
+                                        spacing: 10
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 12
+                                            color: theme.onSurfaceVariant
+                                            text: "Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them."
+                                        }
+                                        KButton { theme: win.theme; text: "Get from Steam"; onClicked: app.getSteamProton() }
+                                        KButton { theme: win.theme; text: "Rescan"; onClicked: app.rescanProtons() }
+                                    }
+                                }
+                            }
+                            Row2 {
+                                label: "Or a custom Proton folder"
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: "/path/to/a/Proton/folder"
+                                    text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
+                                    onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
+                                }
+                            }
+                            Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
+                            Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
+                            Row2 {
+                                label: "Environment variables for every game"
+                                hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: "KEY=value KEY2=value"
+                                    text: app.settingsMap.env
+                                    onEditingFinished: app.setSetting("env", text.trim())
+                                }
+                            }
+                        }
+
+                        // ---- Library
+                        ColumnLayout {
+                            spacing: 16
+                            Row2 {
+                                label: "Games folder"
+                                hint: "Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    text: app.settingsMap.games_dir
+                                    onEditingFinished: app.setSetting("games_dir", text.trim())
+                                }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: steamCol.implicitHeight + 28
+                                radius: 12
+                                color: theme.surfaceContainerHigh
+                                readonly property var st: app.steamShortcut
+                                ColumnLayout {
+                                    id: steamCol
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                                    spacing: 8
+                                    RowLayout {
+                                        spacing: 10
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text { text: "Your games in Steam & Game Mode"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.WordWrap
+                                                font.pixelSize: 12
+                                                color: theme.onSurfaceVariant
+                                                readonly property var st: parent.parent.parent.parent.st
+                                                text: st.busy ? "Working… " + (st.progress || "")
+                                                      : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
+                                                      : st.accounts === 0 ? "Sign in to Steam once, then come back here."
+                                                      : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
+                                                      : st.inSync ? "All " + st.games + " installed games are in Steam with cover, banner, background and logo."
+                                                      : st.gamesInSteam + " of " + st.games + " installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode."
+                                                        + (st.running ? " Steam is closed and reopened to do this." : "")
+                                            }
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            readonly property var st: parent.parent.parent.st
+                                            primary: !st.inSync
+                                            enabled: !st.busy && st.accounts > 0 && st.games > 0 && !st.gameMode
+                                            text: st.inSync ? "Refresh in Steam" : "Add games to Steam"
+                                            onClicked: app.addGamesToSteam()
+                                        }
+                                    }
+                                    Toggle { label: "Keep installed games in Steam automatically"; settingKey: "steam_games" }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: 11
+                                        color: theme.outline
+                                        text: "Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there."
+                                    }
+                                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                                    RowLayout {
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 12
+                                            color: theme.onSurfaceVariant
+                                            text: "Also add Cornerplay itself, so the whole library opens in TV mode from Game Mode."
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            readonly property var st: parent.parent.parent.st
+                                            enabled: !st.busy && st.accounts > 0 && !st.gameMode
+                                            text: "Add Cornerplay"
+                                            onClicked: app.addToSteam()
+                                        }
+                                    }
+                                }
+                                Component.onCompleted: app.checkSteamShortcut()
+                            }
+                            Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
+                            Row2 {
+                                label: ""
+                                hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."
+                                Toggle { label: "Sync cloud saves"; settingKey: "cloud_saves" }
+                            }
+                            Row2 {
+                                label: "Steam Web API key (optional)"
+                                hint: "Without a key Cornerplay shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    echoMode: TextInput.PasswordEchoOnEdit
+                                    text: app.settingsMap.steam_api_key
+                                    onEditingFinished: { app.setSetting("steam_api_key", text.trim()); app.refresh("steam") }
+                                }
+                            }
+                            Row2 {
+                                label: "Artwork"
+                                hint: "Covers follow the stores' current art: Steam's is checked every 2 days, GOG's every week, Epic's game data every week. This fetches everything again now."
+                                KButton {
+                                    theme: win.theme
+                                    iconName: "refresh-cw"
+                                    text: "Refresh artwork now"
+                                    enabled: !app.refreshing
+                                    onClicked: app.refreshArtwork()
+                                }
+                            }
+                            Row2 {
+                                label: "SteamGridDB API key (optional)"
+                                hint: "Games without box art are matched by title against Steam's store. A SteamGridDB key also finds art for games Steam does not sell: <a href='https://www.steamgriddb.com/profile/preferences/api'>steamgriddb.com/profile/preferences/api</a>."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    echoMode: TextInput.PasswordEchoOnEdit
+                                    text: app.settingsMap.steamgriddb_key
+                                    onEditingFinished: { app.setSetting("steamgriddb_key", text.trim()); app.refresh() }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- per-game options
+    KDialog {
+        id: gameOpts
+        objectName: "gameOpts"
+        theme: win.theme
+        property string key: ""
+        property var game: ({})
+        property var opts: ({})
+        property var steamProton: ({ choices: [], current: "" })
+        readonly property bool compat: ["epic", "gog", "amazon"].includes(game.store) || key === "battlenet:battlenet-app"
+        heading: "Options · " + (game.title || "")
+        width: Math.min(win.width - 60, 600)
+        function show(k) {
+            key = k
+            game = app.game(k)
+            opts = app.gameOptions(k)
+            optProton.select(opts.proton === undefined ? "default" : opts.proton)
+            steamProton = game.store === "steam" ? app.steamProton(k) : ({ choices: [], current: "" })
+            optSteamProton.model = steamProton.choices
+            optSteamProton.select(steamProton.current)
+            optHud.select(opts.mangohud === undefined ? "default" : opts.mangohud)
+            optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
+            optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
+            optEnv.text = opts.env || ""
+            optArgs.text = opts.args || ""
+            optCover.text = opts.cover || ""
+            open()
+        }
+        readonly property var triState: [{ label: "Use default", value: "default" }, { label: "On", value: true }, { label: "Off", value: false }]
+
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant
+                font.pixelSize: 12
+                visible: !gameOpts.compat && gameOpts.game.store !== "steam"
+                text: "Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile."
+            }
+            // Steam games: Steam's own per-game compatibility tool, set from here.
+            Row2 {
+                visible: gameOpts.game.store === "steam"
+                label: "Proton version (Steam's setting)"
+                hint: gameOpts.steamProton.choices.length
+                      ? "The same as the game's Properties → Compatibility in Steam. Cornerplay closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam."
+                      : "Steam is not set up on this PC yet: start Steam and sign in once."
+                KCombo {
+                    id: optSteamProton
+                    theme: win.theme; Layout.fillWidth: true
+                    enabled: gameOpts.steamProton.choices.length > 0 && !app.steamShortcut.busy
+                    onActivated: app.setSteamProton(gameOpts.key, currentValue)
+                }
+            }
+            Row2 {
+                visible: gameOpts.compat
+                label: "Proton version"
+                KCombo {
+                    id: optProton
+                    theme: win.theme; Layout.fillWidth: true
+                    model: [{ label: "Use default", value: "default" }].concat(app.protonVersions)
+                    onActivated: app.setGameOption(gameOpts.key, "proton", currentValue)
+                }
+            }
+            RowLayout {
+                visible: gameOpts.compat
+                spacing: 14
+                Row2 {
+                    label: "MangoHud"
+                    KCombo { id: optHud; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "mangohud", currentValue) }
+                }
+                Row2 {
+                    label: "GameMode"
+                    KCombo { id: optMode; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "gamemode", currentValue) }
+                }
+            }
+            Row2 {
+                visible: gameOpts.compat
+                label: "Environment variables"
+                KField { id: optEnv; theme: win.theme; Layout.fillWidth: true; placeholderText: "KEY=value KEY2=value"
+                         onEditingFinished: app.setGameOption(gameOpts.key, "env", text) }
+            }
+            Row2 {
+                visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
+                label: "Launch arguments"
+                KField { id: optArgs; theme: win.theme; Layout.fillWidth: true; placeholderText: "-windowed -skipintro"
+                         onEditingFinished: app.setGameOption(gameOpts.key, "args", text) }
+            }
+            RowLayout {
+                visible: app.cloudSaveStores.includes(gameOpts.game.store)
+                spacing: 14
+                Row2 {
+                    label: "Cloud saves"
+                    KCombo { id: optSaves; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "cloud_saves", currentValue) }
+                }
+                KButton {
+                    theme: win.theme
+                    Layout.alignment: Qt.AlignBottom
+                    text: "Sync saves now"
+                    enabled: !!gameOpts.game.installed
+                    onClicked: app.syncNow(gameOpts.key)
+                }
+            }
+            Row2 {
+                label: "Custom cover"
+                hint: "An image file or a web address. Leave empty to use the automatic cover."
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    KField { id: optCover; theme: win.theme; Layout.fillWidth: true; placeholderText: "Automatic"
+                             onEditingFinished: app.setGameOption(gameOpts.key, "cover", text) }
+                    KButton { theme: win.theme; text: "Choose…"; onClicked: coverPicker.open() }
+                    KButton { theme: win.theme; text: "Reset"; enabled: optCover.text !== ""
+                              onClicked: { optCover.text = ""; app.setGameOption(gameOpts.key, "cover", "") } }
+                }
+            }
+        }
+    }
+    FileDialog {
+        id: coverPicker
+        title: "Choose a cover image"
+        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
+        onAccepted: {
+            app.setGameOption(gameOpts.key, "cover", selectedFile.toString())
+            optCover.text = app.gameOptions(gameOpts.key).cover || ""
+        }
+    }
+
+    // -------------------------------------------------------------------- built-in sign-in window
+    Loader {
+        id: loginWindow
+        active: false
+        source: typeof webLogin !== "undefined" && webLogin ? "LoginWindow.qml" : ""
+        Connections {
+            target: loginWindow.item
+            function onFallback() { app.loginBegin(loginWindow.item.store, true) }
+        }
+    }
+
+    // -------------------------------------------------------------------- screenshot viewer
+    Popup {
+        id: viewer
+        objectName: "viewer"
+        property var shots: []
+        property int at: 0
+        function show(list, i) { shots = list || []; at = i; open() }
+        function step(d) { if (shots.length) at = (at + d + shots.length) % shots.length }
+        parent: Overlay.overlay
+        x: 0; y: 0
+        width: win.width; height: win.height
+        modal: true
+        focus: true
+        padding: 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle { color: Qt.alpha("black", 0.92) }
+        enter: Transition { enabled: !app.light; NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 180 } }
+        exit: Transition { enabled: !app.light; NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 120 } }
+        contentItem: Item {
+            focus: true
+            Keys.onLeftPressed: viewer.step(-1)
+            Keys.onRightPressed: viewer.step(1)
+            readonly property var shot: viewer.shots.length ? viewer.shots[viewer.at] : ({})
+            Image {  // the small version shows at once; the full one replaces it when it arrives
+                anchors.fill: parent; anchors.margins: 70
+                source: parent.shot.thumb || ""
+                fillMode: Image.PreserveAspectFit
+                visible: full.status !== Image.Ready
+            }
+            Image {
+                id: full
+                anchors.fill: parent; anchors.margins: 70
+                source: parent.shot.full || ""
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+            }
+            Round { anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter; icon: "play"; rotation: 180; visible: viewer.shots.length > 1; onTapped: viewer.step(-1) }
+            Round { anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; icon: "play"; visible: viewer.shots.length > 1; onTapped: viewer.step(1) }
+            Round { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; icon: "x"; onTapped: viewer.close() }
+            Text {
+                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 26 }
+                text: (viewer.at + 1) + " / " + viewer.shots.length
+                color: Qt.alpha("white", 0.8)
+                font.pixelSize: 14
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- toasts
+    ListModel { id: toasts }
+    Column {
+        z: 1000
+        parent: Overlay.overlay
+        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 24 }
+        spacing: 8
+        Repeater {
+            model: toasts
+            Rectangle {
+                id: toast
+                required property string message
+                required property int index
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(toastText.implicitWidth + 64, win.width - 80)
+                height: Math.max(44, toastText.height + 24)
+                radius: 14
+                color: theme.surfaceContainerHighest
+                border.width: 1
+                border.color: theme.outlineVariant
+                // Slide up and fade in.
+                opacity: 0
+                transform: Translate { id: toastShift; y: 14 }
+                Component.onCompleted: toastIn.start()
+                ParallelAnimation {
+                    id: toastIn
+                    NumberAnimation { target: toast; property: "opacity"; to: 1; duration: app.light ? 0 : 200; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: toastShift; property: "y"; to: 0; duration: app.light ? 0 : 260; easing.type: Easing.OutCubic }
+                }
+                // An icon picked from what the message says.
+                readonly property bool bad: /fail|could not|not (uploaded|synced|added|found|started)|rejected|error/i.test(message)
+                readonly property string icon: bad ? "x"
+                    : /^launching/i.test(message) ? "play"
+                    : /update available|updates available/i.test(message) ? "arrow-up"
+                    : /^removed|uninstall/i.test(message) ? "trash-2"
+                    : /save|sync|upload|cloud/i.test(message) ? "cloud"
+                    : /hidden/i.test(message) ? "eye-off"
+                    : /cancel/i.test(message) ? "x"
+                    : /installed|updated|added|is back|copied|in steam|ready/i.test(message) ? "check"
+                    : "gamepad-2"
+                Rectangle {
+                    x: 10; anchors.verticalCenter: parent.verticalCenter
+                    width: 26; height: 26; radius: 13
+                    color: Qt.alpha(toast.bad ? theme.error : theme.primary, 0.18)
+                    Icon { anchors.centerIn: parent; name: toast.icon; size: 15; color: toast.bad ? theme.error : theme.primary }
+                }
+                Text {
+                    id: toastText
+                    x: 46; anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, win.width - 144)
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                    text: toast.message
+                    color: theme.onSurface
+                    font.pixelSize: 13
+                }
+                Timer { interval: 5000; running: true; onTriggered: toasts.remove(0) }
+                MouseArea {  // takes the click, so a card under the message does not open
+                    anchors.fill: parent
+                    onClicked: toasts.remove(toast.index)
+                }
+            }
+        }
+    }
+}

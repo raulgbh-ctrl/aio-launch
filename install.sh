@@ -1,10 +1,10 @@
 #!/bin/sh
-# AIO Launch installer for Linux. Installs for the current user only (no root needed
-# for AIO Launch itself); system packages are optional and asked about first.
+# Cornerplay installer for Linux. Installs for the current user only (no root needed
+# for Cornerplay itself); system packages are optional and asked about first.
 #
 #   ./install.sh              install or update
-#   ./install.sh --uninstall  remove AIO Launch (keeps settings, sign-ins and games)
-#   ./install.sh --purge      remove AIO Launch and its settings/cache (never your games)
+#   ./install.sh --uninstall  remove Cornerplay (keeps settings, sign-ins and games)
+#   ./install.sh --purge      remove Cornerplay and its settings/cache (never your games)
 #
 # Options: --yes (no questions, say yes)   --no-system (never call sudo)
 #          --venv (always use a private Python environment)
@@ -13,13 +13,13 @@ set -eu
 
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PREFIX=${PREFIX:-$HOME/.local}
-LIB=$PREFIX/lib/aiolaunch
+LIB=$PREFIX/lib/cornerplay
 BIN=$PREFIX/bin
 APPS=$PREFIX/share/applications
 ICONS=$PREFIX/share/icons/hicolor/scalable/apps
-CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/aiolaunch
-DATA=${XDG_DATA_HOME:-$HOME/.local/share}/aiolaunch
-CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/aiolaunch
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/cornerplay
+DATA=${XDG_DATA_HOME:-$HOME/.local/share}/cornerplay
+CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/cornerplay
 
 MODE=install; YES=0; SYSTEM=1; FORCE_VENV=0; DEV=0
 for arg in "$@"; do
@@ -48,9 +48,10 @@ ask() {  # ask "question" -> 0 for yes
 
 # ---------------------------------------------------------------- uninstall
 if [ "$MODE" != install ]; then
-    say "Removing AIO Launch"
+    say "Removing Cornerplay"
     rm -rf "$LIB"
-    rm -f "$BIN/aiolaunch" "$APPS/aiolaunch.desktop" "$ICONS/aiolaunch.svg" "$PREFIX"/share/icons/hicolor/*/apps/aiolaunch.png
+    rm -f "$BIN/cornerplay" "$APPS/cornerplay.desktop" "$ICONS/cornerplay.svg" "$PREFIX"/share/icons/hicolor/*/apps/cornerplay.png
+    rm -f "$BIN/aiolaunch"  # the old name's forwarding command
     have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
         rm -rf "$CONFIG" "$DATA" "$CACHE"
@@ -63,8 +64,8 @@ if [ "$MODE" != install ]; then
 fi
 
 # ---------------------------------------------------------------- checks
-[ "$(uname -s)" = Linux ] || die "AIO Launch only runs on Linux."
-[ -f "$SRC/aiolaunch/__main__.py" ] || die "Run this from the AIO Launch folder (aiolaunch/__main__.py not found next to install.sh)."
+[ "$(uname -s)" = Linux ] || die "Cornerplay only runs on Linux."
+[ -f "$SRC/cornerplay/__main__.py" ] || die "Run this from the Cornerplay folder (cornerplay/__main__.py not found next to install.sh)."
 have python3 || die "python3 is required. Install it with your package manager and run this again."
 python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' \
     || die "Python 3.10 or newer is required (found $(python3 -V 2>&1))."
@@ -111,7 +112,7 @@ sys_install() {  # sys_install "what it is for" pkg...
 # ---------------------------------------------------------------- Python side
 say "Checking Python libraries"
 uses_system_python() {
-    probe=$(mktemp "${TMPDIR:-/tmp}/aiolaunch-probe.XXXXXX.qml") || return 1
+    probe=$(mktemp "${TMPDIR:-/tmp}/cornerplay-probe.XXXXXX.qml") || return 1
     printf 'import QtQuick\nimport QtQuick.Controls.Basic\nimport QtQuick.Layouts\nimport QtQuick.Dialogs\nimport QtQuick.Effects\nItem {}\n' > "$probe"
     QT_QPA_PLATFORM=offscreen python3 - "$probe" <<'EOF' >/dev/null 2>&1
 import sys
@@ -158,52 +159,67 @@ else
 fi
 
 # ---------------------------------------------------------------- files
-say "Installing AIO Launch into $PREFIX"
+say "Installing Cornerplay into $PREFIX"
 mkdir -p "$LIB" "$BIN" "$APPS" "$ICONS"
 if [ "$DEV" = 1 ]; then
     CODE=$SRC
-    rm -rf "$LIB/aiolaunch"
+    rm -rf "$LIB/cornerplay"
     note "Development mode: running straight from $SRC"
 else
     CODE=$LIB
-    rm -rf "$LIB/aiolaunch"
-    cp -R "$SRC/aiolaunch" "$LIB/aiolaunch"
-    find "$LIB/aiolaunch" -name __pycache__ -type d -prune -exec rm -rf {} +
+    rm -rf "$LIB/cornerplay"
+    cp -R "$SRC/cornerplay" "$LIB/cornerplay"
+    find "$LIB/cornerplay" -name __pycache__ -type d -prune -exec rm -rf {} +
     cp "$SRC/install.sh" "$LIB/install.sh"
 fi
 
-cat > "$BIN/aiolaunch" <<EOF
+cat > "$BIN/cornerplay" <<EOF
 #!/bin/sh
-# AIO Launch launcher, written by install.sh
-PYTHONPATH="$CODE\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m aiolaunch "\$@"
+# Cornerplay launcher, written by install.sh
+PYTHONPATH="$CODE\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m cornerplay "\$@"
 EOF
-chmod +x "$BIN/aiolaunch"
+chmod +x "$BIN/cornerplay"
+
+# The app used to be called AIO Launch: take its place. Its menu entry, icons and copy
+# go; `aiolaunch` stays as a command that forwards here, because games added to Steam
+# before the rename run `aiolaunch --play ...`.
+if [ -e "$BIN/aiolaunch" ] || [ -e "$APPS/aiolaunch.desktop" ] || [ -d "$PREFIX/lib/aiolaunch" ]; then
+    rm -rf "$PREFIX/lib/aiolaunch"
+    rm -f "$APPS/aiolaunch.desktop" "$ICONS/aiolaunch.svg" "$PREFIX"/share/icons/hicolor/*/apps/aiolaunch.png
+    cat > "$BIN/aiolaunch" <<EOF
+#!/bin/sh
+# AIO Launch is now Cornerplay; this keeps older Steam shortcuts working.
+exec "$BIN/cornerplay" "\$@"
+EOF
+    chmod +x "$BIN/aiolaunch"
+    note "AIO Launch is now Cornerplay. Your settings and games come along."
+fi
 
 # The icon goes into the icon theme under its name, as SVG and as PNGs: Steam's
 # "Add a Non-Steam Game" list and some panels do not draw SVG icons.
 mkdir -p "$ICONS"
-cp "$SRC/aiolaunch/aiolaunch.svg" "$ICONS/aiolaunch.svg"
-for png in "$SRC"/aiolaunch/icons/app/aiolaunch-*.png; do
+cp "$SRC/cornerplay/cornerplay.svg" "$ICONS/cornerplay.svg"
+for png in "$SRC"/cornerplay/icons/app/cornerplay-*.png; do
     size=${png##*-}; size=${size%.png}
     mkdir -p "$PREFIX/share/icons/hicolor/${size}x${size}/apps"
-    cp "$png" "$PREFIX/share/icons/hicolor/${size}x${size}/apps/aiolaunch.png"
+    cp "$png" "$PREFIX/share/icons/hicolor/${size}x${size}/apps/cornerplay.png"
 done
-cat > "$APPS/aiolaunch.desktop" <<EOF
+cat > "$APPS/cornerplay.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=AIO Launch
+Name=Cornerplay
 GenericName=Game Library
-Comment=One library for Steam, Epic, GOG, Amazon and Battle.net
-Exec=$BIN/aiolaunch
-Icon=aiolaunch
+Comment=Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and Battle.net in one place
+Exec=$BIN/cornerplay
+Icon=cornerplay
 Categories=Game;
 Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
-StartupWMClass=aiolaunch
+StartupWMClass=cornerplay
 Actions=tv;
 
 [Desktop Action tv]
 Name=TV mode
-Exec=$BIN/aiolaunch --tv
+Exec=$BIN/cornerplay --tv
 EOF
 have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
 have gtk-update-icon-cache && gtk-update-icon-cache -q -t "$PREFIX/share/icons/hicolor" >/dev/null 2>&1 || true
@@ -212,13 +228,13 @@ have kbuildsycoca6 && kbuildsycoca6 >/dev/null 2>&1 || { have kbuildsycoca5 && k
 
 # ---------------------------------------------------------------- optional pieces
 say "Checking the things games need"
-fetch_umu() {  # portable umu-launcher (one Python zipapp) into AIO Launch's own bin folder
+fetch_umu() {  # portable umu-launcher (one Python zipapp) into Cornerplay's own bin folder
     mkdir -p "$DATA/bin"
     python3 - "$DATA/bin/umu-run" <<'EOF'
 import io, json, os, sys, tarfile, urllib.request
 dest = sys.argv[1]
 api = "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
-req = urllib.request.Request(api, headers={"User-Agent": "aiolaunch-installer"})
+req = urllib.request.Request(api, headers={"User-Agent": "cornerplay-installer"})
 release = json.load(urllib.request.urlopen(req, timeout=30))
 asset = next(a for a in release["assets"] if a["name"].endswith("-zipapp.tar"))
 data = urllib.request.urlopen(asset["browser_download_url"], timeout=120).read()
@@ -293,7 +309,7 @@ if [ "$PYTHON" != python3 ] && [ "${XDG_SESSION_TYPE:-}" != wayland ] \
         apt-get) sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
         dnf)     sys_install "the X11 cursor library Qt needs" xcb-util-cursor || true ;;
         zypper)  sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
-        *) note "If AIO Launch does not open on X11, install your distribution's libxcb-cursor package." ;;
+        *) note "If Cornerplay does not open on X11, install your distribution's libxcb-cursor package." ;;
     esac
 fi
 
@@ -321,16 +337,16 @@ say "Store backends for Epic, GOG and Amazon"
 if [ "$(uname -m)" != x86_64 ]; then
     note "Skipped: prebuilt backends are only fetched for x86_64 here."
 elif ask "Download legendary, gogdl and nile from their GitHub releases into $DATA/bin?"; then
-    "$BIN/aiolaunch" --fetch-backends | sed 's/^/    /' || note "Download failed; run 'aiolaunch --fetch-backends' later."
+    "$BIN/cornerplay" --fetch-backends | sed 's/^/    /' || note "Download failed; run 'cornerplay --fetch-backends' later."
 else
-    note "Skipped. Run 'aiolaunch --fetch-backends' whenever you want them."
+    note "Skipped. Run 'cornerplay --fetch-backends' whenever you want them."
 fi
 
 # ---------------------------------------------------------------- Steam / Game Mode
 if ls "$HOME"/.local/share/Steam/userdata/[0-9]* "$HOME"/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata/[0-9]* >/dev/null 2>&1; then
     say "Steam library"
-    if ask "Add AIO Launch itself to Steam so it shows in Game Mode? (Steam closes and reopens if it is open)"; then
-        "$BIN/aiolaunch" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
+    if ask "Add Cornerplay itself to Steam so it shows in Game Mode? (Steam closes and reopens if it is open)"; then
+        "$BIN/cornerplay" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
     else
         note "Skipped. You can do it later in Settings > Library."
     fi
@@ -338,12 +354,12 @@ if ls "$HOME"/.local/share/Steam/userdata/[0-9]* "$HOME"/.var/app/com.valvesoftw
 fi
 
 # ---------------------------------------------------------------- done
-say "AIO Launch is installed"
-"$BIN/aiolaunch" --status | sed 's/^/    /' || true
+say "Cornerplay is installed"
+"$BIN/cornerplay" --status | sed 's/^/    /' || true
 echo
-note "Start it from your app menu, or run: aiolaunch        (TV mode: aiolaunch --tv)"
+note "Start it from your app menu, or run: cornerplay        (TV mode: cornerplay --tv)"
 case ":$PATH:" in
     *":$BIN:"*) ;;
-    *) note "Note: $BIN is not on your PATH. Add it, or start AIO Launch from the app menu." ;;
+    *) note "Note: $BIN is not on your PATH. Add it, or start Cornerplay from the app menu." ;;
 esac
 note "To remove it later: sh $( [ "$DEV" = 1 ] && echo "$SRC" || echo "$LIB" )/install.sh --uninstall"
