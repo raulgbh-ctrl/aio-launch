@@ -48,6 +48,7 @@ class Gamepad(QObject):
         self._event = ctypes.create_string_buffer(128)
         self._timer = None
         self._style = "xbox"
+        self._deck = self._is_deck()
         QTimer.singleShot(START_DELAY_MS, self._start)
 
     def _start(self):
@@ -97,7 +98,19 @@ class Gamepad(QObject):
             raise OSError("SDL_Init failed")
         self._sdl = sdl
 
+    @staticmethod
+    def _is_deck():
+        """Steam Deck hardware. In Desktop Mode Steam turns its controller into a keyboard
+        (A = Enter, B = Esc, Y = Space, D-pad = arrows), so SDL never sees a pad there."""
+        try:
+            vendor = open("/sys/class/dmi/id/board_vendor").read().strip()
+            product = open("/sys/class/dmi/id/product_name").read().strip()
+        except OSError:
+            return False
+        return vendor == "Valve" and product in ("Jupiter", "Galileo")
+
     available = Property(bool, lambda s: s._sdl is not None, notify=availableChanged)
+    deck = Property(bool, lambda s: s._deck, constant=True)
     connected = Property(bool, lambda s: bool(s._pads), notify=connectedChanged)
     style = Property(str, lambda s: s._style, notify=styleChanged)  # "xbox", "playstation" or "nintendo"
 

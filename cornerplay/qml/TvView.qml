@@ -414,7 +414,7 @@ FocusScope {
             Keys.onEscapePressed: { app.uiSound("back"); tv.exit() }
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
-                else if (event.key === Qt.Key_F3) { library.installedOnly = !library.installedOnly; event.accepted = true }
+                else if (event.key === Qt.Key_F3 || (event.key === Qt.Key_Space && pad.deck && !pad.connected)) { library.installedOnly = !library.installedOnly; event.accepted = true }
                 else if (event.key === Qt.Key_PageUp) { tv.cycleStore(-1); event.accepted = true }
                 else if (event.key === Qt.Key_PageDown) { tv.cycleStore(1); event.accepted = true }
             }
@@ -437,6 +437,9 @@ FocusScope {
                 model: pad.connected
                        ? [{ b: ["a"], t: "Play" }, { b: ["x"], t: "Actions" }, { b: ["y"], t: "Installed only" },
                           { b: ["lb", "rb"], t: "Store" }, { b: ["b"], t: "Back" }]
+                       : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
+                       ? [{ b: ["a"], t: "Play" }, { k: "F2", t: "Actions" }, { b: ["y"], t: "Installed only" },
+                          { b: ["b"], t: "Back" }]
                        : [{ k: "Enter", t: "Play" }, { k: "F2", t: "Actions" }, { k: "F3", t: "Installed only" },
                           { k: "PgUp / PgDn", t: "Store" }, { k: "Esc", t: "Back" }]
                 Row {
