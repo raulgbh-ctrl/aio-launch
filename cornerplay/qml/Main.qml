@@ -167,16 +167,42 @@ ApplicationWindow {
                 }
             }
 
+            // Always in view: TV mode and the tools, below the scrolling lists.
+            ColumnLayout {
+                id: sideBottom
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
+                spacing: 4
+                Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; opacity: sideFlick.contentHeight > sideFlick.height + 1 ? 1 : 0 }
+                NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    spacing: 1
+                    ToolIcon { icon: "gamepad-2"; tip: "What should I play?"; onPicked: picker.show() }
+                    ToolIcon { icon: "trophy"; tip: "Stats"; onPicked: statsBox.show() }
+                    ToolIcon { icon: "folder-open"; tip: "Storage"; onPicked: storage.show() }
+                    ToolIcon { icon: "check"; tip: healthBox.bad > 0 ? "Health check: " + healthBox.bad + " to fix" : "Health check"
+                               alert: healthBox.bad > 0; onPicked: healthBox.show() }
+                    ToolIcon { visible: app.hiddenCount > 0 || library.showHidden; icon: "eye-off"; on: library.showHidden
+                               tip: "Hidden games (" + app.hiddenCount + ")"
+                               onPicked: { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } }
+                    Item { Layout.fillWidth: true }
+                    ToolIcon { icon: "user-round"; tip: "Accounts"; onPicked: accounts.open() }
+                    ToolIcon { icon: "sliders-horizontal"; tip: "Settings"; onPicked: prefs.open() }
+                }
+            }
+
             // Scrolls when the list is taller than the window (a short screen, many collections);
             // otherwise the bottom items sit at the bottom as before.
             Flickable {
                 id: sideFlick
-                anchors.fill: parent
-                anchors.margins: 14
+                anchors { left: parent.left; right: parent.right; top: parent.top; bottom: sideBottom.top
+                          leftMargin: 14; rightMargin: 14; topMargin: 14 }
                 contentHeight: sideCol.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: KScrollBar { }
+                interactive: contentHeight > height + 1
+                ScrollBar.vertical: KScrollBar { visible: sideFlick.contentHeight > sideFlick.height + 1 }
             ColumnLayout {
                 id: sideCol
                 width: sideFlick.width
@@ -310,13 +336,26 @@ ApplicationWindow {
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
-
-                // Favourites and the user's own collections.
+                // Your lists: favourites, collections, and backlog statuses that have games.
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 14; Layout.leftMargin: 14; Layout.rightMargin: 6; Layout.bottomMargin: 2
+                    Text { Layout.fillWidth: true; text: "YOUR LISTS"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
+                    Rectangle {
+                        width: 24; height: 24; radius: 12
+                        color: addHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                        Icon { anchors.centerIn: parent; name: "plus"; size: 15; color: theme.onSurfaceVariant }
+                        HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: newColl.ask("") }
+                        ToolTip.visible: addHover.hovered; ToolTip.text: "New collection"; ToolTip.delay: 400
+                    }
+                }
                 Repeater {
                     model: app.sidebarShelves
                     NavItem {
                         required property var modelData
+                        // An empty Favourites stays out of the way until something is starred.
+                        visible: modelData.id !== "fav" || modelData.count > 0 || active
                         label: modelData.name
                         icon: modelData.id === "fav" ? "star" : "bookmark"
                         count: modelData.count
@@ -326,65 +365,36 @@ ApplicationWindow {
                         onRemove: { removeColl.name = modelData.name; removeColl.open() }
                     }
                 }
-                NavItem {
-                    label: "New collection"
-                    icon: "plus"
-                    dim: true
-                    onPicked: newColl.ask("")
-                }
-                // Backlog statuses that have games (Playing, Want to play, Finished, Dropped).
                 Repeater {
                     model: app.sidebarStatuses
                     NavItem {
                         required property var modelData
                         label: modelData.name
-                        icon: ({ "s:playing": "gamepad-2", "s:want": "bookmark", "s:finished": "check", "s:dropped": "x" })[modelData.id] || "bookmark"
+                        icon: ({ "s:playing": "gamepad-2", "s:want": "clock", "s:finished": "check", "s:dropped": "x" })[modelData.id] || "bookmark"
                         count: modelData.count
                         active: library.shelf === modelData.id && !library.showHidden
                         onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = modelData.id }
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; Layout.margins: 8; height: 1; color: theme.outlineVariant }
-
-                RowLayout {
-                    Layout.leftMargin: 14; Layout.rightMargin: 6
-                    Text { text: "Installed only"; color: theme.onSurface; font.pixelSize: 14; Layout.fillWidth: true }
-                    Switch {
-                        id: instSwitch
-                        checked: library.installedOnly
-                        onToggled: library.installedOnly = checked
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 22; radius: 11
-                            y: parent.height / 2 - height / 2
-                            color: instSwitch.checked ? theme.primary : theme.surfaceContainerHighest
-                            Rectangle {
-                                x: instSwitch.checked ? parent.width - width - 3 : 3
-                                y: 3; width: 16; height: 16; radius: 8
-                                color: instSwitch.checked ? theme.onPrimary : theme.outline
-                                Behavior on x { NumberAnimation { duration: 100 } }
-                            }
-                        }
-                    }
-                }
-
                 Item { Layout.fillHeight: true }
-
-                NavItem {
-                    visible: app.hiddenCount > 0 || library.showHidden
-                    label: "Hidden games"
-                    icon: "eye-off"
-                    count: app.hiddenCount
-                    active: library.showHidden
-                    onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
+                // Tools: one row of icons (their names show on hover).
+                component ToolIcon: Rectangle {
+                    id: ti
+                    property string icon
+                    property string tip
+                    property bool alert: false
+                    property bool on: false
+                    signal picked()
+                    width: 28; height: 32; radius: 9
+                    color: on ? theme.primaryContainer : tiHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    Icon { anchors.centerIn: parent; name: ti.icon; size: 17; color: ti.on ? theme.onPrimaryContainer : theme.onSurfaceVariant }
+                    Rectangle { visible: ti.alert; width: 8; height: 8; radius: 4; color: theme.error; anchors { right: parent.right; top: parent.top; margins: 4 } }
+                    HoverHandler { id: tiHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: ti.picked() }
+                    ToolTip.visible: tiHover.hovered; ToolTip.text: ti.tip; ToolTip.delay: 300
                 }
-                NavItem { label: "What should I play?"; icon: "gamepad-2"; onPicked: picker.show() }
-                NavItem { label: "Health check"; icon: "check"; count: healthBox.bad > 0 ? "!" : ""; onPicked: healthBox.show() }
-                NavItem { label: "Stats"; icon: "trophy"; onPicked: statsBox.show() }
-                NavItem { label: "Storage"; icon: "folder-open"; onPicked: storage.show() }
-                NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
-                NavItem { label: "Accounts"; icon: "user-round"; onPicked: accounts.open() }
-                NavItem { label: "Settings"; icon: "sliders-horizontal"; onPicked: prefs.open() }
+
             }
             }
         }
@@ -446,6 +456,23 @@ ApplicationWindow {
                     Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
                 }
                 Item { Layout.fillWidth: true }
+                // Installed only: a filter, so it sits with search and sort.
+                Rectangle {
+                    implicitWidth: instRow.implicitWidth + 26; implicitHeight: 38; radius: 10
+                    color: library.installedOnly ? theme.primaryContainer : theme.surfaceContainerHigh
+                    border.width: library.installedOnly ? 0 : 1; border.color: theme.outlineVariant
+                    Row {
+                        id: instRow
+                        anchors.centerIn: parent
+                        spacing: 7
+                        Icon { anchors.verticalCenter: parent.verticalCenter; name: library.installedOnly ? "check" : "download"; size: 15
+                               color: library.installedOnly ? theme.onPrimaryContainer : theme.onSurfaceVariant }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Installed"; font.pixelSize: 13
+                               color: library.installedOnly ? theme.onPrimaryContainer : theme.onSurface }
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: library.installedOnly = !library.installedOnly }
+                }
                 KCombo {
                     id: sortBox
                     theme: win.theme
