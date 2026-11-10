@@ -15,7 +15,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, health, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, health, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -25,6 +25,8 @@ from .stores.battlenet import LAUNCHER_COVER, BattleNet
 from .stores.epic import Epic
 from .stores.gog import Gog
 from .stores.steam import Steam
+from .stores import custom as custom_games
+from .stores.custom import Custom
 
 LIBRARY_CACHE = CACHE_DIR / "library.json"
 PALETTE = themes.RYOKU_PALETTE
@@ -430,7 +432,7 @@ class AioLaunch(QObject):
     def __init__(self, demo=False):
         super().__init__()
         self.demo = demo
-        self.stores = {s.id: s for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet())}
+        self.stores = {s.id: s for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet(), Custom())}
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
         self.tvProxy = LibraryProxy(self.model)  # TV mode's own list: its shelves leave the main view alone
@@ -552,6 +554,7 @@ class AioLaunch(QObject):
             except Exception as e:  # a broken config file must not take the UI down
                 logged, account, problem = False, "", str(e)
             out.append({"id": s.id, "name": s.name, "color": s.color, "count": len(mine),
+                        "inAccounts": getattr(s, "in_accounts", True),
                         "installed": sum(g.installed for g in mine), "loggedIn": logged,
                         "account": account, "problem": problem, "loginKind": s.login_kind,
                         "refreshing": s.id in self._pending})
@@ -706,6 +709,79 @@ class AioLaunch(QObject):
                 QTimer.singleShot(6000, self.blizzardSync.emit)
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- add a game by hand, import installed games ---------------------------------
+    @Slot(str, str, str)
+    def addGame(self, exe, title, args):
+        exe = QUrl(exe).toLocalFile() if exe.startswith("file:") else exe
+        try:
+            e = custom_games.add(exe, title, args)
+        except StoreError as err:
+            self.toast.emit(str(err))
+            return
+        self.toast.emit(f"Added {e['title']} ({'Linux program' if e['kind'] == 'linux' else 'Windows program, runs through Proton'})")
+        self.refresh("custom")
+
+    @Slot(str, result="QVariantList")
+    def ownedNotInstalled(self, store_id):
+        return sorted(({"id": g.id, "title": g.title} for g in self.model.games
+                       if g.store == store_id and not g.installed), key=lambda r: r["title"].lower())
+
+    @Slot(str)
+    def importFolder(self, folder):
+        """GOG games in a folder (or its subfolders) are found from now on."""
+        folder = QUrl(folder).toLocalFile() if folder.startswith("file:") else folder
+
+        def work():
+            n = importer.import_gog(folder)
+            return lambda: (self.toast.emit(f"Found {n} GOG game{'s' if n != 1 else ''}" if n else
+                                            "No GOG games in that folder. For an Epic or Amazon game, pick the game first."),
+                            self.refresh("gog") if n else None)
+        self._bg(work)
+
+    @Slot(str, str, str)
+    def importGame(self, store_id, gid, folder):
+        folder = QUrl(folder).toLocalFile() if folder.startswith("file:") else folder
+        g = self.model.find(f"{store_id}:{gid}")
+        title = g.title if g else gid
+
+        def work():
+            try:
+                tool = self.stores[store_id].tool()
+            except StoreError as e:
+                return lambda msg=str(e): self.toast.emit(msg)
+            ok, msg = (importer.import_epic if store_id == "epic" else importer.import_amazon)(tool, gid, folder)
+            return lambda: (self.toast.emit(f"Imported {title}" if ok else f"Could not import {title}: {msg[0][-140:]}"),
+                            self.refresh(store_id))
+        self._bg(work)
+
+    @Slot(result=int)
+    def heroicCount(self):
+        return len(importer.heroic_installs())
+
+    @Slot()
+    def importHeroic(self):
+        """Every game Heroic installed: Epic and Amazon through their import commands, GOG by folder."""
+        def work():
+            done, failed = 0, []
+            for e in importer.heroic_installs():
+                if e["store"] == "gog":
+                    importer.add_library_dir(os.path.dirname(e["path"]))
+                    done += 1
+                    continue
+                try:
+                    tool = self.stores[e["store"]].tool()
+                except StoreError:
+                    failed.append(e["title"] or e["id"])
+                    continue
+                ok, _msg = (importer.import_epic if e["store"] == "epic" else importer.import_amazon)(tool, e["id"], e["path"])
+                done += ok
+                if not ok:
+                    failed.append(e["title"] or e["id"])
+            return lambda: (self.toast.emit(f"Imported {done} game{'s' if done != 1 else ''} from Heroic"
+                                            + (f"; could not import {', '.join(failed[:3])}" if failed else "")),
+                            self.refresh("", False))
+        self._bg(work)
 
     # --- health check ------------------------------------------------------------
     healthReady = Signal("QVariantList")

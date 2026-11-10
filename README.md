@@ -101,6 +101,9 @@ Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the
 - **Leftover Proton prefixes** (Storage): prefixes of games no longer installed, and old ones put aside by Reset, with their size and Delete.
 - **Backup and restore** (Settings > People & sync): one zip with settings, people, collections, notes and playtime (no sign-in tokens); restoring keeps a copy of what was there.
 - **Animated covers and banners** in TV mode (SteamGridDB key; only when plugged in).
+- **Add games** (the Add button): any Windows program (runs through Proton in its own prefix) or Linux program, with covers, playtime, Options and TV mode like the rest; listed under "Other games" (removing one leaves its files alone). Import games already installed: a folder of GOG games, an Epic or Amazon game's folder (legendary / nile import), or everything Heroic installed (native or Flatpak Heroic). Nothing is downloaded again.
+- **Native Linux GOG games**: games with a Linux version install it by default (Settings > Compatibility, or per game under Options > Version) and start with their own start.sh, no Proton. Cloud saves are off for them (GOG's save locations are Windows paths). A missing system library is explained, with a way back to the Windows version.
+- **Proton-CachyOS**: Settings > Compatibility downloads the newest build from CachyOS (the faster x86-64-v3 build on CPUs that support it), beside GE-Proton.
 - **Updates**: an installed Cornerplay checks GitHub once a day and offers the new version (Update, then Restart). Settings: `update_check`.
 - **Free on Epic**: this week's free Epic games (and the next ones) above the library, from Epic's public promotions feed. Get opens the store page (Epic lets no other app claim them); claimed games show up on the next refresh.
 - **Steam achievements**: progress (12 / 50) in a Steam game's panel and in TV mode, when a Steam Web API key is set.

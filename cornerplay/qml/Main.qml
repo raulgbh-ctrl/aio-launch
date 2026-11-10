@@ -326,6 +326,7 @@ ApplicationWindow {
                     model: app.storesInfo
                     NavItem {
                         required property var modelData
+                        visible: modelData.id !== "custom" || modelData.count > 0
                         label: modelData.name
                         dot: modelData.color
                         store: modelData.id
@@ -488,6 +489,12 @@ ApplicationWindow {
                     text: grid.count + (grid.count === 1 ? " game" : " games")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
+                }
+                KButton {
+                    theme: win.theme
+                    text: "Add"
+                    iconName: "plus"
+                    onClicked: addBox.show()
                 }
                 KButton {
                     theme: win.theme
@@ -1802,6 +1809,86 @@ ApplicationWindow {
         }
     }
 
+    // -------------------------------------------------------------------- add / import games
+    KDialog {
+        id: addBox
+        objectName: "addBox"
+        theme: win.theme
+        heading: "Add games"
+        headingIcon: "plus"
+        property string exe: ""
+        property string importStore: "epic"
+        property int heroic: 0
+        function show() { exe = ""; addName.text = ""; addArgs.text = ""; heroic = app.heroicCount(); open() }
+        width: Math.min(win.width - 60, 620)
+        contentItem: ColumnLayout {
+            spacing: 16
+            // 1. any program
+            Text { text: "A game or app on this PC"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
+                   text: "A Windows program (.exe) runs through Proton in its own prefix; a Linux program runs as it is. It gets covers, playtime, Options and TV mode like any other game." }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                KField { Layout.fillWidth: true; theme: win.theme; readOnly: true; placeholderText: "No program chosen"
+                         text: addBox.exe ? decodeURIComponent(addBox.exe.replace("file://", "")) : "" }
+                KButton { theme: win.theme; text: "Choose…"; iconName: "folder-open"; onClicked: addExe.open() }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                KField { id: addName; Layout.fillWidth: true; theme: win.theme; placeholderText: "Name (optional: taken from the file)" }
+                KField { id: addArgs; Layout.preferredWidth: 180; theme: win.theme; placeholderText: "Arguments" }
+                KButton { theme: win.theme; primary: true; text: "Add"; enabled: addBox.exe !== ""
+                          onClicked: { app.addGame(addBox.exe, addName.text, addArgs.text); addBox.close() } }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+            // 2. already installed
+            Text { text: "Games you already installed"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
+                       text: "GOG games: pick the folder they are in (or one game's folder); every GOG game there is found." }
+                KButton { theme: win.theme; text: "Choose folder…"; iconName: "folder-open"; onClicked: importDir.open() }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                KCombo { id: impStore; theme: win.theme; Layout.preferredWidth: 130
+                         model: [{ label: "Epic", value: "epic" }, { label: "Amazon", value: "amazon" }]
+                         onActivated: addBox.importStore = currentValue }
+                KCombo { id: impGame; theme: win.theme; Layout.fillWidth: true
+                         model: app.ownedNotInstalled(addBox.importStore).map(g => ({ label: g.title, value: g.id })) }
+                KButton { theme: win.theme; text: "Its folder…"; iconName: "folder-open"; enabled: impGame.count > 0; onClicked: importGameDir.open() }
+            }
+            // 3. Heroic
+            RowLayout {
+                visible: addBox.heroic > 0
+                Layout.fillWidth: true
+                spacing: 8
+                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
+                       text: "Heroic has " + addBox.heroic + " installed game" + (addBox.heroic === 1 ? "" : "s") + ". Bring them in (nothing is copied or downloaded)." }
+                KButton { theme: win.theme; primary: true; text: "Import from Heroic"; onClicked: { app.importHeroic(); addBox.close() } }
+            }
+        }
+    }
+    FileDialog {
+        id: addExe
+        title: "Which program?"
+        onAccepted: { addBox.exe = selectedFile.toString(); if (!addName.text) addName.text = "" }
+    }
+    FolderDialog {
+        id: importDir
+        title: "Which folder are the GOG games in?"
+        onAccepted: { app.importFolder(selectedFolder.toString()); addBox.close() }
+    }
+    FolderDialog {
+        id: importGameDir
+        title: "Where is the game installed?"
+        onAccepted: { app.importGame(addBox.importStore, impGame.currentValue, selectedFolder.toString()); addBox.close() }
+    }
+
     // -------------------------------------------------------------------- health check
     KDialog {
         id: healthBox
@@ -2373,7 +2460,7 @@ ApplicationWindow {
         contentItem: ColumnLayout {
             spacing: 10
             Repeater {
-                model: app.storesInfo
+                model: app.storesInfo.filter(s => s.inAccounts)
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true

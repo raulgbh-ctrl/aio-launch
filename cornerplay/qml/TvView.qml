@@ -47,7 +47,7 @@ FocusScope {
         info = ({}); ach = ({}); anim = ({})
         infoTimer.restart()
     }
-    readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
+    readonly property var storeIds: [""].concat(app.storesInfo.filter(s => s.id !== "custom" || s.count > 0).map(s => s.id))
 
     // Shelves: Continue playing, Favourites, collections, Recently added, Library. Up / down.
     property var shelfList: []
