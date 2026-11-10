@@ -48,6 +48,10 @@ DEFAULTS = {
     "auto_update_from": 2,
     "auto_update_to": 6,
     "gog_native": True,    # GOG: install the Linux version when the game has one (no Proton)
+    "view": "grid",            # main window: "grid" of covers or "list" (a table)
+    "home_collapsed": [],      # home sections folded away: "banner", "continue", "free"
+    "home_order": ["continue", "free"],
+    "ui_scale": 1.0,           # interface size (1.0, 1.15, 1.3); applies after a restart
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"

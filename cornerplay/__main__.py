@@ -193,6 +193,14 @@ def main():
         QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
         QQuickWindow.setGraphicsApi(QSGRendererInterface.OpenGL)
 
+    # Interface size (Settings > Appearance): Qt scales everything; a QT_SCALE_FACTOR already set wins.
+    try:
+        from .config import settings as _settings
+        scale = float(_settings.get("ui_scale") or 1.0)
+    except (TypeError, ValueError):
+        scale = 1.0
+    if abs(scale - 1.0) > 0.01 and "QT_SCALE_FACTOR" not in os.environ:
+        os.environ["QT_SCALE_FACTOR"] = f"{scale:.2f}"
     # The window class must say "cornerplay" so desktops (KDE on the Steam Deck, X11 docks)
     # match the window to cornerplay.desktop and show its icon. Qt builds the class from
     # argv[0] and the application name; started as "python3 -m cornerplay" both were wrong.

@@ -45,6 +45,39 @@ ApplicationWindow {
         if (g.copies.filter(c => c.installed).length > 1)
             toasts.append({ message: "Installed from several stores: pick the launcher to use" })
     }
+    // Home sections: folded away or not, and their order (Settings keys home_collapsed / home_order).
+    function homeFolded(id) { return (app.settingsMap.home_collapsed || []).indexOf(id) !== -1 }
+    function toggleHome(id) {
+        const now = (app.settingsMap.home_collapsed || []).slice()
+        const i = now.indexOf(id)
+        if (i === -1) now.push(id); else now.splice(i, 1)
+        app.setSetting("home_collapsed", now)
+    }
+    function moveHome(id, step) {
+        const order = (app.settingsMap.home_order || ["continue", "free"]).slice()
+        const i = order.indexOf(id), j = i + step
+        if (i < 0 || j < 0 || j >= order.length) return
+        order[i] = order[j]; order[j] = id
+        app.setSetting("home_order", order)
+    }
+    // The cover under the pointer: its colour tints the library; resting on it shows a preview.
+    property string hoverKey: ""
+    property string hoverAccent: ""
+    Connections { target: app; function onGameColourReady(key, colour) { if (key === win.hoverKey) win.hoverAccent = colour } }
+    Timer {
+        id: previewTimer
+        interval: 700
+        onTriggered: {
+            const card = grid.itemAtIndex(grid.hoverIndex)
+            if (!card || popupOpen || !win.cardsLive) return
+            preview.g = app.game(win.hoverKey)
+            const right = card.mapToItem(win.contentItem, card.width - 4, 18)
+            const left = card.mapToItem(win.contentItem, 4, 18)
+            preview.x = right.x + preview.width < win.width - 8 ? right.x : left.x - preview.width
+            preview.y = Math.min(right.y, win.height - preview.height - 12)
+            preview.visible = true
+        }
+    }
     function storeInfo(id) {
         const all = app.storesInfo
         for (let i = 0; i < all.length; i++) if (all[i].id === id) return all[i]
@@ -154,6 +187,7 @@ ApplicationWindow {
 
         // ---------------------------------------------------------------- sidebar
         Rectangle {
+            id: sidebar
             Layout.fillHeight: true
             Layout.preferredWidth: 236
             color: theme.surfaceContainerLow
@@ -457,6 +491,23 @@ ApplicationWindow {
                     Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
                 }
                 Item { Layout.fillWidth: true }
+                // Covers or a table.
+                Row {
+                    spacing: 2
+                    Repeater {
+                        model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "list", i: "list", t: "List" }]
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool on: (app.settingsMap.view || "grid") === modelData.v
+                            width: 38; height: 38; radius: 10
+                            color: on ? theme.primaryContainer : vHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                            Icon { anchors.centerIn: parent; name: modelData.i; size: 17; color: parent.on ? theme.onPrimaryContainer : theme.onSurfaceVariant }
+                            HoverHandler { id: vHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.setSetting("view", modelData.v) }
+                            ToolTip.visible: vHover.hovered; ToolTip.text: modelData.t; ToolTip.delay: 400
+                        }
+                    }
+                }
                 // Installed only: a filter, so it sits with search and sort.
                 Rectangle {
                     implicitWidth: instRow.implicitWidth + 26; implicitHeight: 38; radius: 10
@@ -513,6 +564,42 @@ ApplicationWindow {
                 color: theme.outlineVariant
                 opacity: grid.contentY > grid.originY + 4 ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+
+            // Filter chips: pick several; a genre from the details fetched so far.
+            Flow {
+                id: chips
+                Layout.fillWidth: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
+                spacing: 6
+                property var genres: []
+                Connections { target: app; function onDetailsGrew() { chips.genres = app.genreList().slice(0, 14) } }
+                Component.onCompleted: genres = app.genreList().slice(0, 14)
+                function toggle(tag) {
+                    const t = (library.tags || []).slice()
+                    const i = t.indexOf(tag)
+                    if (i === -1) t.push(tag); else t.splice(i, 1)
+                    library.tags = t
+                }
+                Repeater {
+                    model: [{ t: "unplayed", l: "Never played", i: "sparkles" }, { t: "linux", l: "Linux version", i: "" },
+                            { t: "controller", l: "Full controller support", i: "gamepad-2" }, { t: "protondb", l: "Runs well (ProtonDB Gold+)", i: "check" }]
+                    Chip2 { required property var modelData; label: modelData.l; icon: modelData.i
+                            on: (library.tags || []).indexOf(modelData.t) !== -1; onPicked: chips.toggle(modelData.t) }
+                }
+                Repeater {
+                    model: chips.genres
+                    Chip2 { required property string modelData; label: modelData
+                            on: (library.tags || []).indexOf("genre:" + modelData) !== -1; onPicked: chips.toggle("genre:" + modelData) }
+                }
+                Chip2 { visible: (library.tags || []).length > 0; label: "Clear filters"; icon: "x"; onPicked: library.tags = [] }
+            }
+            Text {
+                Layout.leftMargin: 22; Layout.bottomMargin: 6
+                readonly property var free: library.search ? app.epicFree.filter(g => g.title.toLowerCase().indexOf(library.search) !== -1) : []
+                visible: free.length > 0
+                text: "Also free on Epic right now: " + free.map(g => g.title).join(", ")
+                color: theme.primary; font.pixelSize: 12
             }
 
             // A game started from Cornerplay is running: how long, and a way out when it hangs.
@@ -576,8 +663,23 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
+                // A soft glow in the colour of the game under the pointer.
+                Rectangle {
+                    id: glowRect
+                    anchors.fill: parent
+                    visible: !app.light
+                    property color glow: win.hoverAccent || "transparent"
+                    Behavior on glow { ColorAnimation { duration: 500 } }
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.alpha(glowRect.glow, 0.10) }
+                        GradientStop { position: 0.6; color: Qt.alpha(glowRect.glow, 0.03) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
                 GridView {
                     id: grid
+                    objectName: "libraryGrid"
+                    visible: (app.settingsMap.view || "grid") !== "list"
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
@@ -605,6 +707,16 @@ ApplicationWindow {
                         NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
                         NumberAnimation { property: "y"; from: ViewTransition.destination.y + 24; duration: 360; easing.type: Easing.OutCubic }
                     }
+                    // Filters and searches: covers fade in and slide to their new places.
+                    add: Transition {
+                        enabled: !app.light
+                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 220 }
+                        NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: 220; easing.type: Easing.OutCubic }
+                    }
+                    displaced: Transition {
+                        enabled: !app.light
+                        NumberAnimation { properties: "x,y"; duration: 240; easing.type: Easing.OutCubic }
+                    }
                     // Hero banner for the last game you played, then the rest of "Continue playing".
                     // Part of the grid's header, so it scrolls away with the library.
                     header: Column {
@@ -619,8 +731,18 @@ ApplicationWindow {
                         bottomPadding: 14
                         spacing: 18
 
+                        // The banner folded away: one slim line to bring it back.
+                        RowLayout {
+                            visible: win.homeFolded("banner")
+                            x: 8; width: parent.width - 16
+                            Text { text: "Back in your corner: " + (win.heroInfo.title || ""); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Icon { name: "chevron-down"; size: 16; color: theme.onSurfaceVariant
+                                   TapHandler { onTapped: win.toggleHome("banner") }
+                                   HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                        }
                         Item {
                             id: hero
+                            visible: !win.homeFolded("banner")
                             property var info: win.heroInfo
                             property var game: info.key ? app.game(info.key) : ({})
                             property string accent: info.key ? app.gameColour(info.key) : ""
@@ -695,6 +817,17 @@ ApplicationWindow {
                                 }
                             }
                             Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
+                            Rectangle {  // fold the banner away
+                                anchors { left: parent.left; top: parent.top; margins: 12 }
+                                width: 28; height: 28; radius: 14
+                                color: Qt.alpha("black", foldHover.hovered ? 0.6 : 0.35)
+                                opacity: heroHover.hovered ? 1 : 0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
+                                Icon { anchors.centerIn: parent; name: "chevron-up"; size: 16; color: "white" }
+                                HoverHandler { id: foldHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: win.toggleHome("banner") }
+                            }
+                            HoverHandler { id: heroHover }
                             // Corner brackets, the icon's corner, framing the banner.
                             CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 16; rotation: 180; tone: hero.tint.primary; opacity: 0.85 }
                             CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16; rotation: -90; tone: hero.tint.primary; opacity: 0.85 }
@@ -818,14 +951,19 @@ ApplicationWindow {
                             }
                         }
 
+                        // The two sections sit in these slots, in the order the user chose.
+                        Item { id: homeSlotA; width: parent.width; height: childrenRect.height }
+                        Item { id: homeSlotB; width: parent.width; height: childrenRect.height }
                         Column {
+                            parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotA : homeSlotB
                             visible: app.recentGames.length > 1
                             x: 8
                             width: parent.width - 16
                             spacing: 10
-                            Text { text: "Continue playing"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            SectionHead { sid: "continue"; title: "Continue playing" }
                             ListView {
                                 id: recentRow
+                                visible: !win.homeFolded("continue")
                                 width: parent.width
                                 height: 132
                                 orientation: ListView.Horizontal
@@ -892,17 +1030,15 @@ ApplicationWindow {
 
                         // Epic's free games this week (and next): Get opens the store page.
                         Column {
+                            parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotB : homeSlotA
                             visible: app.epicFree.length > 0
                             x: 8
                             width: parent.width - 16
                             spacing: 10
                             bottomPadding: 18
-                            Row {
-                                spacing: 8
-                                Icon { name: "gift"; size: 15; color: theme.primary; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "Free on Epic"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
-                            }
+                            SectionHead { sid: "free"; title: "Free on Epic"; icon: "gift" }
                             ListView {
+                                visible: !win.homeFolded("free")
                                 width: parent.width
                                 height: 132
                                 orientation: ListView.Horizontal
@@ -985,7 +1121,11 @@ ApplicationWindow {
                         // selection steps back.
                         interactive: win.cardsLive
                         current: GridView.isCurrentItem && grid.activeFocus && grid.hoverIndex < 0
-                        onHoveredChanged: grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
+                        onHoveredChanged: {
+                            grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
+                            if (hovered) { win.hoverKey = key; win.hoverAccent = app.gameColour(key); previewTimer.restart() }
+                            else if (win.hoverKey === key) { previewTimer.stop(); preview.visible = false }
+                        }
                         onOpened: { grid.currentIndex = index; win.select(key) }
                         onActivated: { grid.currentIndex = index; win.activate(key) }
                         required property int index
@@ -997,7 +1137,99 @@ ApplicationWindow {
                     Keys.onSpacePressed: { const key = library.keyAt(currentIndex); if (key) win.select(key) }
                 }
 
-                // Empty state.
+                // The library as a table: click a column to sort by it.
+                ListView {
+                    id: table
+                    visible: (app.settingsMap.view || "grid") === "list"
+                    anchors.fill: parent
+                    anchors.leftMargin: 20; anchors.rightMargin: 20
+                    clip: true
+                    model: visible ? library : null
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: KScrollBar { }
+                    readonly property var cols: [{ t: "Game", s: "name", w: 0 }, { t: "Store", s: "", w: 140 }, { t: "Status", s: "", w: 120 },
+                                                 { t: "Rating", s: "rating", w: 96 }, { t: "Played", s: "playtime", w: 90 },
+                                                 { t: "Last played", s: "recent", w: 110 }, { t: "Size", s: "size", w: 84 }]
+                    headerPositioning: ListView.OverlayHeader
+                    header: Rectangle {
+                        width: table.width; height: 38; z: 2
+                        color: theme.background
+                        Row {
+                            anchors.fill: parent
+                            Repeater {
+                                model: table.cols
+                                Item {
+                                    required property var modelData
+                                    required property int index
+                                    width: modelData.w || (table.width - 640 - 56)
+                                    height: 38
+                                    x: 0
+                                    Text {
+                                        anchors { left: parent.left; leftMargin: index === 0 ? 56 : 0; verticalCenter: parent.verticalCenter }
+                                        text: modelData.t + (modelData.s && library.sortMode === modelData.s ? "  \u25BE" : "")
+                                        color: modelData.s && library.sortMode === modelData.s ? theme.primary : theme.outline
+                                        font.pixelSize: 12; font.weight: Font.DemiBold
+                                    }
+                                    HoverHandler { enabled: !!modelData.s; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { enabled: !!modelData.s; onTapped: library.sortMode = modelData.s }
+                                }
+                            }
+                        }
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.outlineVariant }
+                    }
+                    delegate: Rectangle {
+                        id: trow
+                        required property int index
+                        required property string key
+                        required property string title
+                        required property string storeName
+                        required property string store
+                        required property string storeColor
+                        required property var covers
+                        required property bool installed
+                        required property string status
+                        required property int rating
+                        required property real playtime
+                        required property real lastPlayed
+                        required property real sizeBytes
+                        width: table.width; height: 56
+                        radius: 10
+                        color: rowHover.hovered ? theme.surfaceContainerHigh : index % 2 ? Qt.alpha(theme.surfaceContainerLow, 0.6) : "transparent"
+                        opacity: installed || !app.settingsMap.dim_uninstalled ? 1 : 0.65
+                        Row {
+                            anchors.fill: parent
+                            Item {
+                                width: table.width - 640 - 56 + 56; height: parent.height
+                                RoundedArt { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 30; height: 44; radius: 5
+                                             ArtImage { anchors.fill: parent; sources: trow.covers || []; sourceSize.width: 60 } }
+                                Text { x: 56; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 64
+                                       text: trow.title; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
+                            }
+                            Row {
+                                width: 140; height: parent.height; spacing: 6
+                                StoreIcon { anchors.verticalCenter: parent.verticalCenter; size: 14; store: trow.store; color: trow.storeColor }
+                                Text { anchors.verticalCenter: parent.verticalCenter; text: trow.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                            }
+                            Text { width: 120; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                                   text: ({ playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" })[trow.status] || (trow.installed ? "Installed" : "") }
+                            Text { width: 96; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 13; color: "#ffd166"
+                                   text: trow.rating ? "\u2605".repeat(trow.rating) : "" }
+                            Text { width: 90; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                                   text: trow.playtime >= 3600 ? Math.round(trow.playtime / 360) / 10 + " h" : trow.playtime > 0 ? Math.round(trow.playtime / 60) + " min" : "" }
+                            Text { width: 110; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                                   text: trow.lastPlayed > 0 ? new Date(trow.lastPlayed * 1000).toLocaleDateString(Qt.locale(), "d MMM yyyy") : "" }
+                            Text { width: 84; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                                   text: trow.sizeBytes > 0 ? (trow.sizeBytes / 1073741824).toFixed(1) + " GB" : "" }
+                        }
+                        HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onSingleTapped: win.select(trow.key)
+                            onDoubleTapped: win.activate(trow.key)
+                        }
+                    }
+                }
+
+                // Empty state: says why, and offers the way back.
                 Column {
                     visible: grid.count === 0
                     anchors.centerIn: parent
@@ -1022,15 +1254,21 @@ ApplicationWindow {
                         visible: !app.refreshing && !library.showHidden
                         text: app.totalCount === 0
                               ? "Pull up a chair: connect your stores in Accounts and every game you own settles in here."
-                              : "Try a different search, store, or turn off Installed only."
+                              : library.search ? "No game called \u201c" + library.search + "\u201d" + ((library.tags || []).length || library.installedOnly || library.storeFilter || library.shelf ? " with these filters." : ".")
+                              : library.shelf && !(library.tags || []).length && !library.installedOnly ? "This list is empty. Add games to it from a game's page."
+                              : "No games match these filters."
                     }
-                    KButton {
-                        theme: win.theme
-                        primary: true
+                    Row {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !app.refreshing && app.totalCount === 0 && !library.showHidden
-                        text: "Connect stores"
-                        onClicked: accounts.open()
+                        spacing: 8
+                        visible: !app.refreshing && !library.showHidden
+                        KButton { theme: win.theme; primary: true; visible: app.totalCount === 0; text: "Connect stores"; onClicked: accounts.open() }
+                        KButton { theme: win.theme; visible: app.totalCount === 0; text: "Add a game"; iconName: "plus"; onClicked: addBox.show() }
+                        KButton { theme: win.theme; visible: !!library.search; text: "Clear search"; iconName: "x"; onClicked: search.text = "" }
+                        KButton { theme: win.theme; visible: (library.tags || []).length > 0; text: "Clear filters"; onClicked: library.tags = [] }
+                        KButton { theme: win.theme; visible: library.installedOnly; text: "Show all games"; onClicked: library.installedOnly = false }
+                        KButton { theme: win.theme; visible: !!library.storeFilter || !!library.shelf; text: "All games"; iconName: "library"
+                                  onClicked: { library.storeFilter = ""; library.shelf = "" } }
                     }
                 }
             }
@@ -1063,17 +1301,37 @@ ApplicationWindow {
             noteField.text = win.selected.note || ""
             dlcCount = -1
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
+            similar = app.similarGames(win.selectedKey)
+            detailFlick.contentY = 0
         }
-        width: Math.min(win.width - 60, 860)
+        // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
+        x: sidebar.width
+        y: 0
+        width: win.width - sidebar.width
+        height: win.height
+        rise: 0
+        Overlay.modal: Item { }
+        padding: Math.max(28, Math.round((width - 1100) / 2))
         // The game's wide art runs across the top; the cover and title start inside its faded lower part.
-        readonly property int bannerH: Math.round(width * 0.34)
-        topPadding: bannerH - 118
+        readonly property int bannerH: Math.round(Math.min(height * 0.5, width * 0.4))
+        topPadding: bannerH - 150
+        bottomPadding: 0
+        property var similar: []
+        Connections { target: app; function onDetailsGrew() { if (detail.opened) detail.similar = app.similarGames(win.selectedKey) } }
+        // Opening grows out of the middle, like the cover it came from.
+        enter: Transition {
+            enabled: !app.light
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.97; to: 1; duration: 260; easing.type: Easing.OutCubic }
+        }
+        exit: Transition {
+            enabled: !app.light
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 140 }
+        }
         onClosed: { win.selectedKey = ""; confirmRemove.armed = false }
         background: Rectangle {
-            radius: 18
+            radius: 0
             color: theme.surfaceContainer
-            border.width: 1
-            border.color: theme.outlineVariant
             Item {
                 id: detailBanner
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
@@ -1097,17 +1355,30 @@ ApplicationWindow {
                     }
                 }
             }
-            Rectangle { id: detailMask; anchors.fill: detailBanner; radius: 17; layer.enabled: true; visible: false }
-            Rectangle {
-                anchors { right: parent.right; top: parent.top; margins: 14 }
-                width: 34; height: 34; radius: 17
+            Rectangle { id: detailMask; anchors.fill: detailBanner; radius: 0; layer.enabled: true; visible: false }
+            Rectangle {  // Back to the library (Esc too)
+                anchors { left: parent.left; top: parent.top; margins: 18 }
+                width: backRow.implicitWidth + 28; height: 36; radius: 18
                 color: closeHover.hovered ? Qt.alpha("black", 0.7) : Qt.alpha("black", 0.45)
-                Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 15 }
+                Row { id: backRow; anchors.centerIn: parent; spacing: 6
+                      Icon { anchors.verticalCenter: parent.verticalCenter; name: "arrow-left"; size: 16; color: "white" }
+                      Text { anchors.verticalCenter: parent.verticalCenter; text: "Library"; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold } }
                 HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: detail.close() }
             }
         }
-        contentItem: RowLayout {
+        contentItem: Flickable {
+            id: detailFlick
+            clip: true
+            contentHeight: detailPage.implicitHeight + 40
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: KScrollBar { }
+        ColumnLayout {
+            id: detailPage
+            width: detailFlick.width
+            spacing: 28
+        RowLayout {
+            Layout.fillWidth: true
             spacing: 26
             Rectangle {
                 Layout.preferredWidth: 220
@@ -1475,6 +1746,39 @@ ApplicationWindow {
                     }
                 }
             }
+        }
+        // More like this in your library (shared genres, the same developer).
+        ColumnLayout {
+            visible: detail.similar.length > 0
+            Layout.fillWidth: true
+            spacing: 10
+            Text { text: "More like this in your library"; color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold }
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 196
+                orientation: ListView.Horizontal
+                spacing: 12
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: detail.similar
+                delegate: Item {
+                    required property var modelData
+                    width: 124; height: 196
+                    RoundedArt {
+                        width: 124; height: 172; radius: 10
+                        opacity: modelData.installed ? 1 : 0.7
+                        ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 248 }
+                    }
+                    Text { y: 176; width: parent.width; text: modelData.title; color: theme.onSurfaceVariant; font.pixelSize: 11; elide: Text.ElideRight }
+                    Rectangle { visible: modelData.unplayed; x: 6; y: 6; height: 20; radius: 10; width: newT.implicitWidth + 14; color: "#cc000000"
+                                Text { id: newT; anchors.centerIn: parent; text: "Not played"; color: "white"; font.pixelSize: 10 } }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: { win.select(modelData.key); detail.opened() } }
+                }
+            }
+        }
+        Item { Layout.preferredHeight: 20 }
+        }
         }
     }
 
@@ -2695,6 +2999,62 @@ ApplicationWindow {
     }
 
     // A small rounded label: optional store logo, text, optional accent colour.
+    // A filter chip (on / off).
+    component Chip2: Rectangle {
+        id: c2
+        property string label
+        property string icon: ""
+        property bool on: false
+        signal picked()
+        height: 30; radius: 15
+        width: c2row.implicitWidth + 24
+        color: on ? app.theme.primaryContainer : c2Hover.hovered ? app.theme.surfaceContainerHigh : "transparent"
+        border.width: on ? 0 : 1; border.color: app.theme.outlineVariant
+        Row {
+            id: c2row
+            anchors.centerIn: parent
+            spacing: 6
+            Icon { visible: c2.icon !== ""; anchors.verticalCenter: parent.verticalCenter; name: c2.icon; size: 13
+                   color: c2.on ? app.theme.onPrimaryContainer : app.theme.onSurfaceVariant }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: c2.label; font.pixelSize: 12
+                   color: c2.on ? app.theme.onPrimaryContainer : app.theme.onSurfaceVariant }
+        }
+        HoverHandler { id: c2Hover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: c2.picked() }
+    }
+
+    // A home section's title: click to fold it away; arrows on hover move it up or down.
+    component SectionHead: RowLayout {
+        id: sh
+        property string sid
+        property string title
+        property string icon: ""
+        width: parent ? parent.width : 0
+        spacing: 8
+        Icon { visible: sh.icon !== ""; name: sh.icon; size: 15; color: app.theme.primary }
+        Text { text: sh.title; color: app.theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Icon { name: win.homeFolded(sh.sid) ? "chevron-right" : "chevron-down"; size: 14; color: app.theme.outline }
+        Item { Layout.fillWidth: true }
+        Row {
+            spacing: 2
+            opacity: shHover.hovered ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            Repeater {
+                model: [{ i: "chevron-up", d: -1 }, { i: "chevron-down", d: 1 }]
+                Rectangle {
+                    required property var modelData
+                    width: 24; height: 22; radius: 6
+                    color: mvHover.hovered ? app.theme.surfaceContainerHigh : "transparent"
+                    Icon { anchors.centerIn: parent; name: modelData.i; size: 14; color: app.theme.onSurfaceVariant }
+                    HoverHandler { id: mvHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: win.moveHome(sh.sid, modelData.d) }
+                }
+            }
+        }
+        HoverHandler { id: shHover }
+        TapHandler { onTapped: win.toggleHome(sh.sid) }
+    }
+
     component Pill: Rectangle {
         id: pill
         readonly property var theme: app.theme
@@ -2871,6 +3231,27 @@ ApplicationWindow {
                                     value: app.settingsMap.card_size
                                     onMoved: app.setSetting("card_size", value)
                                 }
+                            }
+                            RowLayout {
+                                spacing: 10
+                                Row2 {
+                                    label: "Interface size (text and buttons)"
+                                    hint: "Applies after a restart."
+                                    KCombo {
+                                        theme: win.theme; Layout.fillWidth: true
+                                        model: [{ label: "Normal (100%)", value: 1.0 }, { label: "Larger (115%)", value: 1.15 },
+                                                { label: "Largest (130%)", value: 1.3 }]
+                                        Component.onCompleted: select(app.settingsMap.ui_scale || 1.0)
+                                        onActivated: app.setSetting("ui_scale", currentValue)
+                                    }
+                                }
+                                KButton { theme: win.theme; Layout.alignment: Qt.AlignBottom; text: "Restart now"; iconName: "refresh-cw"; onClicked: app.restartApp() }
+                            }
+                            KButton {
+                                theme: win.theme
+                                text: app.settingsMap.card_size >= 250 ? "Back to normal tiles" : "Large tiles (touchscreens)"
+                                iconName: "layout-grid"
+                                onClicked: app.setSetting("card_size", app.settingsMap.card_size >= 250 ? 196 : 270)
                             }
                             Row2 {
                                 label: "Corner roundness"
@@ -3459,6 +3840,38 @@ ApplicationWindow {
         onAccepted: {
             app.setGameOption(gameOpts.key, "cover", selectedFile.toString())
             optCover.text = app.gameOptions(gameOpts.key).cover || ""
+        }
+    }
+
+    // -------------------------------------------------------------------- hover preview
+    Rectangle {
+        id: preview
+        property var g: ({})
+        visible: false
+        z: 50
+        width: 250
+        height: pcol.implicitHeight + 26
+        radius: 14
+        color: Qt.alpha(theme.surfaceContainerHigh, 0.97)
+        border.width: 1; border.color: theme.outlineVariant
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 120 } }
+        Column {
+            id: pcol
+            x: 14; y: 13
+            width: parent.width - 28
+            spacing: 6
+            Text { width: parent.width; text: preview.g.title || ""; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; wrapMode: Text.WordWrap }
+            Row { spacing: 6
+                  StoreIcon { anchors.verticalCenter: parent.verticalCenter; size: 13; store: preview.g.store || ""; color: preview.g.storeColor || "white" }
+                  Text { text: (preview.g.storeName || "") + (preview.g.installed ? "  ·  installed" : "  ·  not installed"); color: theme.onSurfaceVariant; font.pixelSize: 12 } }
+            Text { width: parent.width; visible: text !== ""; text: preview.g.key ? app.playedText(preview.g.playtime, preview.g.lastPlayed) : ""
+                   color: theme.onSurfaceVariant; font.pixelSize: 12; wrapMode: Text.WordWrap }
+            Text { visible: !!preview.g.status || !!preview.g.rating; color: theme.onSurfaceVariant; font.pixelSize: 12
+                   text: [({ playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" })[preview.g.status] || "",
+                          preview.g.rating ? "\u2605".repeat(preview.g.rating) : ""].filter(x => x).join("   ") }
+            Text { visible: !!preview.g.protondb; color: theme.onSurfaceVariant; font.pixelSize: 12
+                   text: "ProtonDB: " + (preview.g.protondb || "").charAt(0).toUpperCase() + (preview.g.protondb || "").slice(1) }
         }
     }
 

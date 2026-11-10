@@ -35,9 +35,9 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
          "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite",
-         "status", "rating"]
+         "status", "rating", "sizeBytes"]
 GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite", "status", "rating")
-SORTS = ("name", "recent", "playtime", "rating")
+SORTS = ("name", "recent", "playtime", "rating", "size")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
 
 
@@ -113,6 +113,7 @@ _FIELDS = {
     "favourite": lambda m, g: shelves.FAV in shelves.ids_of(g.key),
     "status": lambda m, g: shelves.meta([g], "status"),
     "rating": lambda m, g: int(shelves.meta([g], "rating") or 0),
+    "sizeBytes": lambda m, g: float(g.extra.get("size", 0) or 0) if g.installed else 0.0,
     "installed": lambda m, g: g.installed,
     "job": lambda m, g: _job(m, g).get("kind", ""),
     "progress": lambda m, g: _job(m, g).get("progress", 0.0),
@@ -301,6 +302,7 @@ class LibraryProxy(QSortFilterProxyModel):
         super().__init__()
         self._store, self._installed, self._search, self._hidden = "", False, "", False
         self._shelf = ""  # "", "fav", "c:<name>", "playing" (played, most recent first), "added" (newest first)
+        self._tags = []   # filter chips: "unplayed", "linux", "controller", "protondb", "genre:<name>"
         self._sort = settings.get("sort") if settings.get("sort") in SORTS else "name"
         self._keys, self._keys_gen = {}, None
         self.setSourceModel(model)
@@ -323,7 +325,31 @@ class LibraryProxy(QSortFilterProxyModel):
             group = [g for g in group if g.installed]
         if group and self._shelf and not self._on_shelf(model, model.groups[row]):
             return False
-        return bool(group) and (not self._search or any(self._search in g.title.lower() for g in group))
+        if group and self._tags and not all(self._has_tag(model, model.groups[row], t) for t in self._tags):
+            return False
+        return bool(group) and (not self._search or any(self._matches(g) for g in group))
+
+    def _matches(self, g):
+        """Search: the title, and from the game's details its developer and genres."""
+        if self._search in g.title.lower():
+            return True
+        d = details.cached(g.key) or {}
+        return self._search in (d.get("developer") or "").lower() or \
+            any(self._search in x.lower() for x in d.get("genres") or [])
+
+    def _has_tag(self, model, group, tag):
+        if tag == "unplayed":
+            return model.group_value(group, "playtime") == 0
+        if tag == "linux":
+            return any(g.extra.get("linux") or g.extra.get("platform") == "linux" for g in group)
+        if tag == "controller":
+            return any((details.cached(g.key) or {}).get("controller") == "full" for g in group)
+        if tag == "protondb":
+            return any(protondb.rating(_appid(g)).get("tier") in ("platinum", "gold", "native") for g in group)
+        if tag.startswith("genre:"):
+            want = tag[6:]
+            return any(want in ((details.cached(g.key) or {}).get("genres") or []) for g in group)
+        return True
 
     def _on_shelf(self, model, group):
         s = self._shelf
@@ -357,6 +383,9 @@ class LibraryProxy(QSortFilterProxyModel):
                 key = (title,)
             elif sort == "added":
                 key = (-shelves.added(group), title)
+            elif sort == "size":  # biggest installed first
+                sizes = [float(g.extra.get("size", 0) or 0) for g in group if g.installed]
+                key = (-max(sizes) if sizes else 0, title)
             elif sort == "rating":  # your best-rated first, unrated last
                 key = (-int(shelves.meta(group, "rating") or 0), title)
             else:  # most recent / most played first; never-played games fall to the end
@@ -394,6 +423,7 @@ class LibraryProxy(QSortFilterProxyModel):
     # False: the normal library (hidden games left out). True: only the hidden games.
     showHidden = Property(bool, lambda s: s._hidden, lambda s, v: s._set("_hidden", v), notify=filterChanged)
     shelf = Property(str, lambda s: s._shelf, lambda s, v: s._set("_shelf", v), notify=filterChanged)
+    tags = Property("QVariantList", lambda s: list(s._tags), lambda s, v: s._set("_tags", list(v or [])), notify=filterChanged)
 
     def refilter(self):
         self.invalidateFilter()
@@ -611,6 +641,71 @@ class AioLaunch(QObject):
                 return lambda: (self._details_pending.discard(key), self.detailsReady.emit(key, d))
             self._bg(work)
         return {}
+
+    @Slot(str, result="QVariantList")
+    def similarGames(self, key):
+        """Games in your library like this one: most shared genres, then the same developer."""
+        mine = details.cached(key) or {}
+        genres, dev = set(mine.get("genres") or []), (mine.get("developer") or "").split(",")[0].strip()
+        if not genres and not dev:
+            return []
+        me = self.model.group_of(key)
+        scored = []
+        for grp in self.model.groups:
+            if grp is me or self.model.is_hidden(grp):
+                continue
+            g = self.model.rep(grp)
+            d = details.cached(g.key) or {}
+            score = len(genres & set(d.get("genres") or [])) * 2 + (2 if dev and dev in (d.get("developer") or "") else 0)
+            if score >= 2:
+                scored.append((score, self.model.group_value(grp, "playtime") == 0, g))
+        scored.sort(key=lambda x: (-x[0], not x[1], x[2].title.lower()))
+        return [{"key": g.key, "title": g.title, "covers": _covers(g), "installed": g.installed,
+                 "unplayed": unplayed} for _s, unplayed, g in scored[:12]]
+
+    @Slot(result="QVariantList")
+    def genreList(self):
+        """Genres in the library (from the details fetched so far), most common first."""
+        counts = {}
+        for grp in self.model.groups:
+            for x in (details.cached(self.model.rep(grp).key) or {}).get("genres") or []:
+                counts[x] = counts.get(x, 0) + 1
+        return [g for g, _n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+    detailsGrew = Signal()
+
+    def _prefetch_details(self):
+        """Fetch every game's details slowly in the background (one each 1.5 s, inside Steam's
+        rate limit), so filters, search and similar games can use genres and controller support."""
+        if getattr(self, "_prefetching", False) or self.demo:
+            return
+        todo = [self.model.rep(grp) for grp in self.model.groups]
+        todo = [g for g in todo if details.cached(g.key) is None and g.id != "battlenet-app"]
+        if not todo:
+            return
+        self._prefetching = True
+
+        def work():
+            done = 0
+            for g in todo:
+                if getattr(self, "_quitting", False):
+                    break
+                try:
+                    details.fetch(g, _appid(g))
+                except Exception:
+                    pass
+                done += 1
+                if done % 25 == 0:
+                    self._after.emit(self.detailsGrew.emit)
+                time.sleep(1.5)
+
+            def finish():
+                self._prefetching = False
+                self.detailsGrew.emit()
+                if self.proxy.tags or self.proxy.search:
+                    self.proxy.refilter()
+            return finish
+        self._bg(work)
 
     @Slot(str, result=str)
     def gameColour(self, key):
@@ -1304,6 +1399,7 @@ class AioLaunch(QObject):
         self.storesChanged.emit()
         self.gameChanged.emit("")
         if not self._pending:
+            QTimer.singleShot(20000, self._prefetch_details)  # after the library settles; slow, in the background
             self.checkSteamShortcut()
             self._auto_steam()
             self._announce_updates()
@@ -2465,6 +2561,7 @@ class AioLaunch(QObject):
         QGuiApplication.clipboard().setText(text)
 
     def shutdown(self):
+        self._quitting = True  # stops the background details fetch
         for p in list(self.procs.values()):
             p.terminate()
             p.waitForFinished(3000)
