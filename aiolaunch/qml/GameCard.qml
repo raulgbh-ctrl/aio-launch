@@ -91,6 +91,26 @@ Item {
                     elide: Text.ElideRight
                     visible: img.status !== Image.Ready
                 }
+                // Shimmer while the cover downloads.
+                Rectangle {
+                    id: shimmer
+                    visible: img.status === Image.Loading && !app.light
+                    width: parent.width * 0.6
+                    height: parent.height
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.5; color: Qt.alpha("white", 0.09) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                    NumberAnimation on x {
+                        running: shimmer.visible
+                        loops: Animation.Infinite
+                        from: -shimmer.width; to: card.width
+                        duration: 1300
+                        easing.type: Easing.InOutQuad
+                    }
+                }
             }
 
             ArtImage {
@@ -122,18 +142,31 @@ Item {
                 }
             }
 
-            // Install progress.
-            Rectangle {
+            // Install / update progress: the cover stays visible; a strip along the bottom
+            // says what is happening, with the bar running along the very edge.
+            Item {
                 visible: card.job !== ""
                 anchors.fill: parent
-                color: "#99000000"
-                Column {
-                    anchors.centerIn: parent
-                    spacing: 10
-                    width: parent.width - 36
+                Rectangle { anchors.fill: parent; color: Qt.alpha("black", 0.22) }
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 64
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: "transparent" }
+                        GradientStop { position: 0.45; color: Qt.alpha("black", 0.7) }
+                        GradientStop { position: 1; color: Qt.alpha("black", 0.88) }
+                    }
+                }
+                Row {
+                    anchors { left: parent.left; bottom: parent.bottom; leftMargin: 12; bottomMargin: 14 }
+                    spacing: 7
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: card.job === "uninstall" ? "trash-2" : card.job === "update" ? "arrow-up" : "download"
+                        size: 14; color: "white"
+                    }
                     Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
+                        anchors.verticalCenter: parent.verticalCenter
                         color: "white"
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
@@ -141,14 +174,22 @@ Item {
                               : card.progress < 0 ? "Starting…"
                               : (card.job === "update" ? "Updating " : "Installing ") + Math.floor(card.progress) + "%"
                     }
+                }
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 4
+                    color: Qt.alpha("white", 0.18)
                     Rectangle {
-                        width: parent.width; height: 5; radius: 3
-                        color: "#40ffffff"
-                        Rectangle {
-                            height: parent.height; radius: 3
-                            color: theme.primary
-                            width: parent.width * Math.max(0.04, card.progress / 100)
-                            Behavior on width { NumberAnimation { duration: 300 } }
+                        height: parent.height
+                        color: theme.primary
+                        width: card.progress < 0 ? parent.width * 0.3 : parent.width * Math.max(0.02, card.progress / 100)
+                        Behavior on width { NumberAnimation { duration: 300 } }
+                        // No percentage yet: a short bar slides back and forth.
+                        SequentialAnimation on x {
+                            running: card.job !== "" && card.progress < 0 && !app.light
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0; to: card.width * 0.6; duration: 900; easing.type: Easing.InOutQuad }
+                            NumberAnimation { from: card.width * 0.6; to: 0; duration: 900; easing.type: Easing.InOutQuad }
                         }
                     }
                 }

@@ -10,6 +10,17 @@ FocusScope {
     signal exit()
 
     property var cur: ({})
+
+    // The focused game's own colour (from its cover) tints the glow and the active tab.
+    property string gameAccent: ""
+    property color accent: gameAccent || theme.primary
+    Behavior on accent { enabled: !app.light; ColorAnimation { duration: 450 } }
+    readonly property var tint: {
+        const c = tv.accent
+        const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
+        return Object.assign({}, tv.theme, { primary: c.toString(), onPrimary: lum > 0.55 ? "#1b1b1f" : "#ffffff" })
+    }
+    onCurChanged: gameAccent = cur.key ? app.gameColour(cur.key) : ""
     readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
 
     function sync() { cur = app.game(library.keyAt(grid.currentIndex)) }
@@ -52,6 +63,7 @@ FocusScope {
     Connections {
         target: app
         function onGameChanged(key) { tv.sync(); if (panel.visible) panel.rows = tv.buildActions() }
+        function onGameColourReady(key, colour) { if (key === tv.cur.key) tv.gameAccent = colour }
     }
 
     // One of the two full-screen art images that take turns (see stage).
@@ -171,7 +183,7 @@ FocusScope {
                     implicitWidth: tabRow.implicitWidth + 36
                     implicitHeight: 46
                     radius: 23
-                    color: active ? theme.primary : "transparent"
+                    color: active ? tv.tint.primary : "transparent"
                     border.width: active ? 0 : 1
                     border.color: theme.outlineVariant
                     Row {
@@ -183,13 +195,13 @@ FocusScope {
                             anchors.verticalCenter: parent.verticalCenter
                             size: 20
                             store: parent.parent.modelData
-                            color: parent.parent.active ? theme.onPrimary : (parent.parent.info.color || theme.onSurfaceVariant)
+                            color: parent.parent.active ? tv.tint.onPrimary : (parent.parent.info.color || theme.onSurfaceVariant)
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: !parent.parent.parent.compact || parent.parent.active || parent.parent.modelData === ""
                             text: parent.parent.info.name
-                            color: parent.parent.active ? theme.onPrimary : theme.onSurfaceVariant
+                            color: parent.parent.active ? tv.tint.onPrimary : theme.onSurfaceVariant
                             font.pixelSize: 18
                             font.weight: parent.parent.active ? Font.DemiBold : Font.Normal
                         }
@@ -214,17 +226,14 @@ FocusScope {
                 anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 6 }
                 width: Math.min(parent.width * 0.62, 980)
                 spacing: 12
-                Text {
+                LogoTitle {
                     Layout.fillWidth: true
-                    text: tv.cur.title || ""
+                    logos: tv.cur.logos || []
+                    title: tv.cur.title || ""
                     color: theme.onSurface
-                    font.pixelSize: Math.round(Math.min(72, Math.max(40, tv.height * 0.06)))
-                    font.weight: Font.Black
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                    style: Text.Raised
-                    styleColor: Qt.alpha("black", 0.35)
+                    pixelSize: Math.round(Math.min(72, Math.max(40, tv.height * 0.06)))
+                    logoHeight: Math.round(Math.min(170, Math.max(90, tv.height * 0.15)))
+                    maxWidth: Math.min(width, 640)
                 }
                 Row {
                     spacing: 14
@@ -301,7 +310,7 @@ FocusScope {
                 required property int index
                 width: grid.cellWidth
                 height: grid.cellHeight
-                theme: tv.theme
+                theme: tv.tint
                 cornerRadius: app.settingsMap.card_radius
                 showBadge: app.settingsMap.show_badges
                 showTitle: false

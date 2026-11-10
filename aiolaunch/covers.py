@@ -5,7 +5,7 @@ Covers: the store's own art first; for games whose store has none, SteamGridDB
 Steam's library art. Results, including misses, are remembered in
 ~/.cache/aiolaunch/cover_lookup.json.
 
-Every game also gets backup covers and wide banner ("hero") art, so the UI can
+Every game also gets backup covers, wide banner ("hero") art and logos, so the UI can
 fall through to the next source when one fails to load: Steam's own asset list
 for the matching Steam app (looked up by title for other stores' games, cached),
 the store's wide art, and SteamGridDB heroes when a key is set.
@@ -290,5 +290,9 @@ def add_backup_art(games):
         if appid(g):
             _add(heroes, f"{STEAM_CDN}/{appid(g)}/library_hero.jpg")
         _add(heroes, g.cover_fallback, a.get("header"))  # wide store art: better than nothing
+        logos = list(g.extra.get("store_logos") or [])
+        if appid(g):
+            _add(logos, f"{STEAM_ASSETS}steam/apps/{appid(g)}/logo.png")
         g.extra["covers"] = [u for u in covers if u != g.cover]
         g.extra["heroes"] = heroes
+        g.extra["logos"] = logos

@@ -79,7 +79,7 @@ class Epic(Store):
                 if not g.get("asset_infos"):
                     continue  # third-party-store titles legendary cannot install
                 app = g["app_name"]
-                tall, wide, hero = _images(g.get("metadata") or {})
+                tall, wide, hero, logo = _images(g.get("metadata") or {})
                 inst = installed.get(app)
                 games[app] = Game(
                     store=self.id, id=app, title=(g.get("app_title") or app).strip(),
@@ -87,7 +87,7 @@ class Epic(Store):
                     installed=bool(inst), install_path=(inst or {}).get("install_path", ""),
                     extra={"dlcs": [{"id": d.get("app_name", ""), "title": (d.get("app_title") or "").strip()}
                                     for d in g.get("dlcs") or []],
-                           "store_heroes": [hero] if hero else []},
+                           "store_heroes": [hero] if hero else [], "store_logos": [logo] if logo else []},
                 )
         for app, inst in installed.items():
             if app not in games and not inst.get("is_dlc"):
@@ -154,8 +154,8 @@ def _updates(installed):
 
 
 def _images(meta):
-    """(portrait cover, wide fallback, wide banner) from Epic's key images."""
-    tall = wide = hero = ""
+    """(portrait cover, wide fallback, wide banner, logo) from Epic's key images."""
+    tall = wide = hero = logo = ""
     for img in meta.get("keyImages") or []:
         kind, url = img.get("type"), img.get("url", "")
         if kind == "DieselGameBoxTall":
@@ -164,7 +164,9 @@ def _images(meta):
             wide = url
         if kind == "DieselGameBox":
             hero = url + ("&" if "?" in url else "?") + "w=1920&resize=1"  # 16:9 key art
-    return tall, wide, hero
+        elif kind == "DieselGameBoxLogo":
+            logo = url
+    return tall, wide, hero, logo
 
 
 def _tail(r, n=3):

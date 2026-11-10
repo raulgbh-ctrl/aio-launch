@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, gamecolour, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -30,7 +30,7 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
-         "update", "playtime", "lastPlayed", "covers", "heroes"]
+         "update", "playtime", "lastPlayed", "covers", "heroes", "logos"]
 GROUP_ROLES = ("copies", "playtime", "lastPlayed")
 SORTS = ("name", "recent", "playtime")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
@@ -61,16 +61,29 @@ def _covers(g):
     return _unique([_cover(g), *(g.extra.get("covers") or []), g.cover_fallback])
 
 
-def _heroes(g):
-    """Wide banner sources, best first (see covers.add_backup_art)."""
-    heroes = list(g.extra.get("heroes") or g.extra.get("store_heroes") or [])
+def _appid(g):
+    """The game's Steam app id, if known ("" if not)."""
     appid = g.id if g.store == "steam" else str(g.extra.get("steam_appid") or "")
     if not appid:  # covers that came from Steam's store carry the id in their URL
         m = STEAM_ART.search(_cover(g) or "")
         appid = m.group(1) if m else ""
-    if appid:
-        heroes.append(f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_hero.jpg")
+    return appid if appid.isdigit() else ""
+
+
+def _heroes(g):
+    """Wide banner sources, best first (see covers.add_backup_art)."""
+    heroes = list(g.extra.get("heroes") or g.extra.get("store_heroes") or [])
+    if _appid(g):
+        heroes.append(f"https://cdn.cloudflare.steamstatic.com/steam/apps/{_appid(g)}/library_hero.jpg")
     return _unique(heroes + [g.cover_fallback])
+
+
+def _logos(g):
+    """Transparent game logo sources, best first; the UI shows the title when none loads."""
+    logos = list(g.extra.get("logos") or g.extra.get("store_logos") or [])
+    if _appid(g):
+        logos.append(f"https://cdn.cloudflare.steamstatic.com/steam/apps/{_appid(g)}/logo.png")
+    return _unique(logos)
 
 
 def _cover(g):
@@ -103,6 +116,7 @@ _FIELDS = {
     "lastPlayed": lambda m, g: playtime.of(g, m.played)[1],
     "covers": lambda m, g: _covers(g),
     "heroes": lambda m, g: _heroes(g),
+    "logos": lambda m, g: _logos(g),
 }
 assert set(_FIELDS) == set(ROLES)
 
@@ -317,6 +331,7 @@ class AioLaunch(QObject):
         self.logs: dict[str, list] = {}
         self._pending = set()
         self._updates_seen = set()
+        self._colour_pending = set()
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         self._worker_toast.connect(self.toast)
@@ -430,6 +445,36 @@ class AioLaunch(QObject):
     # Store logos as SVG text (white); QML recolours them (see qml/StoreIcon.qml).
     _icons = {p.stem: p.read_text() for p in (Path(__file__).parent / "icons").glob("*.svg")}
     storeIcons = Property("QVariantMap", lambda s: s._icons, constant=True)
+    # Button and menu icons (Lucide, ISC licence), stroke="currentColor"; see qml/Icon.qml.
+    _ui_icons = {p.stem: re.sub(r"<!--.*?-->", "", p.read_text(), flags=re.S).strip()
+                 for p in (Path(__file__).parent / "icons" / "ui").glob("*.svg")}
+    uiIcons = Property("QVariantMap", lambda s: s._ui_icons, constant=True)
+
+    gameColourReady = Signal(str, str)  # key, accent ("" = no clear colour)
+
+    @Slot(str, result=str)
+    def gameColour(self, key):
+        """Accent taken from a game's cover; "" until it is known (gameColourReady follows)."""
+        g = self.model.find(key)
+        if not g or g.id == "battlenet-app":
+            return ""
+        value = gamecolour.cached(key)
+        if value is not None:
+            return gamecolour.accent(value, self._theme.get("dark", True))
+        if key not in self._colour_pending:
+            self._colour_pending.add(key)
+            urls = _covers(g)[:3]
+
+            def work():
+                value = gamecolour.compute(key, urls)
+
+                def done():
+                    self._colour_pending.discard(key)
+                    if value is not None:
+                        self.gameColourReady.emit(key, gamecolour.accent(value, self._theme.get("dark", True)))
+                return done
+            self._bg(work)
+        return ""
 
     def _recent_games(self):
         """The "Continue playing" row: installed games, most recently played first."""
@@ -444,7 +489,7 @@ class AioLaunch(QObject):
         for last, group in rows[:RECENT_ROW]:
             g = m.rep(group)
             out.append({"key": g.key, "store": g.store, "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
-                        "covers": _covers(g), "heroes": _heroes(g),
+                        "covers": _covers(g), "heroes": _heroes(g), "logos": _logos(g),
                         "storeName": self.stores[g.store].name, "storeColor": self.stores[g.store].color,
                         "lastPlayed": last})
         return out

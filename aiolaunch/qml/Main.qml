@@ -21,6 +21,15 @@ ApplicationWindow {
     property string selectedKey: ""
     property var selected: ({})
 
+    // The theme with a game's own colour as its accent (see app.gameColour); unchanged for "".
+    function tinted(accent) {
+        if (!accent) return win.theme
+        const c = Qt.darker(accent, 1.0)
+        const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
+        return Object.assign({}, win.theme, { primary: accent, onPrimary: lum > 0.55 ? "#1b1b1f" : "#ffffff",
+                                              primaryContainer: Qt.tint(win.theme.surfaceContainerHigh, Qt.alpha(accent, 0.3)) })
+    }
+
     function select(key) {
         selectedKey = key
         selected = app.game(key)
@@ -108,8 +117,15 @@ ApplicationWindow {
                     Layout.margins: 8
                     Layout.bottomMargin: 16
                     spacing: 10
-                    Image { source: "../aiolaunch.svg"; sourceSize: Qt.size(30, 30) }
-                    Text { text: "AIO Launch"; color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Bold }
+                    Image { source: "../aiolaunch.svg"; sourceSize: Qt.size(68, 68); Layout.preferredWidth: 34; Layout.preferredHeight: 34 }
+                    Text {
+                        textFormat: Text.StyledText
+                        text: "<b>AIO</b> Launch"
+                        color: theme.onSurface
+                        font.pixelSize: 21
+                        font.weight: Font.Light
+                        font.letterSpacing: 0.3
+                    }
                 }
 
                 component NavItem: Rectangle {
@@ -118,6 +134,7 @@ ApplicationWindow {
                     property string label
                     property string dot: ""
                     property string store: ""
+                    property string icon: ""
                     property string count: ""
                     property bool active: false
                     property bool dim: false
@@ -142,8 +159,14 @@ ApplicationWindow {
                         color: nav.dot || "transparent"
                         opacity: nav.dim ? 0.35 : 1
                     }
+                    Icon {
+                        visible: nav.dot === "" && nav.icon !== ""
+                        x: 13; anchors.verticalCenter: parent.verticalCenter
+                        name: nav.icon; size: 17
+                        color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                    }
                     Text {
-                        x: nav.dot !== "" ? 38 : 14
+                        x: nav.dot !== "" || nav.icon !== "" ? 38 : 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: nav.label
                         color: nav.active ? theme.onPrimaryContainer : theme.onSurface
@@ -163,6 +186,7 @@ ApplicationWindow {
 
                 NavItem {
                     label: "All games"
+                    icon: "library"
                     count: app.totalCount
                     active: library.storeFilter === "" && !library.showHidden
                     onPicked: { library.showHidden = false; library.storeFilter = "" }
@@ -209,13 +233,14 @@ ApplicationWindow {
                 NavItem {
                     visible: app.hiddenCount > 0 || library.showHidden
                     label: "Hidden games"
+                    icon: "eye-off"
                     count: app.hiddenCount
                     active: library.showHidden
                     onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
                 }
-                NavItem { label: "TV mode"; count: "F11"; onPicked: win.tv = true }
-                NavItem { label: "Accounts"; onPicked: accounts.open() }
-                NavItem { label: "Settings"; onPicked: prefs.open() }
+                NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                NavItem { label: "Accounts"; icon: "user-round"; onPicked: accounts.open() }
+                NavItem { label: "Settings"; icon: "sliders-horizontal"; onPicked: prefs.open() }
             }
         }
 
@@ -234,6 +259,7 @@ ApplicationWindow {
                     theme: win.theme
                     Layout.fillWidth: true
                     Layout.maximumWidth: 460
+                    iconName: "search"
                     placeholderText: "Search your games  (Ctrl+F)"
                     onTextChanged: library.search = text
                     Keys.onDownPressed: grid.forceActiveFocus()
@@ -258,6 +284,7 @@ ApplicationWindow {
                 KButton {
                     theme: win.theme
                     text: app.refreshing ? "Refreshing…" : "Refresh"
+                    iconName: "refresh-cw"
                     enabled: !app.refreshing
                     onClicked: app.refresh()
                 }
@@ -283,6 +310,11 @@ ApplicationWindow {
                     highlightFollowsCurrentItem: true
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
+                    populate: Transition {
+                        enabled: !app.light
+                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
+                        NumberAnimation { property: "y"; from: ViewTransition.destination.y + 24; duration: 360; easing.type: Easing.OutCubic }
+                    }
                     // Hero banner for the last game you played, then the rest of "Continue playing".
                     // Part of the grid's header, so it scrolls away with the library.
                     header: Column {
@@ -301,9 +333,13 @@ ApplicationWindow {
                             id: hero
                             property var info: app.recentGames.length ? app.recentGames[0] : ({})
                             property var game: info.key ? app.game(info.key) : ({})
+                            property string accent: info.key ? app.gameColour(info.key) : ""
+                            readonly property var tint: win.tinted(accent)
+                            onInfoChanged: accent = info.key ? app.gameColour(info.key) : ""
                             Connections {
                                 target: app
                                 function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
+                                function onGameColourReady(key, colour) { if (key === hero.info.key) hero.accent = colour }
                             }
                             x: 8
                             width: parent.width - 16
@@ -390,16 +426,16 @@ ApplicationWindow {
                                     spacing: 10
                                     Text {
                                         text: "JUMP BACK IN"
-                                        color: theme.primary
+                                        color: hero.tint.primary
                                         font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
                                     }
-                                    Text {
-                                        width: parent.width
-                                        text: hero.info.title || ""
+                                    LogoTitle {
+                                        logos: hero.info.logos || []
+                                        title: hero.info.title || ""
                                         color: theme.onSurface
-                                        font.pixelSize: hero.height > 290 ? 38 : 32
-                                        font.weight: Font.Black
-                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                        pixelSize: hero.height > 290 ? 38 : 32
+                                        logoHeight: Math.round(hero.height * 0.3)
+                                        maxWidth: parent.width
                                     }
                                     Row {
                                         spacing: 8
@@ -421,16 +457,18 @@ ApplicationWindow {
                                     Row {
                                         spacing: 10
                                         KButton {
-                                            theme: win.theme
+                                            theme: hero.tint
                                             primary: true
                                             visible: !hero.game.job
-                                            text: "▶  Resume"
+                                            text: "Resume"
+                                            iconName: "play"
                                             onClicked: win.activate(hero.info.key)
                                         }
                                         KButton {
-                                            theme: win.theme
+                                            theme: hero.tint
                                             visible: !hero.game.job && !!hero.game.update
-                                            text: "↑  Update"
+                                            text: "Update"
+                                            iconName: "arrow-up"
                                             onClicked: app.update(hero.info.key)
                                         }
                                         Text {
@@ -441,7 +479,7 @@ ApplicationWindow {
                                             font.pixelSize: 14; font.weight: Font.DemiBold
                                         }
                                         KButton {
-                                            theme: win.theme
+                                            theme: hero.tint
                                             text: "Details"
                                             onClicked: win.select(hero.info.key)
                                         }
@@ -585,8 +623,17 @@ ApplicationWindow {
     // -------------------------------------------------------------------- game detail
     KDialog {
         id: detail
+        objectName: "detail"
         theme: win.theme
         heading: ""
+        // The panel takes on the game's own colour (from its cover).
+        property string accent: ""
+        readonly property var tint: win.tinted(accent)
+        Connections {
+            target: app
+            function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
+        }
+        onOpened: accent = app.gameColour(win.selectedKey)
         width: Math.min(win.width - 60, 860)
         // The game's wide art runs across the top; the cover and title start inside its faded lower part.
         readonly property int bannerH: Math.round(width * 0.34)
@@ -662,15 +709,14 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 spacing: 10
                 Item { Layout.preferredHeight: 34 }
-                Text {
+                LogoTitle {
                     Layout.fillWidth: true
-                    text: win.selected.title || ""
+                    logos: detail.visible ? (win.selected.logos || []) : []
+                    title: win.selected.title || ""
                     color: theme.onSurface
-                    font.pixelSize: 30
-                    font.weight: Font.Black
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
+                    pixelSize: 30
+                    logoHeight: 84
+                    maxWidth: Math.min(width, 440)
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -772,50 +818,57 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 10
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         primary: true
                         visible: !win.selected.job
                         text: win.selected.installed ? "Play" : "Install"
+                        iconName: win.selected.installed ? "play" : "download"
                         onClicked: {
                             app.preferCopy(win.selectedKey)
                             win.selected.installed ? app.play(win.selectedKey) : app.install(win.selectedKey)
                         }
                     }
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         visible: !win.selected.job && !!win.selected.update
                         text: "Update"
+                        iconName: "arrow-up"
                         onClicked: app.update(win.selectedKey)
                     }
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         visible: !!win.selected.job
                         text: "Cancel"
+                        iconName: "x"
                         onClicked: app.cancel(win.selectedKey)
                     }
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         visible: !!win.selected.hasDlc
                         text: "DLC"
+                        iconName: "puzzle"
                         onClicked: dlc.show(win.selectedKey, win.selected.title)
                     }
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         text: "Options"
+                        iconName: "settings-2"
                         onClicked: gameOpts.show(win.selectedKey)
                     }
                     KButton {
-                        theme: win.theme
+                        theme: detail.tint
                         text: win.selected.hidden ? "Unhide" : "Hide"
+                        iconName: win.selected.hidden ? "eye" : "eye-off"
                         onClicked: { app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() }
                     }
                     KButton {
                         id: confirmRemove
                         property bool armed: false
-                        theme: win.theme
+                        theme: detail.tint
                         danger: true
                         visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
                         text: armed ? "Really uninstall?" : "Uninstall"
+                        iconName: "trash-2"
                         onClicked: {
                             if (!armed) { armed = true; return }
                             armed = false
@@ -983,8 +1036,10 @@ ApplicationWindow {
     // -------------------------------------------------------------------- accounts
     KDialog {
         id: accounts
+        objectName: "accounts"
         theme: win.theme
         heading: "Accounts"
+        headingIcon: "user-round"
         width: Math.min(win.width - 60, 620)
         contentItem: ColumnLayout {
             spacing: 10
@@ -993,33 +1048,51 @@ ApplicationWindow {
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
-                    height: 64
-                    radius: 12
+                    height: 78
+                    radius: 14
                     color: theme.surfaceContainerHigh
+                    border.width: 1
+                    border.color: modelData.loggedIn ? Qt.alpha(modelData.color, 0.45) : theme.outlineVariant
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16; anchors.rightMargin: 12
-                        spacing: 12
-                        Rectangle { width: 10; height: 10; radius: 5; color: modelData.color }
+                        anchors.leftMargin: 14; anchors.rightMargin: 12
+                        spacing: 14
+                        // The store's logo on a soft tile of its colour.
+                        Rectangle {
+                            Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                            radius: 12
+                            color: Qt.alpha(modelData.color, 0.16)
+                            StoreIcon { anchors.centerIn: parent; size: 28; store: modelData.id; color: modelData.color }
+                        }
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: modelData.name; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
-                            Text {
+                            spacing: 4
+                            Text { text: modelData.name; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Row {
+                                spacing: 7
                                 Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                font.pixelSize: 12
-                                color: modelData.problem ? theme.error : theme.onSurfaceVariant
+                                Rectangle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 8; height: 8; radius: 4
+                                    color: modelData.problem ? theme.error : modelData.loggedIn ? "#6fd08c" : theme.outline
+                                }
+                                Text {
+                                    width: parent.parent.width - 15
+                                    elide: Text.ElideRight
+                                    font.pixelSize: 12
+                                    color: modelData.problem ? theme.error : theme.onSurfaceVariant
                                 text: modelData.problem ? modelData.problem
                                       : modelData.loggedIn ? ("Connected" + (modelData.account ? " · " + modelData.account : ""))
                                       : modelData.id === "battlenet" ? "Install the Battle.net app from the library first"
                                       : "Not connected"
+                                }
                             }
                         }
                         KButton {
                             theme: win.theme
                             visible: modelData.loginKind === "paste" && modelData.loggedIn
                             text: "Sign out"
+                            iconName: "log-out"
                             onClicked: app.logout(modelData.id)
                         }
                         KButton {
@@ -1028,6 +1101,7 @@ ApplicationWindow {
                             visible: !(modelData.loginKind === "paste" && modelData.loggedIn)
                             enabled: modelData.id === "gog" || !modelData.problem
                             text: modelData.loginKind === "external" ? "Open" : "Sign in"
+                            iconName: modelData.loginKind === "external" ? "external-link" : "log-in"
                             onClicked: app.loginBegin(modelData.id)
                         }
                     }
@@ -1073,7 +1147,7 @@ ApplicationWindow {
             }
             RowLayout {
                 spacing: 10
-                KButton { theme: win.theme; text: "Open login page again"; onClicked: app.openUrl(login.url) }
+                KButton { theme: win.theme; iconName: "external-link"; text: "Open login page again"; onClicked: app.openUrl(login.url) }
                 KButton { theme: win.theme; text: "Copy link"; onClicked: { app.copy(login.url); toasts.append({ message: "Link copied" }) } }
             }
             KField {
@@ -1103,34 +1177,52 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- settings
-    component Row2: ColumnLayout {
+    // One setting, as a card: name, the control, and an optional hint underneath.
+    component Row2: Rectangle {
+        id: r2
         readonly property var theme: app.theme
         property string label
         property string hint: ""
         default property alias body: slot.data
         Layout.fillWidth: true
-        spacing: 5
-        Text { visible: label !== ""; text: label; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
-        ColumnLayout { id: slot; Layout.fillWidth: true }
-        Text {
-            visible: hint !== ""
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            text: hint
-            color: theme.outline
-            font.pixelSize: 12
-            linkColor: theme.primary
-            onLinkActivated: link => app.openUrl(link)
+        implicitHeight: r2col.implicitHeight + 28
+        radius: 12
+        color: theme.surfaceContainerHigh
+        ColumnLayout {
+            id: r2col
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+            spacing: 8
+            Text { visible: r2.label !== ""; text: r2.label; color: r2.theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+            ColumnLayout { id: slot; Layout.fillWidth: true }
+            Text {
+                visible: r2.hint !== ""
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: r2.hint
+                color: r2.theme.outline
+                font.pixelSize: 12
+                lineHeight: 1.15
+                linkColor: r2.theme.primary
+                onLinkActivated: link => app.openUrl(link)
+            }
         }
     }
-    component Toggle: RowLayout {
+    // An on/off setting, as a card row.
+    component Toggle: Rectangle {
         id: tg
         readonly property var theme: app.theme
         property string label
         property string settingKey
         Layout.fillWidth: true
-        Text { text: tg.label; color: theme.onSurface; font.pixelSize: 13; Layout.fillWidth: true }
+        implicitHeight: 48
+        radius: 12
+        color: theme.surfaceContainerHigh
+        Text {
+            anchors { left: parent.left; leftMargin: 14; right: sw.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+            text: tg.label; color: tg.theme.onSurface; font.pixelSize: 13; elide: Text.ElideRight
+        }
         Switch {
+            anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
             id: sw
             checked: app.settingsMap[tg.settingKey] === true
             onToggled: app.setSetting(tg.settingKey, checked)
@@ -1184,17 +1276,24 @@ ApplicationWindow {
         property bool active: false
         property string dot: ""
         property string store: ""
+        property string icon: ""
         signal picked()
-        implicitWidth: chipText.implicitWidth + (dot ? 42 : 26)
+        implicitWidth: chipText.implicitWidth + (dot || icon ? 42 : 26)
         implicitHeight: 32
         radius: 16
         color: active ? theme.primaryContainer : chipHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
         border.width: 1
         border.color: active ? theme.primary : theme.outlineVariant
         StoreIcon { visible: chip.dot !== ""; x: 11; anchors.verticalCenter: parent.verticalCenter; size: 14; store: chip.store; color: chip.dot || "transparent" }
+        Icon {
+            visible: chip.dot === "" && chip.icon !== ""
+            x: 12; anchors.verticalCenter: parent.verticalCenter
+            name: chip.icon; size: 15
+            color: chip.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+        }
         Text {
             id: chipText
-            x: chip.dot ? 31 : 13
+            x: chip.dot || chip.icon ? 31 : 13
             anchors.verticalCenter: parent.verticalCenter
             text: chip.label
             color: chip.active ? theme.onPrimaryContainer : theme.onSurface
@@ -1206,316 +1305,332 @@ ApplicationWindow {
 
     KDialog {
         id: prefs
+        objectName: "prefs"
         theme: win.theme
         heading: "Settings"
+        headingIcon: "sliders-horizontal"
         width: Math.min(win.width - 60, 640)
         property int tab: 0
+        onTabChanged: prefsScroll.contentY = 0
 
         contentItem: ColumnLayout {
             spacing: 18
             RowLayout {
                 spacing: 8
                 Repeater {
-                    model: ["Appearance", "Compatibility", "Library"]
+                    model: [{ name: "Appearance", icon: "eye" }, { name: "Compatibility", icon: "gamepad-2" },
+                            { name: "Library", icon: "library" }]
                     Chip {
-                        required property string modelData
+                        required property var modelData
                         required property int index
-                        label: modelData
+                        label: modelData.name
+                        icon: modelData.icon
                         active: prefs.tab === index
                         onPicked: prefs.tab = index
                     }
                 }
             }
 
-            StackLayout {
-                currentIndex: prefs.tab
+            // The pages scroll when they are taller than the window.
+            Flickable {
+                id: prefsScroll
                 Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(prefsStack.implicitHeight, win.height - 220)
+                contentHeight: prefsStack.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { }
+                StackLayout {
+                    id: prefsStack
+                    currentIndex: prefs.tab
+                    width: prefsScroll.width - 12
 
-                // ---- Appearance
-                ColumnLayout {
-                    spacing: 16
-                    Row2 {
-                        label: "Theme"
-                        hint: "Follow wallpaper picks AIO Launch's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway."
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Chip {
-                                label: "Follow wallpaper"
-                                active: app.settingsMap.theme_mode === "ryoku"
-                                onPicked: app.setSetting("theme_mode", "ryoku")
-                            }
-                            Repeater {
-                                model: app.themePresets
+                    // ---- Appearance
+                    ColumnLayout {
+                        spacing: 16
+                        Row2 {
+                            label: "Theme"
+                            hint: "Follow wallpaper picks AIO Launch's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway."
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
                                 Chip {
-                                    required property string modelData
-                                    label: modelData
-                                    active: app.settingsMap.theme_mode === modelData
-                                    onPicked: app.setSetting("theme_mode", modelData)
+                                    label: "Follow wallpaper"
+                                    active: app.settingsMap.theme_mode === "ryoku"
+                                    onPicked: app.setSetting("theme_mode", "ryoku")
                                 }
-                            }
-                            Chip {
-                                label: "Custom"
-                                active: app.settingsMap.theme_mode === "custom"
-                                onPicked: app.setCustomColor("theme_accent", win.theme.primary)
-                            }
-                        }
-                    }
-                    Row2 {
-                        label: "Accent colour"
-                        Swatches {
-                            theme: win.theme
-                            Layout.fillWidth: true
-                            choices: app.accentChoices
-                            value: win.theme.primary
-                            onPicked: colour => app.setCustomColor("theme_accent", colour)
-                        }
-                    }
-                    Row2 {
-                        label: "Background colour"
-                        hint: "Picking a colour switches to a custom theme; text and panel shades are worked out from these two."
-                        Swatches {
-                            theme: win.theme
-                            Layout.fillWidth: true
-                            choices: app.backgroundChoices
-                            value: win.theme.background
-                            onPicked: colour => app.setCustomColor("theme_bg", colour)
-                        }
-                    }
-                    Row2 {
-                        label: "Cover size"
-                        KSlider {
-                            theme: win.theme; Layout.fillWidth: true
-                            from: 130; to: 320; stepSize: 2
-                            value: app.settingsMap.card_size
-                            onMoved: app.setSetting("card_size", value)
-                        }
-                    }
-                    Row2 {
-                        label: "Corner roundness"
-                        KSlider {
-                            theme: win.theme; Layout.fillWidth: true
-                            from: 0; to: 28; stepSize: 1
-                            value: app.settingsMap.card_radius
-                            onMoved: app.setSetting("card_radius", value)
-                        }
-                    }
-                    Toggle { label: "Show store badges on covers"; settingKey: "show_badges" }
-                    Toggle { label: "Always show game titles"; settingKey: "show_titles" }
-                    Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
-                    Row2 {
-                        label: "Performance"
-                        hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
-                        KCombo {
-                            id: perfBox
-                            theme: win.theme; Layout.fillWidth: true
-                            model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
-                                    { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
-                            Component.onCompleted: select(app.settingsMap.performance)
-                            onActivated: app.setSetting("performance", currentValue)
-                        }
-                    }
-                }
-
-                // ---- Compatibility
-                ColumnLayout {
-                    spacing: 16
-                    Row2 {
-                        label: "Default Proton version"
-                        hint: "Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam."
-                        KCombo {
-                            id: protonBox
-                            theme: win.theme; Layout.fillWidth: true
-                            model: app.protonVersions
-                            onModelChanged: select(app.settingsMap.proton)
-                            Component.onCompleted: select(app.settingsMap.proton)
-                            onActivated: app.setSetting("proton", currentValue)
-                        }
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: geCol.implicitHeight + 28
-                        radius: 12
-                        color: theme.surfaceContainerHigh
-                        Component.onCompleted: app.checkGe()
-                        ColumnLayout {
-                            id: geCol
-                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
-                            spacing: 8
-                            RowLayout {
-                                spacing: 10
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    Text { text: "GE-Proton"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        wrapMode: Text.WordWrap
-                                        font.pixelSize: 12
-                                        color: app.geStatus.error ? theme.error : theme.onSurfaceVariant
-                                        text: app.geStatus.error ? app.geStatus.error
-                                              : app.geStatus.busy ? "Downloading " + Math.floor(app.geStatus.progress) + "%  (about 570 MB)"
-                                              : (app.geStatus.installed ? "Installed: " + app.geStatus.installed.replace("-x86_64", "") : "Not downloaded yet")
-                                                + (app.geStatus.latest ? (app.geStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.geStatus.latest) : "")
+                                Repeater {
+                                    model: app.themePresets
+                                    Chip {
+                                        required property string modelData
+                                        label: modelData
+                                        active: app.settingsMap.theme_mode === modelData
+                                        onPicked: app.setSetting("theme_mode", modelData)
                                     }
                                 }
-                                KButton {
-                                    theme: win.theme
-                                    primary: !app.geStatus.upToDate
-                                    enabled: !app.geStatus.busy
-                                    text: app.geStatus.upToDate ? "Check again" : "Download latest"
-                                    onClicked: app.geStatus.upToDate ? app.checkGe() : app.downloadGe()
+                                Chip {
+                                    label: "Custom"
+                                    active: app.settingsMap.theme_mode === "custom"
+                                    onPicked: app.setCustomColor("theme_accent", win.theme.primary)
                                 }
                             }
-                            Rectangle {
-                                visible: !!app.geStatus.busy
+                        }
+                        Row2 {
+                            label: "Accent colour"
+                            Swatches {
+                                theme: win.theme
                                 Layout.fillWidth: true
-                                height: 5; radius: 3
-                                color: theme.surfaceContainerHighest
-                                Rectangle { height: parent.height; radius: 3; color: theme.primary; width: parent.width * (app.geStatus.progress || 0) / 100 }
-                            }
-                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
-                            RowLayout {
-                                spacing: 10
-                                Text {
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    font.pixelSize: 12
-                                    color: theme.onSurfaceVariant
-                                    text: "Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them."
-                                }
-                                KButton { theme: win.theme; text: "Get from Steam"; onClicked: app.getSteamProton() }
-                                KButton { theme: win.theme; text: "Rescan"; onClicked: app.rescanProtons() }
+                                choices: app.accentChoices
+                                value: win.theme.primary
+                                onPicked: colour => app.setCustomColor("theme_accent", colour)
                             }
                         }
-                    }
-                    Row2 {
-                        label: "Or a custom Proton folder"
-                        KField {
-                            theme: win.theme; Layout.fillWidth: true
-                            placeholderText: "/path/to/a/Proton/folder"
-                            text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
-                            onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
+                        Row2 {
+                            label: "Background colour"
+                            hint: "Picking a colour switches to a custom theme; text and panel shades are worked out from these two."
+                            Swatches {
+                                theme: win.theme
+                                Layout.fillWidth: true
+                                choices: app.backgroundChoices
+                                value: win.theme.background
+                                onPicked: colour => app.setCustomColor("theme_bg", colour)
+                            }
+                        }
+                        Row2 {
+                            label: "Cover size"
+                            KSlider {
+                                theme: win.theme; Layout.fillWidth: true
+                                from: 130; to: 320; stepSize: 2
+                                value: app.settingsMap.card_size
+                                onMoved: app.setSetting("card_size", value)
+                            }
+                        }
+                        Row2 {
+                            label: "Corner roundness"
+                            KSlider {
+                                theme: win.theme; Layout.fillWidth: true
+                                from: 0; to: 28; stepSize: 1
+                                value: app.settingsMap.card_radius
+                                onMoved: app.setSetting("card_radius", value)
+                            }
+                        }
+                        Toggle { label: "Show store badges on covers"; settingKey: "show_badges" }
+                        Toggle { label: "Always show game titles"; settingKey: "show_titles" }
+                        Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
+                        Row2 {
+                            label: "Performance"
+                            hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
+                            KCombo {
+                                id: perfBox
+                                theme: win.theme; Layout.fillWidth: true
+                                model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
+                                        { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
+                                Component.onCompleted: select(app.settingsMap.performance)
+                                onActivated: app.setSetting("performance", currentValue)
+                            }
                         }
                     }
-                    Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
-                    Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
-                    Row2 {
-                        label: "Environment variables for every game"
-                        hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
-                        KField {
-                            theme: win.theme; Layout.fillWidth: true
-                            placeholderText: "KEY=value KEY2=value"
-                            text: app.settingsMap.env
-                            onEditingFinished: app.setSetting("env", text.trim())
-                        }
-                    }
-                }
 
-                // ---- Library
-                ColumnLayout {
-                    spacing: 16
-                    Row2 {
-                        label: "Games folder"
-                        hint: "Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries."
-                        KField {
-                            theme: win.theme; Layout.fillWidth: true
-                            text: app.settingsMap.games_dir
-                            onEditingFinished: app.setSetting("games_dir", text.trim())
+                    // ---- Compatibility
+                    ColumnLayout {
+                        spacing: 16
+                        Row2 {
+                            label: "Default Proton version"
+                            hint: "Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam."
+                            KCombo {
+                                id: protonBox
+                                theme: win.theme; Layout.fillWidth: true
+                                model: app.protonVersions
+                                onModelChanged: select(app.settingsMap.proton)
+                                Component.onCompleted: select(app.settingsMap.proton)
+                                onActivated: app.setSetting("proton", currentValue)
+                            }
                         }
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: steamCol.implicitHeight + 28
-                        radius: 12
-                        color: theme.surfaceContainerHigh
-                        readonly property var st: app.steamShortcut
-                        ColumnLayout {
-                            id: steamCol
-                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
-                            spacing: 8
-                            RowLayout {
-                                spacing: 10
-                                ColumnLayout {
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: geCol.implicitHeight + 28
+                            radius: 12
+                            color: theme.surfaceContainerHigh
+                            Component.onCompleted: app.checkGe()
+                            ColumnLayout {
+                                id: geCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                                spacing: 8
+                                RowLayout {
+                                    spacing: 10
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        Text { text: "GE-Proton"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 12
+                                            color: app.geStatus.error ? theme.error : theme.onSurfaceVariant
+                                            text: app.geStatus.error ? app.geStatus.error
+                                                  : app.geStatus.busy ? "Downloading " + Math.floor(app.geStatus.progress) + "%  (about 570 MB)"
+                                                  : (app.geStatus.installed ? "Installed: " + app.geStatus.installed.replace("-x86_64", "") : "Not downloaded yet")
+                                                    + (app.geStatus.latest ? (app.geStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.geStatus.latest) : "")
+                                        }
+                                    }
+                                    KButton {
+                                        theme: win.theme
+                                        primary: !app.geStatus.upToDate
+                                        enabled: !app.geStatus.busy
+                                        text: app.geStatus.upToDate ? "Check again" : "Download latest"
+                                        onClicked: app.geStatus.upToDate ? app.checkGe() : app.downloadGe()
+                                    }
+                                }
+                                Rectangle {
+                                    visible: !!app.geStatus.busy
                                     Layout.fillWidth: true
-                                    spacing: 2
-                                    Text { text: "Your games in Steam & Game Mode"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                    height: 5; radius: 3
+                                    color: theme.surfaceContainerHighest
+                                    Rectangle { height: parent.height; radius: 3; color: theme.primary; width: parent.width * (app.geStatus.progress || 0) / 100 }
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                                RowLayout {
+                                    spacing: 10
                                     Text {
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                         font.pixelSize: 12
                                         color: theme.onSurfaceVariant
-                                        readonly property var st: parent.parent.parent.parent.st
-                                        text: st.busy ? "Working… " + (st.progress || "")
-                                              : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
-                                              : st.accounts === 0 ? "Sign in to Steam once, then come back here."
-                                              : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
-                                              : st.inSync ? "All " + st.games + " installed games are in Steam with cover, banner, background and logo."
-                                              : st.gamesInSteam + " of " + st.games + " installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode."
-                                                + (st.running ? " Steam is closed and reopened to do this." : "")
+                                        text: "Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them."
+                                    }
+                                    KButton { theme: win.theme; text: "Get from Steam"; onClicked: app.getSteamProton() }
+                                    KButton { theme: win.theme; text: "Rescan"; onClicked: app.rescanProtons() }
+                                }
+                            }
+                        }
+                        Row2 {
+                            label: "Or a custom Proton folder"
+                            KField {
+                                theme: win.theme; Layout.fillWidth: true
+                                placeholderText: "/path/to/a/Proton/folder"
+                                text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
+                                onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
+                            }
+                        }
+                        Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
+                        Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
+                        Row2 {
+                            label: "Environment variables for every game"
+                            hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
+                            KField {
+                                theme: win.theme; Layout.fillWidth: true
+                                placeholderText: "KEY=value KEY2=value"
+                                text: app.settingsMap.env
+                                onEditingFinished: app.setSetting("env", text.trim())
+                            }
+                        }
+                    }
+
+                    // ---- Library
+                    ColumnLayout {
+                        spacing: 16
+                        Row2 {
+                            label: "Games folder"
+                            hint: "Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries."
+                            KField {
+                                theme: win.theme; Layout.fillWidth: true
+                                text: app.settingsMap.games_dir
+                                onEditingFinished: app.setSetting("games_dir", text.trim())
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: steamCol.implicitHeight + 28
+                            radius: 12
+                            color: theme.surfaceContainerHigh
+                            readonly property var st: app.steamShortcut
+                            ColumnLayout {
+                                id: steamCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                                spacing: 8
+                                RowLayout {
+                                    spacing: 10
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        Text { text: "Your games in Steam & Game Mode"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 12
+                                            color: theme.onSurfaceVariant
+                                            readonly property var st: parent.parent.parent.parent.st
+                                            text: st.busy ? "Working… " + (st.progress || "")
+                                                  : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
+                                                  : st.accounts === 0 ? "Sign in to Steam once, then come back here."
+                                                  : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
+                                                  : st.inSync ? "All " + st.games + " installed games are in Steam with cover, banner, background and logo."
+                                                  : st.gamesInSteam + " of " + st.games + " installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode."
+                                                    + (st.running ? " Steam is closed and reopened to do this." : "")
+                                        }
+                                    }
+                                    KButton {
+                                        theme: win.theme
+                                        readonly property var st: parent.parent.parent.st
+                                        primary: !st.inSync
+                                        enabled: !st.busy && st.accounts > 0 && st.games > 0 && !st.gameMode
+                                        text: st.inSync ? "Refresh in Steam" : "Add games to Steam"
+                                        onClicked: app.addGamesToSteam()
                                     }
                                 }
-                                KButton {
-                                    theme: win.theme
-                                    readonly property var st: parent.parent.parent.st
-                                    primary: !st.inSync
-                                    enabled: !st.busy && st.accounts > 0 && st.games > 0 && !st.gameMode
-                                    text: st.inSync ? "Refresh in Steam" : "Add games to Steam"
-                                    onClicked: app.addGamesToSteam()
-                                }
-                            }
-                            Toggle { label: "Keep installed games in Steam automatically"; settingKey: "steam_games" }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: 11
-                                color: theme.outline
-                                text: "Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there."
-                            }
-                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
-                            RowLayout {
+                                Toggle { label: "Keep installed games in Steam automatically"; settingKey: "steam_games" }
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
-                                    font.pixelSize: 12
-                                    color: theme.onSurfaceVariant
-                                    text: "Also add AIO Launch itself, so the whole library opens in TV mode from Game Mode."
+                                    font.pixelSize: 11
+                                    color: theme.outline
+                                    text: "Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there."
                                 }
-                                KButton {
-                                    theme: win.theme
-                                    readonly property var st: parent.parent.parent.st
-                                    enabled: !st.busy && st.accounts > 0 && !st.gameMode
-                                    text: "Add AIO Launch"
-                                    onClicked: app.addToSteam()
+                                Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+                                RowLayout {
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: 12
+                                        color: theme.onSurfaceVariant
+                                        text: "Also add AIO Launch itself, so the whole library opens in TV mode from Game Mode."
+                                    }
+                                    KButton {
+                                        theme: win.theme
+                                        readonly property var st: parent.parent.parent.st
+                                        enabled: !st.busy && st.accounts > 0 && !st.gameMode
+                                        text: "Add AIO Launch"
+                                        onClicked: app.addToSteam()
+                                    }
                                 }
                             }
+                            Component.onCompleted: app.checkSteamShortcut()
                         }
-                        Component.onCompleted: app.checkSteamShortcut()
-                    }
-                    Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
-                    Row2 {
-                        label: ""
-                        hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."
-                        Toggle { label: "Sync cloud saves"; settingKey: "cloud_saves" }
-                    }
-                    Row2 {
-                        label: "Steam Web API key (optional)"
-                        hint: "Without a key AIO Launch shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
-                        KField {
-                            theme: win.theme; Layout.fillWidth: true
-                            echoMode: TextInput.PasswordEchoOnEdit
-                            text: app.settingsMap.steam_api_key
-                            onEditingFinished: { app.setSetting("steam_api_key", text.trim()); app.refresh("steam") }
+                        Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
+                        Row2 {
+                            label: ""
+                            hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."
+                            Toggle { label: "Sync cloud saves"; settingKey: "cloud_saves" }
                         }
-                    }
-                    Row2 {
-                        label: "SteamGridDB API key (optional)"
-                        hint: "Games without box art are matched by title against Steam's store. A SteamGridDB key also finds art for games Steam does not sell: <a href='https://www.steamgriddb.com/profile/preferences/api'>steamgriddb.com/profile/preferences/api</a>."
-                        KField {
-                            theme: win.theme; Layout.fillWidth: true
-                            echoMode: TextInput.PasswordEchoOnEdit
-                            text: app.settingsMap.steamgriddb_key
-                            onEditingFinished: { app.setSetting("steamgriddb_key", text.trim()); app.refresh() }
+                        Row2 {
+                            label: "Steam Web API key (optional)"
+                            hint: "Without a key AIO Launch shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
+                            KField {
+                                theme: win.theme; Layout.fillWidth: true
+                                echoMode: TextInput.PasswordEchoOnEdit
+                                text: app.settingsMap.steam_api_key
+                                onEditingFinished: { app.setSetting("steam_api_key", text.trim()); app.refresh("steam") }
+                            }
+                        }
+                        Row2 {
+                            label: "SteamGridDB API key (optional)"
+                            hint: "Games without box art are matched by title against Steam's store. A SteamGridDB key also finds art for games Steam does not sell: <a href='https://www.steamgriddb.com/profile/preferences/api'>steamgriddb.com/profile/preferences/api</a>."
+                            KField {
+                                theme: win.theme; Layout.fillWidth: true
+                                echoMode: TextInput.PasswordEchoOnEdit
+                                text: app.settingsMap.steamgriddb_key
+                                onEditingFinished: { app.setSetting("steamgriddb_key", text.trim()); app.refresh() }
+                            }
                         }
                     }
                 }
@@ -1662,19 +1777,35 @@ ApplicationWindow {
                 required property string message
                 required property int index
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(toastText.implicitWidth + 36, win.width - 80)
-                height: toastText.height + 22
-                radius: 12
-                color: theme.inverseSurface || "#e7e0e8"
+                width: Math.min(toastText.implicitWidth + 58, win.width - 80)
+                height: Math.max(44, toastText.height + 24)
+                radius: 14
+                color: theme.surfaceContainerHighest
+                border.width: 1
+                border.color: theme.outlineVariant
+                // Slide up and fade in.
+                opacity: 0
+                transform: Translate { id: toastShift; y: 14 }
+                Component.onCompleted: toastIn.start()
+                ParallelAnimation {
+                    id: toastIn
+                    NumberAnimation { target: toast; property: "opacity"; to: 1; duration: app.light ? 0 : 200; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: toastShift; property: "y"; to: 0; duration: app.light ? 0 : 260; easing.type: Easing.OutCubic }
+                }
+                Rectangle {
+                    x: 12; anchors.verticalCenter: parent.verticalCenter
+                    width: 4; height: parent.height - 20; radius: 2
+                    color: theme.primary
+                }
                 Text {
                     id: toastText
-                    anchors.centerIn: parent
-                    width: Math.min(implicitWidth, win.width - 116)
+                    x: 28; anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, win.width - 138)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3
                     elide: Text.ElideRight
                     text: toast.message
-                    color: theme.inverseOnSurface || "#322f35"
+                    color: theme.onSurface
                     font.pixelSize: 13
                 }
                 Timer { interval: 5000; running: true; onTriggered: toasts.remove(0) }
