@@ -1558,6 +1558,7 @@ ApplicationWindow {
                                 MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Add to a collection"
                                           onPicked: { moreMenu.close(); collPick.show(win.selectedKey, win.selected.title) } }
                                 MenuRow { icon: "settings-2"; text: "Options"; onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
+                                MenuRow { icon: "cloud"; text: "Save backups"; onPicked: { moreMenu.close(); savesBox.show(win.selectedKey, win.selected.title) } }
                                 MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? "Unhide" : "Hide"
                                           onPicked: { moreMenu.close(); app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() } }
                                 MenuRow {
@@ -2217,6 +2218,61 @@ ApplicationWindow {
         id: importGameDir
         title: "Where is the game installed?"
         onAccepted: { app.importGame(addBox.importStore, impGame.currentValue, selectedFolder.toString()); addBox.close() }
+    }
+
+    // -------------------------------------------------------------------- save backups
+    KDialog {
+        id: savesBox
+        theme: win.theme
+        property string key: ""
+        property var meta: ({})
+        property var rows: []
+        property string armed: ""
+        heading: "Save backups"
+        headingIcon: "cloud"
+        width: Math.min(win.width - 60, 560)
+        function show(k, title) { key = k; heading = "Save backups \u00B7 " + title; rows = []; meta = {}; armed = ""; app.loadSaveBackups(k); open() }
+        Connections { target: app; function onSavesReady(key, list) { if (key !== savesBox.key) return
+                                                                     savesBox.meta = list[0] || {}; savesBox.rows = list.slice(1) } }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                text: !savesBox.meta.indexed ? "Cornerplay is still fetching where games keep their saves; try again in a minute."
+                      : !savesBox.meta.known ? "Cornerplay does not know where this game keeps its saves (it is not in Ludusavi's list)."
+                      : savesBox.meta.found ? "Backed up before each start (the last " + app.settingsMap.backup_keep + " are kept). Restoring keeps a copy of what is there now."
+                      : "No saves on this PC yet: they are backed up once the game has made some."
+            }
+            Repeater {
+                model: savesBox.rows
+                Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    height: 52; radius: 12
+                    color: theme.surfaceContainerHigh
+                    Column {
+                        x: 14; anchors.verticalCenter: parent.verticalCenter
+                        Text { text: modelData.when; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { text: modelData.reason + "  \u00B7  " + modelData.files + (modelData.files === 1 ? " file, " : " files, ") + modelData.sizeText
+                               color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                    }
+                    KButton {
+                        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                        theme: win.theme
+                        text: savesBox.armed === modelData.name ? "Really put back?" : "Restore"
+                        iconName: "refresh-cw"
+                        onClicked: { if (savesBox.armed !== modelData.name) { savesBox.armed = modelData.name; return }
+                                     savesBox.armed = ""; app.restoreSaves(savesBox.key, modelData.name) }
+                    }
+                }
+            }
+            RowLayout {
+                spacing: 8
+                KButton { theme: win.theme; primary: true; text: "Back up now"; iconName: "download"; enabled: !!savesBox.meta.known
+                          onClicked: app.backupSavesNow(savesBox.key) }
+                KButton { theme: win.theme; text: "Open folder"; iconName: "folder-open"; onClicked: app.openSaveBackups(savesBox.key) }
+            }
+        }
     }
 
     // -------------------------------------------------------------------- health check
@@ -3695,6 +3751,7 @@ ApplicationWindow {
                                 Component.onCompleted: app.checkSteamShortcut()
                             }
                             Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
+                            Toggle { label: "Back up a game's saves before it starts (keeps the last 5; a game's More > Save backups to restore)"; settingKey: "save_backups" }
                             Toggle { label: "Update Epic, GOG and Amazon games overnight (plugged in, not on a metered connection, while Cornerplay is open)"; settingKey: "auto_update" }
                             RowLayout {
                                 visible: !!app.settingsMap.auto_update

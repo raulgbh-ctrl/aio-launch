@@ -86,6 +86,15 @@ def checks(stores, gamepad_available=True):
             f"{storage.nice(d['free'])} free on {d['label']} ({pct:.0f}%)",
             {} if pct >= 10 else {"kind": "action", "action": "openStorage", "label": "Free up space"})
 
+    # Save backups read where games keep saves from a YAML manifest
+    if settings.get("save_backups"):
+        try:
+            import yaml  # noqa: F401
+            add("yaml", "Save backups", True, "Ready (save locations for 20,000+ games)")
+        except ImportError:
+            add("yaml", "Save backups", False, "Needs PyYAML to read where games keep their saves",
+                {"kind": "command", "command": _pm_install("python-yaml")})
+
     # Built-in sign-in window, controllers
     from PySide6.QtCore import QLibraryInfo
     from pathlib import Path

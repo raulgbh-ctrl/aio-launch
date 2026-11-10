@@ -156,13 +156,24 @@ else
                 || die "Could not create a Python environment (python3 -m venv failed)."
         fi
         "$LIB/venv/bin/python" -m pip install --quiet --upgrade pip
-        "$LIB/venv/bin/python" -m pip install --quiet "PySide6-Essentials>=6.6" requests \
+        "$LIB/venv/bin/python" -m pip install --quiet "PySide6-Essentials>=6.6" requests pyyaml \
             || die "Could not download PySide6. Check your internet connection and run this again."
         PYTHON=$LIB/venv/bin/python
     fi
 fi
 
 # ---------------------------------------------------------------- files
+# Save backups read where games keep their saves from a YAML list (the private environment has it).
+if [ "$PYTHON" = python3 ] && ! python3 -c "import yaml" >/dev/null 2>&1; then
+    case $PM in
+        pacman)  sys_install "PyYAML (for save backups)" python-yaml || true ;;
+        apt-get) sys_install "PyYAML (for save backups)" python3-yaml || true ;;
+        dnf)     sys_install "PyYAML (for save backups)" python3-pyyaml || true ;;
+        zypper)  sys_install "PyYAML (for save backups)" python3-PyYAML || true ;;
+        *) note "Optional: install PyYAML so save backups work." ;;
+    esac
+fi
+
 say "Installing Cornerplay into $PREFIX"
 mkdir -p "$LIB" "$BIN" "$APPS" "$ICONS"
 if [ "$DEV" = 1 ]; then

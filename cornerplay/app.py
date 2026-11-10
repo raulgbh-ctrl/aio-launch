@@ -15,7 +15,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, health, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -884,6 +884,63 @@ class AioLaunch(QObject):
                             self.refresh("", False))
         self._bg(work)
 
+    # --- save backups -----------------------------------------------------------------
+    savesReady = Signal(str, "QVariantList")
+
+    def _refresh_save_index(self):
+        """The save-location index, once a week, in the background (13 s of parsing)."""
+        if not settings.get("save_backups") or self.demo or not savebackup.index_is_old():
+            return
+        self._bg(lambda: (savebackup.build_index(), None)[1])
+
+    @Slot(str)
+    def loadSaveBackups(self, key):
+        g = self.model.find(key)
+        if not g:
+            return
+
+        def work():
+            rows = [dict(b, when=time.strftime("%d %b %Y, %H:%M", time.localtime(b["made"])),
+                         sizeText=storage.nice(b["size"])) for b in savebackup.backups(g)]
+            known = bool(savebackup.entry_for(g, _appid(g)))
+            found = len(savebackup.paths_for(g, _appid(g))) if known else 0
+            info = [{"_meta": True, "known": known, "found": found, "indexed": bool(savebackup.index().get("games"))}]
+            return lambda: self.savesReady.emit(key, info + rows)
+        self._bg(work)
+
+    @Slot(str)
+    def backupSavesNow(self, key):
+        g = self.model.find(key)
+        if not g:
+            return
+
+        def work():
+            name = savebackup.backup(g, _appid(g), reason="by hand")
+            return lambda: (self.toast.emit(f"Saves of {g.title} backed up" if name else
+                                            f"No saves of {g.title} found on this PC yet"), self.loadSaveBackups(key))
+        self._bg(work)
+
+    @Slot(str, str)
+    def restoreSaves(self, key, name):
+        g = self.model.find(key)
+        if not g or self._playing.get(key):
+            self.toast.emit("Close the game first, then restore")
+            return
+
+        def work():
+            n = savebackup.restore(g, name, _appid(g))
+            return lambda: (self.toast.emit(f"Put back {n} save file{'s' if n != 1 else ''} of {g.title} "
+                                            "(what was there is backed up too)"), self.loadSaveBackups(key))
+        self._bg(work)
+
+    @Slot(str)
+    def openSaveBackups(self, key):
+        g = self.model.find(key)
+        if g:
+            folder = savebackup.folder_of(g)
+            os.makedirs(folder, exist_ok=True)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
     # --- health check ------------------------------------------------------------
     healthReady = Signal("QVariantList")
 
@@ -1411,6 +1468,7 @@ class AioLaunch(QObject):
         self.gameChanged.emit("")
         if not self._pending:
             QTimer.singleShot(20000, self._prefetch_details)  # after the library settles; slow, in the background
+            QTimer.singleShot(45000, self._refresh_save_index)
             self.checkSteamShortcut()
             self._auto_steam()
             self._announce_updates()
@@ -2245,6 +2303,12 @@ class AioLaunch(QObject):
                     return lambda: self.saveConflict.emit(key, res["local"], res["cloud"])
                 if res["status"] == "error":
                     self._worker_toast.emit(f"{g.title}: {res['message']} (launching anyway)")
+            if settings.get("save_backups") and g.id != "battlenet-app":
+                try:  # never let a backup stop the game from starting
+                    if savebackup.backup(g, _appid(g)):
+                        self._worker_toast.emit(f"Saves of {g.title} backed up")
+                except Exception:
+                    pass
             with runner.using(opts):
                 cmd = store.launch(g)
             if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom"):
