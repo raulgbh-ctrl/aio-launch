@@ -18,6 +18,31 @@ def load_fonts(app):
         app.setFont(font)
 
 
+def auto_scale():
+    """A big screen the desktop does not scale (a 4K monitor or TV at 100%): grow the interface
+    so it is not tiny. Desktops that scale already (most do; Qt picks that up) are left alone."""
+    import shutil
+    import subprocess
+    width, desk = 0, 1.0
+    try:
+        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl"):
+            import json
+            mons = json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True,
+                                             text=True, timeout=3).stdout or "[]")
+            mon = next((m for m in mons if m.get("focused")), mons[0] if mons else {})
+            width, desk = int(mon.get("width", 0)), float(mon.get("scale", 1.0))
+        elif os.environ.get("XDG_SESSION_TYPE") == "x11" and shutil.which("xrandr"):
+            import re
+            out = subprocess.run(["xrandr", "--current"], capture_output=True, text=True, timeout=3).stdout
+            m = re.search(r" connected primary (\d+)x\d+", out) or re.search(r" connected (\d+)x\d+", out)
+            width = int(m.group(1)) if m else 0
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return 1.0
+    if desk > 1.01 or width < 3200:
+        return 1.0
+    return min(2.5, round(width / 1920 * 4) / 4)  # 3840 wide -> 2x
+
+
 def check_qml():
     """Compile every QML file (catches syntax and reserved-word mistakes before a restart)."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -196,9 +221,11 @@ def main():
     # Interface size (Settings > Appearance): Qt scales everything; a QT_SCALE_FACTOR already set wins.
     try:
         from .config import settings as _settings
-        scale = float(_settings.get("ui_scale") or 1.0)
+        scale = float(_settings.get("ui_scale") or 0.0)
     except (TypeError, ValueError):
-        scale = 1.0
+        scale = 0.0
+    if scale <= 0:
+        scale = auto_scale()
     if abs(scale - 1.0) > 0.01 and "QT_SCALE_FACTOR" not in os.environ:
         os.environ["QT_SCALE_FACTOR"] = f"{scale:.2f}"
     # The window class must say "cornerplay" so desktops (KDE on the Steam Deck, X11 docks)

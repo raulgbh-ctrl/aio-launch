@@ -18,7 +18,7 @@ Item {
     Image {
         anchors.fill: parent
         source: icon.svg ? "data:image/svg+xml;utf8," + encodeURIComponent(icon.svg.replace(/currentColor/g, icon.hex)) : ""
-        sourceSize: Qt.size(icon.size * 2, icon.size * 2)
+        sourceSize: Qt.size(Math.ceil(icon.size * Math.max(2, Screen.devicePixelRatio)), Math.ceil(icon.size * Math.max(2, Screen.devicePixelRatio)))
         smooth: true
     }
 }

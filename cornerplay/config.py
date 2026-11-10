@@ -52,7 +52,7 @@ DEFAULTS = {
     "home_collapsed": ["free"],  # home sections folded away: "banner", "continue", "free" (Free on Epic starts as one line)
     "epic_free_hidden_until": 0,  # Free on Epic hidden until the current offers end
     "home_order": ["continue", "free"],
-    "ui_scale": 1.0,           # interface size (1.0, 1.15, 1.3); applies after a restart
+    "ui_scale": 0.0,           # interface size: 0 = automatic, else 1.0 / 1.15 / 1.3 / 1.5 / 2.0 (after a restart)
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"

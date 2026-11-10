@@ -54,6 +54,6 @@ Item {
         visible: !pb.shoulder && pb.style === "playstation"
         anchors.fill: parent
         source: visible ? pb.psSvg(pb.button, pb.psColour[pb.button]) : ""
-        sourceSize: Qt.size(pb.size * 2, pb.size * 2)
+        sourceSize: Qt.size(Math.ceil(pb.size * Math.max(2, Screen.devicePixelRatio)), Math.ceil(pb.size * Math.max(2, Screen.devicePixelRatio)))
     }
 }

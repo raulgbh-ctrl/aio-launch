@@ -375,6 +375,8 @@ ApplicationWindow {
 
                 // Your lists: favourites, collections, and backlog statuses that have games.
                 RowLayout {
+                    // Shown once there is a list (make the first one from a game's More > Add to a collection).
+                    visible: app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0
                     Layout.fillWidth: true
                     Layout.topMargin: 14; Layout.leftMargin: 14; Layout.rightMargin: 6; Layout.bottomMargin: 2
                     Text { Layout.fillWidth: true; text: "YOUR LISTS"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
@@ -1459,6 +1461,117 @@ ApplicationWindow {
                         label: played
                     }
                 }
+                // What you came for: Play / Install and friends, right under the title.
+                // Job progress.
+                ColumnLayout {
+                    visible: !!win.selected.job
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text {
+                        color: theme.onSurface
+                        font.pixelSize: 13
+                        text: win.selected.job === "uninstall" ? "Removing…"
+                              : win.selected.progress < 0 ? "Starting…"
+                              : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
+                                + (win.selected.progress || 0).toFixed(1) + "%"
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 6; radius: 3
+                        color: theme.surfaceContainerHighest
+                        Rectangle {
+                            height: parent.height; radius: 3
+                            color: theme.primary
+                            width: parent.width * Math.max(0.02, (win.selected.progress || 0) / 100)
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.selected.store === "battlenet" && win.selected.key === "battlenet:battlenet-app"
+                    wrapMode: Text.WordWrap
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 12
+                    text: win.selected.installed
+                          ? "Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles."
+                          : "Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton."
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    KButton {
+                        theme: detail.tint
+                        primary: true
+                        visible: !win.selected.job
+                        text: win.selected.installed ? "Play" : "Install"
+                        iconName: win.selected.installed ? "play" : "download"
+                        onClicked: {
+                            app.preferCopy(win.selectedKey)
+                            win.selected.installed ? app.play(win.selectedKey) : app.install(win.selectedKey)
+                        }
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !win.selected.job && !!win.selected.update
+                        text: "Update"
+                        iconName: "arrow-up"
+                        onClicked: app.update(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !!win.selected.job
+                        text: "Cancel"
+                        iconName: "x"
+                        onClicked: app.cancel(win.selectedKey)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        visible: !!win.selected.hasDlc && detail.dlcCount !== 0
+                        text: detail.dlcCount > 0 ? "DLC · " + detail.dlcCount : "DLC"
+                        iconName: "puzzle"
+                        onClicked: dlc.show(win.selectedKey, win.selected.title)
+                    }
+                    KButton {
+                        theme: detail.tint
+                        text: win.selected.favourite ? "Favourited" : "Favourite"
+                        iconName: win.selected.favourite ? "star-filled" : "star"
+                        onClicked: app.toggleFavourite(win.selectedKey)
+                    }
+                    // Everything else, one click away.
+                    KButton {
+                        id: moreBtn
+                        theme: detail.tint
+                        text: "More"
+                        iconName: "ellipsis"
+                        onClicked: moreMenu.opened ? moreMenu.close() : moreMenu.open()
+                        Popup {
+                            id: moreMenu
+                            y: -height - 8
+                            width: 240
+                            padding: 6
+                            onClosed: confirmRemove.armed = false
+                            background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+                            contentItem: Column {
+                                spacing: 2
+                                MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Add to a collection"
+                                          onPicked: { moreMenu.close(); collPick.show(win.selectedKey, win.selected.title) } }
+                                MenuRow { icon: "settings-2"; text: "Options"; onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
+                                MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? "Unhide" : "Hide"
+                                          onPicked: { moreMenu.close(); app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() } }
+                                MenuRow {
+                                    id: confirmRemove
+                                    property bool armed: false
+                                    visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
+                                    icon: "trash-2"; danger: true
+                                    text: armed ? "Really uninstall?" : "Uninstall"
+                                    onPicked: { if (!armed) { armed = true; return } armed = false; moreMenu.close(); app.uninstall(win.selectedKey) }
+                                }
+                            }
+                        }
+                    }
+                }
                 // Your take on the game: backlog status, stars, a note.
                 RowLayout {
                     Layout.fillWidth: true
@@ -1472,7 +1585,6 @@ ApplicationWindow {
                         Connections { target: win; function onSelectedChanged() { statusBox.select(win.selected.status || "") } }
                         onActivated: app.setStatus(win.selectedKey, currentValue)
                     }
-                    Item { Layout.fillWidth: true }
                     Row {
                         spacing: 2
                         Repeater {
@@ -1659,116 +1771,6 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
-                // Job progress.
-                ColumnLayout {
-                    visible: !!win.selected.job
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Text {
-                        color: theme.onSurface
-                        font.pixelSize: 13
-                        text: win.selected.job === "uninstall" ? "Removing…"
-                              : win.selected.progress < 0 ? "Starting…"
-                              : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
-                                + (win.selected.progress || 0).toFixed(1) + "%"
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 6; radius: 3
-                        color: theme.surfaceContainerHighest
-                        Rectangle {
-                            height: parent.height; radius: 3
-                            color: theme.primary
-                            width: parent.width * Math.max(0.02, (win.selected.progress || 0) / 100)
-                        }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    visible: win.selected.store === "battlenet" && win.selected.key === "battlenet:battlenet-app"
-                    wrapMode: Text.WordWrap
-                    color: theme.onSurfaceVariant
-                    font.pixelSize: 12
-                    text: win.selected.installed
-                          ? "Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles."
-                          : "Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton."
-                }
-
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    KButton {
-                        theme: detail.tint
-                        primary: true
-                        visible: !win.selected.job
-                        text: win.selected.installed ? "Play" : "Install"
-                        iconName: win.selected.installed ? "play" : "download"
-                        onClicked: {
-                            app.preferCopy(win.selectedKey)
-                            win.selected.installed ? app.play(win.selectedKey) : app.install(win.selectedKey)
-                        }
-                    }
-                    KButton {
-                        theme: detail.tint
-                        visible: !win.selected.job && !!win.selected.update
-                        text: "Update"
-                        iconName: "arrow-up"
-                        onClicked: app.update(win.selectedKey)
-                    }
-                    KButton {
-                        theme: detail.tint
-                        visible: !!win.selected.job
-                        text: "Cancel"
-                        iconName: "x"
-                        onClicked: app.cancel(win.selectedKey)
-                    }
-                    KButton {
-                        theme: detail.tint
-                        visible: !!win.selected.hasDlc && detail.dlcCount !== 0
-                        text: detail.dlcCount > 0 ? "DLC · " + detail.dlcCount : "DLC"
-                        iconName: "puzzle"
-                        onClicked: dlc.show(win.selectedKey, win.selected.title)
-                    }
-                    KButton {
-                        theme: detail.tint
-                        text: win.selected.favourite ? "Favourited" : "Favourite"
-                        iconName: win.selected.favourite ? "star-filled" : "star"
-                        onClicked: app.toggleFavourite(win.selectedKey)
-                    }
-                    // Everything else, one click away.
-                    KButton {
-                        id: moreBtn
-                        theme: detail.tint
-                        text: "More"
-                        iconName: "ellipsis"
-                        onClicked: moreMenu.opened ? moreMenu.close() : moreMenu.open()
-                        Popup {
-                            id: moreMenu
-                            y: -height - 8
-                            width: 240
-                            padding: 6
-                            onClosed: confirmRemove.armed = false
-                            background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
-                            contentItem: Column {
-                                spacing: 2
-                                MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Add to a collection"
-                                          onPicked: { moreMenu.close(); collPick.show(win.selectedKey, win.selected.title) } }
-                                MenuRow { icon: "settings-2"; text: "Options"; onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
-                                MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? "Unhide" : "Hide"
-                                          onPicked: { moreMenu.close(); app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() } }
-                                MenuRow {
-                                    id: confirmRemove
-                                    property bool armed: false
-                                    visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
-                                    icon: "trash-2"; danger: true
-                                    text: armed ? "Really uninstall?" : "Uninstall"
-                                    onPicked: { if (!armed) { armed = true; return } armed = false; moreMenu.close(); app.uninstall(win.selectedKey) }
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
         // More like this in your library (shared genres, the same developer).
@@ -3356,9 +3358,11 @@ ApplicationWindow {
                                     hint: "Applies after a restart."
                                     KCombo {
                                         theme: win.theme; Layout.fillWidth: true
-                                        model: [{ label: "Normal (100%)", value: 1.0 }, { label: "Larger (115%)", value: 1.15 },
-                                                { label: "Largest (130%)", value: 1.3 }]
-                                        Component.onCompleted: select(app.settingsMap.ui_scale || 1.0)
+                                        model: [{ label: "Automatic (bigger on large unscaled screens)", value: 0.0 },
+                                                { label: "Normal (100%)", value: 1.0 }, { label: "Larger (115%)", value: 1.15 },
+                                                { label: "Larger still (130%)", value: 1.3 }, { label: "150%", value: 1.5 },
+                                                { label: "200% (4K at 100%)", value: 2.0 }]
+                                        Component.onCompleted: select(app.settingsMap.ui_scale || 0.0)
                                         onActivated: app.setSetting("ui_scale", currentValue)
                                     }
                                 }

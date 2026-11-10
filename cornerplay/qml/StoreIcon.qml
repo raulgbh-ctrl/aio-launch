@@ -21,7 +21,7 @@ Item {
         anchors.fill: parent
         visible: icon.svg !== ""
         source: icon.svg ? "data:image/svg+xml;utf8," + encodeURIComponent(icon.svg.replace('fill="#ffffff"', 'fill="' + icon.hex + '"')) : ""
-        sourceSize: Qt.size(icon.size * 2, icon.size * 2)
+        sourceSize: Qt.size(Math.ceil(icon.size * Math.max(2, Screen.devicePixelRatio)), Math.ceil(icon.size * Math.max(2, Screen.devicePixelRatio)))
         fillMode: Image.PreserveAspectFit
         smooth: true
     }
