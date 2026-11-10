@@ -327,17 +327,25 @@ class AioLaunch(QObject):
                           "busy": False, "games": 0, "gamesInSteam": 0, "inSync": False, "progress": ""}
         self._ge = {"latest": "", "installed": (proton.installed_ge() or [""])[0], "busy": False,
                     "progress": 0.0, "error": "", "upToDate": False}
+        # Ryoku rewrites its palette file in place when the wallpaper changes; a folder watch only
+        # sees files being added or replaced, so watch the file too (and again after a replace).
         self._watch = QFileSystemWatcher(self)
+        self._palette_timer = QTimer(self, singleShot=True, interval=250)
+        self._palette_timer.timeout.connect(self._load_theme)
+        self._palette_tries = 0
         if PALETTE.parent.is_dir():
             self._watch.addPath(str(PALETTE.parent))
-            self._watch.directoryChanged.connect(lambda _: QTimer.singleShot(200, self._load_theme))
+            self._watch.directoryChanged.connect(lambda _: self._palette_changed())
+            self._watch.fileChanged.connect(lambda _: self._palette_changed())
+            self._rewatch(self._watch, PALETTE)
         # Follow-wallpaper: react to the files desktops rewrite when the wallpaper changes (no polling).
         from . import wallpaper
         self._wall_watch = QFileSystemWatcher(wallpaper.watch_paths(), self)
         self._wall_pending = QTimer(self, singleShot=True, interval=800)
         self._wall_pending.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and self._load_theme())
-        self._wall_watch.fileChanged.connect(lambda _: self._wall_pending.start())
-        self._wall_watch.directoryChanged.connect(lambda _: self._wall_pending.start())
+        self._wall_files = [p for p in wallpaper.watch_paths() if not os.path.isdir(p)]
+        self._wall_watch.fileChanged.connect(lambda _: self._wall_changed())
+        self._wall_watch.directoryChanged.connect(lambda _: self._wall_changed())
 
         session.SESSIONS.mkdir(parents=True, exist_ok=True)
         self._sessions = QFileSystemWatcher([str(session.SESSIONS)], self)
@@ -353,7 +361,30 @@ class AioLaunch(QObject):
             QTimer.singleShot(0, self.refresh)
 
     # --- theme -----------------------------------------------------------
+    @staticmethod
+    def _rewatch(watcher, path):
+        """A file watch is dropped when an editor replaces the file: add it back if needed."""
+        path = str(path)
+        if os.path.exists(path) and path not in watcher.files():
+            watcher.addPath(path)
+
+    def _palette_changed(self):
+        self._rewatch(self._watch, PALETTE)
+        self._palette_tries = 0
+        self._palette_timer.start()
+
+    def _wall_changed(self):
+        for f in self._wall_files:
+            self._rewatch(self._wall_watch, f)
+        self._wall_pending.start()
+
     def _load_theme(self):
+        # Caught Ryoku's palette half-written: try again shortly instead of flashing other colours.
+        if (settings.get("theme_mode") == "ryoku" and PALETTE.exists() and not read_json(PALETTE)
+                and self._palette_tries < 8):
+            self._palette_tries += 1
+            self._palette_timer.start()
+            return
         new = themes.current()
         if new != self._theme:
             self._theme = new
