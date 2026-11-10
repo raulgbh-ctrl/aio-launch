@@ -1880,10 +1880,12 @@ ApplicationWindow {
     // -------------------------------------------------------------------- per-game options
     KDialog {
         id: gameOpts
+        objectName: "gameOpts"
         theme: win.theme
         property string key: ""
         property var game: ({})
         property var opts: ({})
+        property var steamProton: ({ choices: [], current: "" })
         readonly property bool compat: ["epic", "gog", "amazon"].includes(game.store) || key === "battlenet:battlenet-app"
         heading: "Options · " + (game.title || "")
         width: Math.min(win.width - 60, 600)
@@ -1892,6 +1894,9 @@ ApplicationWindow {
             game = app.game(k)
             opts = app.gameOptions(k)
             optProton.select(opts.proton === undefined ? "default" : opts.proton)
+            steamProton = game.store === "steam" ? app.steamProton(k) : ({ choices: [], current: "" })
+            optSteamProton.model = steamProton.choices
+            optSteamProton.select(steamProton.current)
             optHud.select(opts.mangohud === undefined ? "default" : opts.mangohud)
             optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
             optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
@@ -1906,13 +1911,25 @@ ApplicationWindow {
             spacing: 14
             Text {
                 Layout.fillWidth: true
-                visible: !gameOpts.compat
                 wrapMode: Text.WordWrap
                 color: theme.onSurfaceVariant
                 font.pixelSize: 12
-                text: gameOpts.game.store === "steam"
-                      ? "Steam picks Proton and launch options itself: in Steam, open the game's Properties → Compatibility."
-                      : "Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile."
+                visible: !gameOpts.compat && gameOpts.game.store !== "steam"
+                text: "Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile."
+            }
+            // Steam games: Steam's own per-game compatibility tool, set from here.
+            Row2 {
+                visible: gameOpts.game.store === "steam"
+                label: "Proton version (Steam's setting)"
+                hint: gameOpts.steamProton.choices.length
+                      ? "The same as the game's Properties → Compatibility in Steam. AIO Launch closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam."
+                      : "Steam is not set up on this PC yet: start Steam and sign in once."
+                KCombo {
+                    id: optSteamProton
+                    theme: win.theme; Layout.fillWidth: true
+                    enabled: gameOpts.steamProton.choices.length > 0 && !app.steamShortcut.busy
+                    onActivated: app.setSteamProton(gameOpts.key, currentValue)
+                }
             }
             Row2 {
                 visible: gameOpts.compat

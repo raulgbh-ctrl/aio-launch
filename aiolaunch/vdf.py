@@ -36,3 +36,19 @@ def load(path) -> dict:
             return loads(f.read())
     except OSError:
         return {}
+
+
+def _quote(s: str) -> str:
+    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def dumps(obj: dict, depth: int = 0) -> str:
+    """Write text KeyValues the way Steam does (tabs, one key per line)."""
+    out = []
+    tab = "\t" * depth
+    for key, value in obj.items():
+        if isinstance(value, dict):
+            out.append(f"{tab}{_quote(key)}\n{tab}{{\n{dumps(value, depth + 1)}{tab}}}\n")
+        else:
+            out.append(f"{tab}{_quote(key)}\t\t{_quote(value)}\n")
+    return "".join(out)

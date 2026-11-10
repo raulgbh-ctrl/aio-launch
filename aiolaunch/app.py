@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, details, gamecolour, playtime, protondb, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, details, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -1010,6 +1010,30 @@ class AioLaunch(QObject):
                     steamshortcut.start_steam()
             return lambda: (self._set_shortcut(busy=False, progress=""), self.toast.emit(msg), self.checkSteamShortcut())
         self._bg(work)
+
+    @Slot(str, result="QVariantMap")
+    def steamProton(self, key):
+        """{"choices", "current"} for a Steam game's Proton picker (Steam's own per-game setting)."""
+        g = self.model.find(key)
+        root = self.stores["steam"].root()
+        if not g or g.store != "steam" or not root:
+            return {"choices": [], "current": ""}
+        return {"choices": steamcompat.choices(str(root)), "current": steamcompat.current(str(root), g.id)}
+
+    @Slot(str, str)
+    def setSteamProton(self, key, name):
+        """Set which Proton Steam runs this game with ("" = Steam decides). Closes Steam meanwhile."""
+        g = self.model.find(key)
+        root = self.stores["steam"].root()
+        if not g or g.store != "steam" or not root:
+            return
+        label = next((c["label"] for c in steamcompat.choices(str(root)) if c["value"] == name), name)
+
+        def fn():
+            steamcompat.set_tool(str(root), g.id, name)
+            return (f"{g.title} now runs with {label}. Steam downloads it the first time if needed."
+                    if name else f"{g.title} uses Steam's choice of Proton again")
+        self._steam_job(fn, f"Setting {g.title} to {label or 'Steam default'}…")
 
     @Slot()
     def addGamesToSteam(self):
