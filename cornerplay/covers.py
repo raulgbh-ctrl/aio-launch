@@ -349,3 +349,52 @@ def add_backup_art(games):
         g.extra["covers"] = [u for u in _unique_list(covers) if u and u != primary]
         g.extra["heroes"] = heroes
         g.extra["logos"] = logos
+
+
+# --- animated art (TV mode) ------------------------------------------------------------
+ANIMATED_FILE = CACHE_DIR / "animated_art.json"
+ANIMATED_TTL = 14 * 86400
+ANIMATED_MIMES = "image/webp,image/gif"  # what Qt can play (APNG and WebM it cannot)
+
+
+def _sgdb_game_id(title, appid, h):
+    if appid:
+        r = requests.get(f"{SGDB}/games/steam/{appid}", headers=h, timeout=15)
+        if r.status_code == 200 and (r.json().get("data") or {}).get("id"):
+            return r.json()["data"]["id"]
+    r = requests.get(f"{SGDB}/search/autocomplete/{quote(title, safe='')}", headers=h, timeout=15)
+    if r.status_code in (401, 403):
+        raise PermissionError("SteamGridDB rejected the API key")
+    hits = (r.json().get("data") or []) if r.status_code == 200 else []
+    want = norm(title)
+    game = next((g for g in hits if norm(g.get("name", "")) == want), None)
+    return game["id"] if game else None
+
+
+def animated_cached(key):
+    hit = (read_json(ANIMATED_FILE) or {}).get(key)
+    return hit if hit and time.time() - hit.get("t", 0) < ANIMATED_TTL else None
+
+
+def animated(key, title, appid, sgdb_key):
+    """Animated cover and banner for a game from SteamGridDB: {"grid", "hero"} ("" when there
+    is none); None when the lookup failed (tried again next time)."""
+    h = {"Authorization": "Bearer " + sgdb_key}
+    try:
+        gid = _sgdb_game_id(title, appid, h)
+        out = {"grid": "", "hero": ""}
+        if gid:
+            for kind, path, extra in (("grid", "grids", {"dimensions": "600x900,342x482,660x930"}),
+                                      ("hero", "heroes", {})):
+                r = requests.get(f"{SGDB}/{path}/game/{gid}", headers=h, timeout=15,
+                                 params=dict(extra, types="animated", mimes=ANIMATED_MIMES, nsfw="false"))
+                if r.status_code == 200:
+                    items = r.json().get("data") or []
+                    out[kind] = items[0]["url"] if items else ""
+    except (requests.RequestException, ValueError, KeyError, PermissionError):
+        return None
+    with _lock:
+        data = read_json(ANIMATED_FILE) or {}
+        data[key] = dict(out, t=time.time())
+        write_json(ANIMATED_FILE, data)
+    return out

@@ -2582,6 +2582,7 @@ ApplicationWindow {
                             Toggle { label: "Always show game titles"; settingKey: "show_titles" }
                             Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
                         Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: "TV mode: play the focused game's trailer (muted)"; settingKey: "tv_trailers" }
+                        Toggle { label: "TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"; settingKey: "tv_animated" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
                         Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
                             Row2 {

@@ -874,6 +874,29 @@ class AioLaunch(QObject):
 
     epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
 
+    # --- animated art (TV mode) ----------------------------------------------------
+    animatedArtReady = Signal(str, "QVariantMap")
+
+    @Slot(str, result="QVariantMap")
+    def animatedArt(self, key):
+        """Animated cover and banner (SteamGridDB, needs its key); {} until known."""
+        sgdb = settings.get("steamgriddb_key").strip()
+        g = self.model.find(key)
+        if not sgdb or not g or g.id == "battlenet-app" or not settings.get("tv_animated"):
+            return {}
+        hit = covers.animated_cached(key)
+        if hit is not None:
+            return hit
+        pend = "anim:" + key
+        if pend not in self._details_pending:
+            self._details_pending.add(pend)
+
+            def work():
+                d = covers.animated(key, g.title, _appid(g), sgdb) or {}
+                return lambda: (self._details_pending.discard(pend), self.animatedArtReady.emit(key, d))
+            self._bg(work)
+        return {}
+
     # --- achievements (Steam) --------------------------------------------------
     @Slot(str, result="QVariantMap")
     def achievements(self, key):

@@ -29,12 +29,22 @@ FocusScope {
     Timer { id: trailerTimer; interval: 2500; onTriggered: tv.trailerUrl = tv.info.trailer || "" }
     onInfoChanged: { trailerUrl = ""; if (info.trailer) trailerTimer.restart(); else trailerTimer.stop() }
     property var ach: ({})
-    Timer { id: infoTimer; interval: 350; onTriggered: { tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({}); tv.ach = tv.infoKey ? app.achievements(tv.infoKey) : ({}) } }
+    property var anim: ({})   // animated cover / banner (SteamGridDB)
+    Timer { id: infoTimer; interval: 350; onTriggered: {
+        tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({})
+        tv.ach = tv.infoKey ? app.achievements(tv.infoKey) : ({})
+        tv.anim = tv.infoKey ? app.animatedArt(tv.infoKey) : ({})
+    } }
+    // Animated art plays only when it costs nothing that matters: plugged in (or a desktop),
+    // full effects, someone is using the screen, and Cornerplay is in front.
+    readonly property bool plugged: topStatus.batt.level === undefined || !!topStatus.batt.charging
+    readonly property bool animOk: !!app.settingsMap.tv_animated && !app.light && !tv.calm && tv.plugged
+                                   && tv.visible && Qt.application.state === Qt.ApplicationActive
     onCurChanged: {
         if ((cur.key || "") === infoKey) return  // same game, just refreshed
         infoKey = cur.key || ""
         gameAccent = cur.key ? app.gameColour(cur.key) : ""
-        info = ({}); ach = ({})
+        info = ({}); ach = ({}); anim = ({})
         infoTimer.restart()
     }
     readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
@@ -156,6 +166,7 @@ FocusScope {
         function onGameColourReady(key, colour) { if (key === tv.cur.key) tv.gameAccent = colour }
         function onDetailsReady(key, d) { if (key === tv.infoKey) tv.info = d }
         function onAchievementsReady(key, d) { if (key === tv.infoKey) tv.ach = d }
+        function onAnimatedArtReady(key, d) { if (key === tv.infoKey) tv.anim = d }
     }
 
     // One of the two full-screen art images that take turns (see stage).
@@ -226,6 +237,19 @@ FocusScope {
 
         ArtLayer { id: artA; tag: "a"; opacity: !stage.none && stage.showA ? 1 : 0 }
         ArtLayer { id: artB; tag: "b"; opacity: !stage.none && !stage.showA ? 1 : 0 }
+        AnimatedImage {
+            id: animHero
+            objectName: "tvAnimHero"
+            anchors.fill: parent
+            source: tv.animOk && tv.anim.hero ? tv.anim.hero : ""
+            asynchronous: true
+            // Keep Qt's default cache: an AnimatedImage from the web with cache: false crashes Qt 6.12.
+            fillMode: Image.PreserveAspectCrop
+            horizontalAlignment: Image.AlignRight
+            playing: tv.animOk
+            opacity: status === Image.Ready ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 450 } }
+        }
         Loader {
             anchors.fill: parent
             active: typeof canPlayVideo !== "undefined" && canPlayVideo && app.settingsMap.tv_trailers
@@ -660,6 +684,7 @@ FocusScope {
             readonly property int page: Math.max(1, Math.floor(width / cellWidth) - 1)
             onCountChanged: { if (currentIndex < 0 && count > 0) currentIndex = 0; tv.sync() }
             delegate: GameCard {
+                id: tvCard
                 required property int index
                 width: grid.cellWidth
                 height: grid.cellHeight
@@ -674,6 +699,21 @@ FocusScope {
                 onHoveredChanged: if (hovered && grid.currentIndex !== index) grid.currentIndex = index
                 onOpened: { grid.currentIndex = index; tv.sync(); panel.show() }
                 onActivated: { grid.currentIndex = index; tv.sync(); tv.accept() }
+                // The focused game's animated cover, over its still one.
+                RoundedArt {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    radius: app.settingsMap.card_radius
+                    visible: tvCard.current && tv.animOk && !!tv.anim.grid && animCover.status === Image.Ready
+                    AnimatedImage {
+                        id: animCover
+                        anchors.fill: parent
+                        source: tvCard.current && tv.animOk && tv.anim.grid ? tv.anim.grid : ""
+                        asynchronous: true
+                        fillMode: Image.PreserveAspectCrop
+                        playing: tv.animOk
+                    }
+                }
             }
             Keys.onReturnPressed: tv.accept()
             Keys.onEnterPressed: tv.accept()

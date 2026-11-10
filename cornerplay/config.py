@@ -44,6 +44,7 @@ DEFAULTS = {
     "profile": "",
     "sync_dir": "",        # a folder another tool syncs between PCs; Cornerplay keeps personal data there
     "machine_id": "",
+    "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
     "show_fps": False,
