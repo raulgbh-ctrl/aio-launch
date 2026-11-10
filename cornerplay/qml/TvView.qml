@@ -319,9 +319,10 @@ FocusScope {
             anchors.fill: parent
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.88) }
-                GradientStop { position: 0.38; color: Qt.alpha(theme.background, 0.45) }
-                GradientStop { position: 0.7; color: Qt.alpha(theme.background, 0.0) }
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.94) }
+                GradientStop { position: 0.3; color: Qt.alpha(theme.background, 0.72) }
+                GradientStop { position: 0.55; color: Qt.alpha(theme.background, 0.25) }
+                GradientStop { position: 0.75; color: Qt.alpha(theme.background, 0.0) }
             }
         }
         Rectangle {
@@ -360,8 +361,9 @@ FocusScope {
                     implicitWidth: tabRow.implicitWidth + 36
                     implicitHeight: 46
                     radius: 23
-                    color: active ? tv.tint.primary : "transparent"
-                    border.width: active ? 0 : 1
+                    color: active ? tv.tint.primary : tabHover.hovered ? Qt.alpha(theme.onSurface, 0.1) : Qt.alpha(theme.background, 0.35)
+                    HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
+                    border.width: 0
                     border.color: theme.outlineVariant
                     Row {
                         id: tabRow
@@ -538,9 +540,10 @@ FocusScope {
                 }
                 Text {
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 760
+                    Layout.maximumWidth: Math.min(680, tv.width * 0.42)
                     visible: text !== "" && infoArea.roomForText
                     text: tv.info.description || ""
+                    style: Text.Raised; styleColor: Qt.alpha("black", 0.55)  // stays readable over bright art
                     color: theme.onSurface
                     opacity: 0.82
                     font.pixelSize: 16
@@ -702,12 +705,12 @@ FocusScope {
                 onActivated: { grid.currentIndex = index; tv.sync(); tv.accept() }
                 // A soft reflection on the shelf below (Settings > Appearance).
                 Item {
-                    visible: !!app.settingsMap.tv_reflection && !app.light
+                    visible: !!app.settingsMap.tv_reflection && !app.light && !peek.visible
                     x: 8; y: parent.height - 8
                     width: parent.width - 16
-                    height: Math.round(parent.height * 0.22)
+                    height: Math.round(parent.height * 0.1)
                     clip: true
-                    opacity: tvCard.current ? 0.32 : 0.18
+                    opacity: tvCard.current ? 0.22 : 0.1
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                     ArtImage {
                         width: parent.width
@@ -900,6 +903,13 @@ FocusScope {
 
     // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),
     // View closes and keeps the results; a real keyboard types straight into it.
+    // A soft dim behind the keyboard, so it reads as on top.
+    Rectangle {
+        anchors.fill: parent
+        visible: tv.searching
+        z: 4
+        color: Qt.alpha("black", 0.45)
+    }
     Rectangle {
         id: searchBox
         visible: tv.searching
@@ -1035,7 +1045,25 @@ FocusScope {
         visible: false
         // The game's page: everything about it on the left, what to do on the right.
         anchors.fill: parent
-        color: Qt.alpha(theme.background, 0.985)
+        color: theme.background
+        // The game's art behind the page, dimmed, so it feels like the game's own room.
+        ArtImage {
+            anchors.fill: parent
+            visible: panel.visible && !app.light
+            sources: tv.cur.heroes || []
+            sourceSize.width: 1280
+            opacity: status === Image.Ready ? 0.22 : 0
+            Behavior on opacity { NumberAnimation { duration: 300 } }
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.55) }
+                GradientStop { position: 0.6; color: Qt.alpha(theme.background, 0.75) }
+                GradientStop { position: 1.0; color: Qt.alpha(theme.background, 0.95) }
+            }
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Math.round(Math.min(64, tv.width * 0.04))
@@ -1083,7 +1111,7 @@ FocusScope {
             ListView {
                 visible: (tv.info.screenshots || []).length > 0 && tv.height >= 640
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.round(Math.min(200, tv.height * 0.2))
+                Layout.preferredHeight: Math.round(Math.floor((width - 24) / 3) * 9 / 16)
                 orientation: ListView.Horizontal
                 spacing: 12
                 interactive: false
@@ -1091,7 +1119,8 @@ FocusScope {
                 model: tv.info.screenshots || []
                 delegate: RoundedArt {
                     required property var modelData
-                    height: ListView.view.height; width: Math.round(height * 16 / 9); radius: 10
+                    // three across, sized to the column (none cut off at the edge)
+                    width: Math.floor((ListView.view.width - 24) / 3); height: Math.round(width * 9 / 16); radius: 10
                     Image { anchors.fill: parent; source: modelData.thumb || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                 }
             }
@@ -1100,13 +1129,11 @@ FocusScope {
             Layout.preferredWidth: Math.min(480, tv.width * 0.36)
             Layout.fillHeight: true
             spacing: 18
-            Text {
+            Text {  // the game's name is on the left already: here, what this column is for
                 Layout.fillWidth: true
-                text: tv.cur.title || ""
-                color: theme.onSurface
-                font.pixelSize: 28
-                font.weight: Font.Bold
-                wrapMode: Text.WordWrap
+                text: "What would you like to do?"
+                color: theme.onSurfaceVariant
+                font.pixelSize: 18
             }
             Text {
                 Layout.fillWidth: true
@@ -1131,8 +1158,17 @@ FocusScope {
                     height: 60
                     radius: 14
                     color: ListView.isCurrentItem ? theme.primary : theme.surfaceContainerHigh
+                    Icon {
+                        anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 22 }
+                        size: 22
+                        name: ({ play: "play", install: "download", update: "arrow-up", cancel: "x", uninstall: "trash-2",
+                                 fav: "star", status: "bookmark", hide: "eye-off", unhide: "eye", close: "x",
+                                 quit: "x", kill: "x" })[parent.modelData.act] || "ellipsis"
+                        color: parent.ListView.isCurrentItem ? theme.onPrimary
+                               : parent.modelData.act === "uninstall" ? theme.error : theme.onSurfaceVariant
+                    }
                     Text {
-                        anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; margins: 22 }
+                        anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; leftMargin: 62; rightMargin: 22 }
                         text: panel.armed === parent.index ? "Press again to uninstall" : parent.modelData.label
                         color: parent.ListView.isCurrentItem ? theme.onPrimary
                                : parent.modelData.act === "uninstall" ? theme.error : theme.onSurface
