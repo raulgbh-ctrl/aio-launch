@@ -462,7 +462,7 @@ ApplicationWindow {
                             Item {
                                 id: heroArt
                                 anchors.fill: parent
-                                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                                layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
                                 layer.effect: MultiEffect { maskEnabled: true; maskSource: heroMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
 
                                 Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
@@ -549,11 +549,18 @@ ApplicationWindow {
                                     color: theme.surfaceContainerHighest
                                     border.width: 1; border.color: Qt.alpha("white", 0.12)
                                     visible: hero.width >= 620
-                                    clip: true
-                                    ArtImage {
+                                    RoundedArt {
                                         anchors.fill: parent; anchors.margins: 1
-                                        sources: hero.info.covers || []
-                                        sourceSize.width: Math.min(300, Math.max(120, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                        radius: heroThumb.radius - 1
+                                        ArtImage {
+                                            anchors.fill: parent
+                                            sources: hero.info.covers || []
+                                            sourceSize.width: Math.min(300, Math.max(120, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                        }
+                                    }
+                                    Rectangle {  // the frame, over the cover's edge
+                                        anchors.fill: parent; radius: heroThumb.radius; color: "transparent"
+                                        border.width: 1; border.color: Qt.alpha("white", 0.12)
                                     }
                                 }
                                 Column {
@@ -649,17 +656,23 @@ ApplicationWindow {
                                 width: 236; height: 132
                                 radius: 12
                                 color: theme.surfaceContainerHigh
-                                border.width: recentHover.hovered ? 2 : 1
-                                border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
-                                clip: true
-                                ArtImage {
-                                    id: recentArt
-                                    width: 84; height: parent.height
-                                    sources: recentTile.modelData.covers || []
-                                    sourceSize.width: 168
+                                // The cover takes the tile's left corners; the border is drawn over it.
+                                RoundedArt {
+                                    anchors.fill: parent
+                                    radius: recentTile.radius
+                                    ArtImage {
+                                        width: 84; height: parent.height
+                                        sources: recentTile.modelData.covers || []
+                                        sourceSize.width: 168
+                                    }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent; radius: recentTile.radius; color: "transparent"; z: 1
+                                    border.width: recentHover.hovered ? 2 : 1
+                                    border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
                                 }
                                 Column {
-                                    anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                                    anchors { left: parent.left; leftMargin: 84 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                                     spacing: 6
                                     Text {
                                         width: parent.width
@@ -803,7 +816,7 @@ ApplicationWindow {
                 id: detailBanner
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
                 height: detail.bannerH
-                layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
                 layer.effect: MultiEffect { maskEnabled: true; maskSource: detailMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
                 Rectangle { anchors.fill: parent; color: Qt.darker(win.selected.storeColor || theme.surfaceContainerHigh, 2.6) }
                 ArtImage {
