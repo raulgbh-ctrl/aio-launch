@@ -36,7 +36,7 @@ a private Python environment instead (about 260 MB). From a copy of this folder,
 
 | Store      | Library from                         | Install / launch through            |
 |------------|--------------------------------------|-------------------------------------|
-| Steam      | installed + played games from Steam's own files (every owned game with a Web API key) | the Steam client (`steam://` URLs)  |
+| Steam      | the Library tab's games, from Steam's own cache `appinfo.vdf` (or every owned game with a Web API key) | the Steam client (`steam://` URLs)  |
 | Epic       | `legendary list`                     | legendary + Proton (umu-run)        |
 | GOG        | GOG web API                          | gogdl + Proton (umu-run)            |
 | Amazon     | `nile library sync`                  | nile + Proton (umu-run)             |

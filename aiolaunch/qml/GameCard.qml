@@ -254,9 +254,13 @@ Item {
         }
     }
 
-    HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
+    // Off while a pop-up is open (and just after one closes), so a click meant for the
+    // pop-up never reaches the card underneath.
+    property bool interactive: true
+    HoverHandler { id: hover; enabled: card.interactive; cursorShape: Qt.PointingHandCursor }
     TapHandler {
-        onSingleTapped: card.opened()
-        onDoubleTapped: card.activated()
+        enabled: card.interactive
+        onSingleTapped: if (card.interactive) card.opened()
+        onDoubleTapped: if (card.interactive) card.activated()
     }
 }

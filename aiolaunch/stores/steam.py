@@ -144,7 +144,7 @@ class Steam(Store):
         key = settings.get("steam_api_key").strip()
         steamid = settings.get("steam_id").strip() or self._recent_user()[0]
         if not key:
-            self._add_played(games, steamid)
+            self._add_library(games, steamid)
         if key and steamid:
             try:
                 r = requests.get(
@@ -204,6 +204,19 @@ class Steam(Store):
         for name in ("UserLocalConfigStore", "Software", "Valve", "Steam", "apps"):
             node = next((v for k, v in node.items() if k.lower() == name.lower() and isinstance(v, dict)), {})
         return node
+
+    def _add_library(self, games, steamid):
+        """The Library tab's games, without a Web API key: every app Steam's own cache
+        (appinfo.vdf) has as a "game" for this account. Falls back to the played games when
+        that cache cannot be read."""
+        from .. import steamappinfo
+        known = steamappinfo.apps(self.root()) if self.root() else {}
+        if not known:
+            self._add_played(games, steamid)
+            return
+        for appid, app in known.items():
+            if app.get("type") == "game" and app.get("name") and appid not in games and appid not in TOOL_IDS:
+                games[appid] = self._game(appid, app["name"])
 
     def _add_played(self, games, steamid):
         """Games this account has played, though not installed here: listed without a Web API key."""

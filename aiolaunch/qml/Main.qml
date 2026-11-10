@@ -89,6 +89,17 @@ ApplicationWindow {
 
     // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
     property bool tvUsed: startTv
+
+    // Any pop-up open over the library? Cards and tiles then ignore the pointer, and keep
+    // ignoring it for a moment after the pop-up closes (the click that closed it must not
+    // land on the game underneath).
+    readonly property bool popupOpen: detail.visible || gameOpts.visible || dlc.visible || accounts.visible
+                                      || prefs.visible || viewer.visible || conflict.visible || login.visible
+                                      || sortBox.popup.visible
+    property bool justClosed: false
+    onPopupOpenChanged: if (!popupOpen) { justClosed = true; closeGuard.restart() }
+    Timer { id: closeGuard; interval: 450; onTriggered: win.justClosed = false }
+    readonly property bool cardsLive: !popupOpen && !justClosed
     Loader {
         anchors.fill: parent
         z: 50
@@ -560,10 +571,11 @@ ApplicationWindow {
                                         elide: Text.ElideRight
                                     }
                                 }
-                                HoverHandler { id: recentHover; cursorShape: Qt.PointingHandCursor }
+                                HoverHandler { id: recentHover; enabled: win.cardsLive; cursorShape: Qt.PointingHandCursor }
                                 TapHandler {
-                                    onSingleTapped: win.select(recentTile.modelData.key)
-                                    onDoubleTapped: win.activate(recentTile.modelData.key)
+                                    enabled: win.cardsLive
+                                    onSingleTapped: if (win.cardsLive) win.select(recentTile.modelData.key)
+                                    onDoubleTapped: if (win.cardsLive) win.activate(recentTile.modelData.key)
                                 }
                             }
                             }
@@ -587,6 +599,7 @@ ApplicationWindow {
                         dim: app.settingsMap.dim_uninstalled
                         // One highlight at a time: while the pointer is over a card, the keyboard
                         // selection steps back.
+                        interactive: win.cardsLive
                         current: GridView.isCurrentItem && grid.activeFocus && grid.hoverIndex < 0
                         onHoveredChanged: grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
                         onOpened: { grid.currentIndex = index; win.select(key) }
