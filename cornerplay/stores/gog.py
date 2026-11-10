@@ -295,10 +295,17 @@ class Gog(Store):
         return Command([tool, "--auth-config-path", str(AUTH_FILE), "update", game.id,
                         "--platform", "windows", "--path", game.install_path, "--with-dlcs", "--lang", "en-US"])
 
+    def verify(self, game):
+        cmd = self.update(game)  # same arguments; "repair" checks every file against GOG's manifest
+        cmd.argv[cmd.argv.index("update")] = "repair"
+        return cmd
+
     def uninstall(self, game):
         path = os.path.realpath(game.install_path or "")
-        base = os.path.realpath(self.base_dir())
-        if not path.startswith(base + os.sep) or not os.path.isdir(path):
+        # Cornerplay's GOG folder, or a folder a game was moved to (Storage > Move).
+        bases = [os.path.realpath(self.base_dir())] + [os.path.realpath(d) for d in settings.get("library_dirs") or []
+                                                       if isinstance(d, str)]
+        if not any(path.startswith(b + os.sep) for b in bases) or not os.path.isdir(path):
             raise StoreError("Refusing to delete a folder outside Cornerplay's GOG directory")
         shutil.rmtree(path)
         return None

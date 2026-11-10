@@ -6,7 +6,7 @@ import shutil
 
 from contextlib import contextmanager
 
-from .config import HOME, find_tool, settings
+from .config import CACHE_DIR, HOME, find_tool, settings
 
 _overrides: dict = {}
 
@@ -90,7 +90,45 @@ def wine_env(store: str, game_id: str, umu_id: str = "umu-default") -> dict:
         proton = (opt("proton") or "").strip()
         if proton:
             env["PROTONPATH"] = os.path.expanduser(proton)
+    env.update(perf_env(store, game_id))
     env.update(user_env())
+    return env
+
+
+# Performance profiles: a frame cap (DXVK and VKD3D-Proton cap it themselves; MangoHud too when
+# it runs) and AMD FSR upscaling when a game runs full screen below the screen's resolution.
+PROFILES = {
+    "battery": {"fps": 30, "fsr": True},
+    "balanced": {"fps": 60, "fsr": True},
+    "quality": {"fps": 0, "fsr": False},
+}
+
+
+def perf_env(store: str, game_id: str) -> dict:
+    env = {}
+    prof = PROFILES.get(opt("perf") or "")  # "none" (a game set to No change) matches nothing
+    if prof:
+        if prof["fps"]:
+            env["DXVK_FRAME_RATE"] = str(prof["fps"])
+            env["VKD3D_FRAME_RATE"] = str(prof["fps"])
+        if prof["fsr"]:
+            env["WINE_FULLSCREEN_FSR"] = "1"
+    hud = []
+    if opt("show_fps"):
+        hud += ["fps_only=1"]
+    if prof and prof["fps"]:
+        hud += [f"fps_limit={prof['fps']}"]
+    if hud:
+        env["MANGOHUD_CONFIG"] = ",".join(hud)
+    if settings.get("shader_cache"):
+        # One lasting cache folder per game: shaders compiled once stay compiled, also after a
+        # reinstall or an update, so only the very first run stutters. (Steam ships ready-made
+        # caches for its own games; for other stores this is the next best thing.)
+        cache = os.path.join(str(CACHE_DIR / "shaders"), f"{store}_{game_id}")
+        os.makedirs(cache, exist_ok=True)
+        env.update({"DXVK_STATE_CACHE_PATH": cache, "VKD3D_SHADER_CACHE_PATH": cache,
+                    "MESA_SHADER_CACHE_MAX_SIZE": "10G", "__GL_SHADER_DISK_CACHE_SIZE": "10737418240",
+                    "__GL_SHADER_DISK_CACHE_SKIP_CLEANUP": "1"})
     return env
 
 
@@ -99,7 +137,8 @@ def extras() -> list:
     out = []
     if opt("gamemode") and shutil.which("gamemoderun"):
         out.append("gamemoderun")
-    if opt("mangohud") and shutil.which("mangohud"):
+    if (opt("mangohud") or opt("show_fps") or (PROFILES.get(opt("perf") or "") or {}).get("fps")) \
+            and shutil.which("mangohud"):
         out.append("mangohud")
     return out
 

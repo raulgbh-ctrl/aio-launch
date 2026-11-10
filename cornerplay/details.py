@@ -14,7 +14,7 @@ from .net import requests
 
 FILE = CACHE_DIR / "game_details.json"
 TTL = 30 * 86400
-VERSION = 2  # bump when the stored fields change, so older entries are fetched again
+VERSION = 3  # bump when the stored fields change, so older entries are fetched again
 MAX_TEXT = 700
 _lock = threading.Lock()
 _mem = None
@@ -50,7 +50,7 @@ def clean(text):
 def _steam(appid):
     r = requests.get("https://store.steampowered.com/api/appdetails", timeout=15,
                      params={"appids": appid, "l": "english", "cc": "us",
-                             "filters": "basic,genres,release_date,developers,screenshots,movies"})
+                             "filters": "basic,genres,release_date,developers,screenshots,movies,categories"})
     entry = (r.json() or {}).get(str(appid)) or {}
     if not entry.get("success"):
         return None
@@ -62,6 +62,9 @@ def _steam(appid):
             "genres": [g.get("description", "") for g in d.get("genres") or []][:4],
             "developer": ", ".join((d.get("developers") or [])[:2]),
             "year": year.group(0) if year else "",
+            # "full", "partial", or "" when Steam lists no controller support at all.
+            "controller": d.get("controller_support") or ("partial" if any(
+                "controller" in (c.get("description") or "").lower() for c in d.get("categories") or []) else ""),
             "screenshots": [{"thumb": s.get("path_thumbnail", ""), "full": s.get("path_full", "")}
                             for s in (d.get("screenshots") or [])[:12]],
             # Steam serves trailers as HLS / DASH streams; Qt's FFmpeg backend plays HLS.

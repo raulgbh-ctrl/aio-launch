@@ -75,6 +75,10 @@ class Store:
     def logout(self) -> None:
         pass
 
+    def verify(self, game):
+        """Check the game's files and fetch any that are missing or broken; a Command, or StoreError."""
+        raise StoreError(f"{self.name} has no repair tool Cornerplay can run")
+
     # --- library ---------------------------------------------------------
     def fetch(self) -> list:
         """Blocking; runs on a worker thread. Return list[Game]."""

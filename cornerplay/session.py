@@ -39,7 +39,12 @@ def run(game, argv, env_extra, cwd, log_path, sync):
     started = time.time()
     with open(log_path, "w", encoding="utf-8") as log:
         try:
-            code = subprocess.run(argv, env=env, cwd=cwd or None, stdout=log, stderr=subprocess.STDOUT).returncode
+            # Its own process group, so Quit / Force close in Cornerplay reach Wine's helpers too.
+            proc = subprocess.Popen(argv, env=env, cwd=cwd or None, stdout=log, stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+            write_json(out, {"key": game.key, "state": "playing", "since": started, "title": game.title,
+                             "pid": proc.pid})
+            code = proc.wait()
         except OSError as e:
             log.write(f"Could not start: {e}\n")
             code = -1

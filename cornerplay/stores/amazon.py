@@ -111,6 +111,12 @@ class Amazon(Store):
             return set()
         return {(d.get("id") if isinstance(d, dict) else d) for d in data or []} - {None}
 
+    def verify(self, game):
+        argv = [self.tool(), "verify", game.id]
+        if game.install_path:
+            argv += ["--path", game.install_path]
+        return Command(argv)
+
     def update(self, game):
         argv = [self.tool(), "update", game.id]
         if game.install_path:

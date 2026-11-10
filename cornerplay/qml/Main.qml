@@ -340,6 +340,7 @@ ApplicationWindow {
                     active: library.showHidden
                     onPicked: { library.storeFilter = ""; library.showHidden = !library.showHidden }
                 }
+                NavItem { label: "What should I play?"; icon: "gamepad-2"; onPicked: picker.show() }
                 NavItem { label: "Stats"; icon: "trophy"; onPicked: statsBox.show() }
                 NavItem { label: "Storage"; icon: "folder-open"; onPicked: storage.show() }
                 NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
@@ -438,6 +439,35 @@ ApplicationWindow {
                 color: theme.outlineVariant
                 opacity: grid.contentY > grid.originY + 4 ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+
+            // A game started from Cornerplay is running: how long, and a way out when it hangs.
+            Repeater {
+                model: app.nowPlaying
+                Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
+                    height: 52; radius: 14
+                    color: theme.surfaceContainerHigh
+                    border.width: 1; border.color: theme.primary
+                    property int now: Date.now() / 1000
+                    Timer { interval: 15000; running: true; repeat: true; onTriggered: parent.now = Date.now() / 1000 }
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 16; rightMargin: 8 }
+                        spacing: 10
+                        Icon { name: "play"; size: 16; color: theme.primary }
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            readonly property int mins: Math.max(0, Math.floor((parent.parent.now - modelData.since) / 60))
+                            text: "Playing " + modelData.title + "  ·  " + (mins >= 60 ? Math.floor(mins / 60) + " h " + (mins % 60) + " min" : mins + " min")
+                            color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
+                        }
+                        KButton { theme: win.theme; text: "Quit game"; iconName: "x"; onClicked: app.quitGame(modelData.key, false) }
+                        KButton { theme: win.theme; danger: true; text: "Force close"; onClicked: app.quitGame(modelData.key, true) }
+                    }
+                }
             }
 
             // A newer Cornerplay is out (installed copies only; checked once a day).
@@ -1057,6 +1087,20 @@ ApplicationWindow {
                         visible: played !== ""
                         label: played
                     }
+                    // Controller support (Steam's store data); not full: Steam Input can map one.
+                    Pill {
+                        visible: detail.info.controller !== undefined && !!win.selected.steamAppId
+                        label: (detail.info.controller === "full" ? "\u{1F3AE}  Full controller support"
+                               : detail.info.controller === "partial" ? "\u{1F3AE}  Partial controller support"
+                               : "\u2328  Mouse and keyboard")
+                               + (win.selected.store === "steam" && detail.info.controller !== "full" ? "  \u00B7  set up \u2197" : "")
+                        accent: false
+                        HoverHandler { cursorShape: win.selected.store === "steam" && detail.info.controller !== "full" ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                        TapHandler {
+                            enabled: win.selected.store === "steam" && detail.info.controller !== "full"
+                            onTapped: app.openUrl("steam://controllerconfig/" + win.selected.steamAppId)
+                        }
+                    }
                     Pill {
                         visible: !!detail.ach.total
                         label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + " achievements"
@@ -1557,6 +1601,86 @@ ApplicationWindow {
         id: moveDest
         title: "Move to which folder?"
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
+    }
+
+    // -------------------------------------------------------------------- what should I play?
+    KDialog {
+        id: picker
+        objectName: "picker"
+        theme: win.theme
+        heading: "What should I play?"
+        headingIcon: "gamepad-2"
+        property string length: ""
+        property bool installedOnly: true
+        property var g: ({})
+        property var seen: []
+        function show() { seen = []; roll(); open() }
+        function roll() {
+            g = app.pickGame(length, installedOnly, seen.join(","))
+            if (g.key) seen = seen.concat([g.key]).slice(-12)
+        }
+        width: Math.min(win.width - 60, 560)
+        contentItem: ColumnLayout {
+            spacing: 14
+            RowLayout {
+                spacing: 6
+                Repeater {
+                    model: [{ id: "", name: "Any length" }, { id: "short", name: "About an hour" }, { id: "long", name: "A long session" }]
+                    Rectangle {
+                        required property var modelData
+                        readonly property bool on: picker.length === modelData.id
+                        height: 32; radius: 16
+                        width: lenText.implicitWidth + 28
+                        color: on ? theme.primary : "transparent"
+                        border.width: on ? 0 : 1; border.color: theme.outlineVariant
+                        Text { id: lenText; anchors.centerIn: parent; text: parent.modelData.name; font.pixelSize: 13
+                               color: parent.on ? theme.onPrimary : theme.onSurfaceVariant }
+                        TapHandler { onTapped: { picker.length = parent.modelData.id; picker.seen = []; picker.roll() } }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                Text { text: "Installed only"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                Switch {
+                    id: pickInst
+                    checked: picker.installedOnly
+                    onToggled: { picker.installedOnly = checked; picker.seen = []; picker.roll() }
+                }
+            }
+            RowLayout {
+                visible: !!picker.g.key
+                spacing: 18
+                RoundedArt {
+                    Layout.preferredWidth: 150; Layout.preferredHeight: 219
+                    radius: 14
+                    ArtImage { anchors.fill: parent; sources: picker.g.covers || []; sourceSize.width: 300 }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text { Layout.fillWidth: true; text: picker.g.title || ""; color: theme.onSurface; font.pixelSize: 22; font.weight: Font.Bold; wrapMode: Text.WordWrap }
+                    Text { Layout.fillWidth: true; text: picker.g.why || ""; color: theme.onSurfaceVariant; font.pixelSize: 14; wrapMode: Text.WordWrap }
+                    Text { text: (picker.g.storeName || "") + (picker.g.installed ? "" : "  ·  not installed"); color: theme.outline; font.pixelSize: 12 }
+                    Item { Layout.fillHeight: true }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        KButton { theme: win.theme; primary: true; text: picker.g.installed ? "Play" : "Install"; iconName: picker.g.installed ? "play" : "download"
+                                  onClicked: { const k = picker.g.key; picker.close(); picker.g.installed ? win.activate(k) : app.install(k) } }
+                        KButton { theme: win.theme; text: "Another"; iconName: "refresh-cw"; onClicked: picker.roll() }
+                        KButton { theme: win.theme; text: "Details"; onClicked: { const k = picker.g.key; picker.close(); win.select(k) } }
+                    }
+                }
+            }
+            Text {
+                visible: !picker.g.key
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: picker.installedOnly ? "Nothing fits: no installed game that isn't finished or dropped. Turn off Installed only to pick from everything."
+                                           : "Nothing fits these choices."
+                color: theme.onSurfaceVariant; font.pixelSize: 14
+            }
+        }
     }
 
     // -------------------------------------------------------------------- stats
@@ -2513,6 +2637,19 @@ ApplicationWindow {
                             }
                             Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
                             Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
+                            Toggle { label: "FPS counter in games"; settingKey: "show_fps" }
+                            Toggle { label: "Keep each game's shader cache (less stutter after the first run)"; settingKey: "shader_cache" }
+                            Row2 {
+                                label: "Performance profile for every game"
+                                hint: "Battery saver caps at 30 fps and Balanced at 60, both with FSR upscaling. Each game can choose its own under Options. Steam games use Steam's settings."
+                                KCombo {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: "No change", value: "" }, { label: "Battery saver (30 fps)", value: "battery" },
+                                            { label: "Balanced (60 fps)", value: "balanced" }, { label: "Max quality (no cap)", value: "quality" }]
+                                    Component.onCompleted: select(app.settingsMap.perf || "")
+                                    onActivated: app.setSetting("perf", currentValue)
+                                }
+                            }
                             Row2 {
                                 label: "Environment variables for every game"
                                 hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
@@ -2670,6 +2807,9 @@ ApplicationWindow {
             optSteamProton.model = steamProton.choices
             optSteamProton.select(steamProton.current)
             optHud.select(opts.mangohud === undefined ? "default" : opts.mangohud)
+            optPerf.select(opts.perf === undefined ? "default" : opts.perf)
+            optFps.select(opts.show_fps === undefined ? "default" : opts.show_fps)
+            resetArmed = false
             optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
             optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
             optEnv.text = opts.env || ""
@@ -2678,6 +2818,7 @@ ApplicationWindow {
             open()
         }
         readonly property var triState: [{ label: "Use default", value: "default" }, { label: "On", value: true }, { label: "Off", value: false }]
+        property bool resetArmed: false
 
         contentItem: ColumnLayout {
             spacing: 14
@@ -2727,6 +2868,26 @@ ApplicationWindow {
                              onActivated: app.setGameOption(gameOpts.key, "gamemode", currentValue) }
                 }
             }
+            // Performance profile: frame cap + FSR upscaling (Steam games: set in Steam).
+            RowLayout {
+                visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
+                spacing: 14
+                Row2 {
+                    label: "Performance"
+                    hint: "Battery saver caps at 30 fps, Balanced at 60, both with FSR upscaling when the game runs below your screen's resolution."
+                    KCombo { id: optPerf; theme: win.theme; Layout.fillWidth: true
+                             model: [{ label: "Use default", value: "default" }, { label: "No change", value: "none" },
+                                     { label: "Battery saver (30 fps)", value: "battery" },
+                                     { label: "Balanced (60 fps)", value: "balanced" },
+                                     { label: "Max quality (no cap)", value: "quality" }]
+                             onActivated: app.setGameOption(gameOpts.key, "perf", currentValue) }
+                }
+                Row2 {
+                    label: "FPS counter"
+                    KCombo { id: optFps; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "show_fps", currentValue) }
+                }
+            }
             Row2 {
                 visible: gameOpts.compat
                 label: "Environment variables"
@@ -2753,6 +2914,26 @@ ApplicationWindow {
                     text: "Sync saves now"
                     enabled: !!gameOpts.game.installed
                     onClicked: app.syncNow(gameOpts.key)
+                }
+            }
+            // When a game misbehaves.
+            Row2 {
+                visible: !!gameOpts.game.installed && gameOpts.game.store !== "steam"
+                label: "Fix it"
+                hint: gameOpts.resetArmed
+                      ? "A fresh Proton prefix starts Windows settings from scratch. The old one is kept beside it (renamed), so saves stored there are not lost."
+                      : "Repair checks every file and downloads the broken or missing ones."
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    KButton { theme: win.theme; visible: ["epic", "gog", "amazon"].includes(gameOpts.game.store)
+                              text: "Repair files"; iconName: "refresh-cw"
+                              onClicked: { app.verifyGame(gameOpts.key); gameOpts.close() } }
+                    KButton { theme: win.theme; visible: gameOpts.compat; danger: gameOpts.resetArmed
+                              text: gameOpts.resetArmed ? "Really reset?" : "Reset Proton prefix"; iconName: "trash-2"
+                              onClicked: { if (!gameOpts.resetArmed) { gameOpts.resetArmed = true; return }
+                                           gameOpts.resetArmed = false; app.resetPrefix(gameOpts.key) } }
+                    KButton { theme: win.theme; text: "Open log"; iconName: "folder-open"; onClicked: app.openLog(gameOpts.key) }
                 }
             }
             Row2 {

@@ -139,6 +139,9 @@ class Epic(Store):
     def update(self, game):
         return Command([self.tool(), "-y", "update", game.id])
 
+    def verify(self, game):
+        return Command([self.tool(), "-y", "repair", game.id])
+
     def launch(self, game):
         """Blocking: asks legendary for the launch details so Cornerplay can run (and wait for) the game itself."""
         env = wine_env(self.id, game.id)

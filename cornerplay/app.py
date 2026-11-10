@@ -1318,6 +1318,50 @@ class AioLaunch(QObject):
 
     sidebarShelves = Property("QVariantList", _sidebar_shelves, notify=storesChanged)
 
+    @Slot(str, bool, str, result="QVariantMap")
+    def pickGame(self, length, installed_only, avoid):
+        """A game to play: from the backlog first, never Finished or Dropped ones.
+        length: "" any, "short" (about an hour), "long". avoid: keys picked a moment ago (comma separated)."""
+        import random
+        skip = set(filter(None, avoid.split(",")))
+        per_game = {}
+        for key, start, end in playtime.sessions():
+            per_game.setdefault(key, []).append(end - start)
+        pool = []
+        for grp in self.model.groups:
+            if self.model.is_hidden(grp):
+                continue
+            g = self.model.rep(grp)
+            if g.id == "battlenet-app" or g.key in skip or (installed_only and not any(x.installed for x in grp)):
+                continue
+            status = shelves.meta(grp, "status")
+            if status in ("finished", "dropped"):
+                continue
+            runs = [t for x in grp for t in per_game.get(x.key, [])]
+            avg = sum(runs) / len(runs) / 60 if runs else None
+            if length == "short" and avg is not None and avg > 75:
+                continue
+            if length == "long" and avg is not None and avg < 60:
+                continue
+            played = self.model.group_value(grp, "playtime")
+            if status == "want":
+                weight, why = 4, "It's on your Want to play list"
+            elif status == "playing":
+                weight, why = 4, "You're in the middle of it"
+            elif not played:
+                weight, why = 3, "You haven't started it yet"
+            else:
+                weight, why = 1, f"You've played {round(played / 3600, 1)} h so far"
+            if avg is not None:
+                why += f" · usually about {round(avg)} min a session"
+            if shelves.in_group(grp, shelves.FAV):
+                weight += 1
+            pool.append((weight, g.key, why))
+        if not pool:
+            return {}
+        _w, key, why = random.choices(pool, weights=[p[0] for p in pool])[0]
+        return dict(self.model.as_dict(key), why=why, poolSize=len(pool))
+
     def _hidden_count(self):
         return sum(1 for grp in self.model.groups if self.model.is_hidden(grp))
 
@@ -1390,6 +1434,43 @@ class AioLaunch(QObject):
     @Slot(str, result="QVariantMap")
     def gameOptions(self, key):
         return game_options.get(key)
+
+    @Slot(str)
+    def verifyGame(self, key):
+        g, store = self._guard(key)
+        if not g or key in self.procs:
+            return
+        try:
+            cmd = store.verify(g)
+        except StoreError as e:
+            self.toast.emit(str(e))
+            return
+        self._start_job(g, "verify", cmd)
+
+    @Slot(str)
+    def resetPrefix(self, key):
+        """Put the game's Proton prefix aside (renamed, not deleted); the next start makes a new one."""
+        g = self.model.find(key)
+        if not g:
+            return
+        path = runner.prefix_path(g.store, "launcher" if g.store == "battlenet" else g.id)
+        if not os.path.isdir(path):
+            self.toast.emit(f"{g.title} has no Proton prefix yet")
+            return
+        aside = f"{path}.old-{time.strftime('%Y%m%d-%H%M%S')}"
+        os.rename(path, aside)
+        self.toast.emit(f"Fresh Proton prefix for {g.title}; the old one is at {aside}")
+
+    @Slot(str)
+    def openLog(self, key):
+        log = LOG_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", key) + ".log")
+        if not log.exists():
+            logs = sorted(LOG_DIR.glob(re.sub(r"[^A-Za-z0-9_.-]", "_", key) + ".*log"), key=lambda p: -p.stat().st_mtime)
+            log = logs[0] if logs else None
+        if log:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(log)))
+        else:
+            self.toast.emit("No log yet: it is written when the game runs")
 
     @Slot(str, str, "QVariant")
     def setGameOption(self, key, name, value):
@@ -1644,11 +1725,52 @@ class AioLaunch(QObject):
             ok = self._detach(cmd.argv, cmd.env, cmd.cwd, g.key)
         self.toast.emit(f"Launching {g.title}" if ok else f"Could not start {g.title} (log: {LOG_DIR})")
 
+    # --- now playing ------------------------------------------------------------
+    nowPlayingChanged = Signal()
+    _playing = {}  # key -> {"title", "since", "pid"}
+
+    def _now_playing(self):
+        return [dict(v, key=k) for k, v in self._playing.items()]
+
+    nowPlaying = Property("QVariantList", _now_playing, notify=nowPlayingChanged)
+
+    @staticmethod
+    def _alive(pid):
+        try:
+            os.kill(int(pid), 0)
+            return True
+        except (OSError, ValueError, TypeError):
+            return False
+
+    @Slot(str, bool)
+    def quitGame(self, key, force):
+        """Ask the game to close (SIGTERM to its process group), or end it now (SIGKILL)."""
+        import signal
+        info = self._playing.get(key)
+        if not info or not info.get("pid"):
+            self.toast.emit("Cornerplay cannot reach this game: close it from the game itself")
+            return
+        try:
+            os.killpg(int(info["pid"]), signal.SIGKILL if force else signal.SIGTERM)
+            self.toast.emit(f"{'Closed' if force else 'Asked to close'} {info.get('title', 'the game')}")
+        except (OSError, ValueError) as e:
+            self.toast.emit(f"Could not close it: {e}")
+
     def _check_sessions(self):
+        changed = False
         for f in session.SESSIONS.glob("*.json"):
             if f.name.startswith("job-"):
                 continue
             data = read_json(f) or {}
+            key = data.get("key")
+            if key and data.get("state") == "playing" and (not data.get("pid") or self._alive(data["pid"])):
+                if self._playing.get(key, {}).get("pid") != data.get("pid"):
+                    self._playing[key] = {"title": data.get("title", ""), "since": data.get("since", 0),
+                                          "pid": data.get("pid", 0)}
+                    changed = True
+            elif key in self._playing:
+                self._playing.pop(key)
+                changed = True
             stamp = (data.get("state"), data.get("since"))
             if self._sessions_seen.get(f.name) == stamp:
                 continue
@@ -1667,6 +1789,17 @@ class AioLaunch(QObject):
                     f.unlink()
                 except OSError:
                     pass
+        for key, info in list(self._playing.items()):  # ended without Cornerplay seeing "done"
+            if info.get("pid") and not self._alive(info["pid"]):
+                self._playing.pop(key)
+                changed = True
+        if changed:
+            self.nowPlayingChanged.emit()
+        if self._playing:  # a game's end is also caught when the file watch misses it
+            if not hasattr(self, "_play_timer"):
+                self._play_timer = QTimer(self, singleShot=True, interval=5000)
+                self._play_timer.timeout.connect(self._check_sessions)
+            self._play_timer.start()  # restarts: one pending check at most
 
     @Slot(str)
     def install(self, key):
@@ -1770,7 +1903,7 @@ class AioLaunch(QObject):
             if kind == "update":
                 g.extra.pop("update", None)  # the refresh below confirms it
             self.toast.emit(f"Installed DLC for {g.title}" if kind == "dlc" else
-                            f"{ {'install': 'Installed', 'update': 'Updated'}.get(kind, 'Removed')} {g.title}")
+                            f"{ {'install': 'Installed', 'update': 'Updated', 'verify': 'Repaired the files of'}.get(kind, 'Removed')} {g.title}")
             if kind in ("dlc", "update", "install"):
                 self._dlc_cache.pop(key, None)
         else:

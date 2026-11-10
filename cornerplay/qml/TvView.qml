@@ -128,6 +128,10 @@ FocusScope {
             else out.push({ label: "Install from " + c.storeName, act: "install", key: c.key })
         }
         for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
+        if (app.nowPlaying.some(p => p.key === cur.key)) {
+            out.unshift({ label: "Force close (if it hangs)", act: "kill", key: cur.key })
+            out.unshift({ label: "Quit game", act: "quit", key: cur.key })
+        }
         out.push({ label: cur.favourite ? "Remove from favourites" : "Add to favourites", act: "fav", key: cur.key })
         // Backlog status: one row that steps through the choices.
         const names = { "": "None", playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" }
@@ -378,6 +382,17 @@ FocusScope {
                     }
                     Text { anchors.verticalCenter: parent.verticalCenter; text: (topStatus.batt.level || 0) + "%"; color: theme.onSurfaceVariant; font.pixelSize: 18 }
                 }
+                Rectangle {
+                    visible: app.nowPlaying.length > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 36; radius: 18
+                    width: playingText.implicitWidth + 44
+                    color: Qt.alpha(tv.tint.primary, 0.2)
+                    border.width: 1; border.color: tv.tint.primary
+                    Icon { x: 14; anchors.verticalCenter: parent.verticalCenter; name: "play"; size: 14; color: tv.tint.primary }
+                    Text { id: playingText; x: 34; anchors.verticalCenter: parent.verticalCenter
+                           text: app.nowPlaying.length ? app.nowPlaying[0].title : ""; color: theme.onSurface; font.pixelSize: 16 }
+                }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: topStatus.clock
@@ -459,8 +474,10 @@ FocusScope {
                     readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
                     readonly property string trophies: tv.ach.total ? "\u{1F3C6} " + tv.ach.done + " / " + tv.ach.total : ""
                     visible: text !== ""
+                    readonly property string pad: tv.info.controller === "partial" ? "\u{1F3AE} Partial controller support"
+                                                  : tv.info.controller === "" && !!tv.cur.steamAppId ? "\u2328 Mouse and keyboard" : ""
                     readonly property string stars: tv.cur.rating ? "\u2605".repeat(tv.cur.rating) + "\u2606".repeat(5 - tv.cur.rating) : ""
-                    text: [played, trophies, stars].filter(t => !!t).join("   \u00B7   ")
+                    text: [played, trophies, stars, pad].filter(t => !!t).join("   \u00B7   ")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 17
                 }
@@ -501,7 +518,7 @@ FocusScope {
                     visible: !!tv.cur.key
                     Rectangle {
                         id: playBtn
-                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC", move: "Moving" }[tv.cur.job] || "Removing")
+                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC", move: "Moving", verify: "Checking files" }[tv.cur.job] || "Removing")
                                                                        + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
                                                         : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
                         height: 56; radius: 28
@@ -875,6 +892,7 @@ FocusScope {
             else if (a.act === "uninstall") app.uninstall(a.key)
             else if (a.act === "hide" || a.act === "unhide") app.setHidden(a.key, a.act === "hide")
             else if (a.act === "fav") app.toggleFavourite(a.key)
+            else if (a.act === "quit" || a.act === "kill") app.quitGame(a.key, a.act === "kill")
             else if (a.act === "status") {
                 const order = ["", "playing", "want", "finished", "dropped"]
                 app.setStatus(a.key, order[(order.indexOf(tv.cur.status || "") + 1) % order.length])

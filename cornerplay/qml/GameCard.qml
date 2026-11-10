@@ -225,7 +225,7 @@ Item {
                         font.weight: Font.DemiBold
                         text: card.job === "uninstall" ? "Removing…"
                               : card.progress < 0 ? "Starting…"
-                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : "Installing ") + Math.floor(card.progress) + "%"
+                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : card.job === "verify" ? "Checking " : "Installing ") + Math.floor(card.progress) + "%"
                     }
                 }
                 Rectangle {
