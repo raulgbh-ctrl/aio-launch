@@ -117,6 +117,7 @@ ApplicationWindow {
                     readonly property var theme: app.theme
                     property string label
                     property string dot: ""
+                    property string store: ""
                     property string count: ""
                     property bool active: false
                     property bool dim: false
@@ -125,15 +126,16 @@ ApplicationWindow {
                     height: 40
                     radius: 10
                     color: active ? theme.primaryContainer : navHover.hovered ? theme.surfaceContainerHigh : "transparent"
-                    Rectangle {
+                    StoreIcon {
                         visible: nav.dot !== ""
-                        x: 14; anchors.verticalCenter: parent.verticalCenter
-                        width: 9; height: 9; radius: 5
+                        x: 12; anchors.verticalCenter: parent.verticalCenter
+                        size: 17
+                        store: nav.store
                         color: nav.dot || "transparent"
                         opacity: nav.dim ? 0.35 : 1
                     }
                     Text {
-                        x: nav.dot !== "" ? 34 : 14
+                        x: nav.dot !== "" ? 38 : 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: nav.label
                         color: nav.active ? theme.onPrimaryContainer : theme.onSurface
@@ -163,6 +165,7 @@ ApplicationWindow {
                         required property var modelData
                         label: modelData.name
                         dot: modelData.color
+                        store: modelData.id
                         dim: !modelData.loggedIn && modelData.count === 0
                         count: modelData.refreshing ? "…" : modelData.count
                         active: library.storeFilter === modelData.id && !library.showHidden
@@ -306,12 +309,10 @@ ApplicationWindow {
 
                                 Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
                                 // No wide art: the cover, blurred, fills the banner.
-                                Image {
+                                ArtImage {
                                     id: heroCover
                                     anchors.fill: parent
-                                    source: heroWide.status === Image.Ready ? "" : (hero.info.cover || "")
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
+                                    sources: heroWide.status === Image.Ready ? [] : (hero.info.covers || [])
                                     sourceSize.width: 320
                                     visible: app.light && status === Image.Ready
                                     opacity: 0.45
@@ -324,13 +325,11 @@ ApplicationWindow {
                                     saturation: 0.2
                                     opacity: 0.7
                                 }
-                                Image {
+                                ArtImage {
                                     id: heroWide
                                     anchors.fill: parent
-                                    source: hero.info.hero || ""
-                                    fillMode: Image.PreserveAspectCrop
+                                    sources: hero.info.heroes || []
                                     horizontalAlignment: Image.AlignRight
-                                    asynchronous: true
                                     sourceSize.width: 1920
                                     opacity: status === Image.Ready ? 1 : 0
                                     Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
@@ -371,16 +370,10 @@ ApplicationWindow {
                                     border.width: 1; border.color: Qt.alpha("white", 0.12)
                                     visible: hero.width >= 620
                                     clip: true
-                                    Image {
+                                    ArtImage {
                                         anchors.fill: parent; anchors.margins: 1
-                                        source: hero.info.cover || ""
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
+                                        sources: hero.info.covers || []
                                         sourceSize.width: 300
-                                        onStatusChanged: {
-                                            const fb = hero.info.coverFallback || ""
-                                            if (status === Image.Error && fb && source != fb) source = fb
-                                        }
                                     }
                                 }
                                 Column {
@@ -404,10 +397,10 @@ ApplicationWindow {
                                         spacing: 8
                                         Rectangle {
                                             height: 24; radius: 12
-                                            width: heroStore.implicitWidth + 28
+                                            width: heroStore.implicitWidth + 37
                                             color: Qt.alpha(theme.surfaceContainerHighest, 0.85)
-                                            Rectangle { x: 10; anchors.verticalCenter: parent.verticalCenter; width: 8; height: 8; radius: 4; color: hero.info.storeColor || "gray" }
-                                            Text { id: heroStore; x: 22; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
+                                            StoreIcon { x: 8; anchors.verticalCenter: parent.verticalCenter; size: 14; store: hero.info.store || ""; color: hero.info.storeColor || "gray" }
+                                            Text { id: heroStore; x: 27; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
                                         }
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
@@ -473,17 +466,11 @@ ApplicationWindow {
                                 border.width: recentHover.hovered ? 2 : 1
                                 border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
                                 clip: true
-                                Image {
+                                ArtImage {
                                     id: recentArt
                                     width: 84; height: parent.height
-                                    source: recentTile.modelData.cover || ""
-                                    asynchronous: true
-                                    fillMode: Image.PreserveAspectCrop
+                                    sources: recentTile.modelData.covers || []
                                     sourceSize.width: 168
-                                    onStatusChanged: {
-                                        const fb = recentTile.modelData.coverFallback || ""
-                                        if (status === Image.Error && fb && source != fb) source = fb
-                                    }
                                 }
                                 Column {
                                     anchors { left: recentArt.right; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
@@ -497,7 +484,7 @@ ApplicationWindow {
                                     }
                                     Row {
                                         spacing: 6
-                                        Rectangle { width: 8; height: 8; radius: 4; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
+                                        StoreIcon { size: 13; store: recentTile.modelData.store; color: recentTile.modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
                                         Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                                     }
                                     Text {
@@ -612,17 +599,11 @@ ApplicationWindow {
                     horizontalAlignment: Text.AlignHCenter
                     visible: detailArt.status !== Image.Ready
                 }
-                Image {
+                ArtImage {
                     id: detailArt
                     anchors.fill: parent
-                    source: win.selected.cover || ""
-                    asynchronous: true
-                    fillMode: Image.PreserveAspectCrop
+                    sources: win.selected.covers || []
                     sourceSize.width: 400
-                    onStatusChanged: {
-                        const fb = win.selected.coverFallback || ""
-                        if (status === Image.Error && fb && source != fb) source = fb
-                    }
                 }
             }
             ColumnLayout {
@@ -640,7 +621,7 @@ ApplicationWindow {
                 }
                 Row {
                     spacing: 8
-                    Rectangle { width: 9; height: 9; radius: 5; color: win.selected.storeColor || "gray"; anchors.verticalCenter: parent.verticalCenter }
+                    StoreIcon { size: 15; store: win.selected.store || ""; color: win.selected.storeColor || "gray"; anchors.verticalCenter: parent.verticalCenter }
                     Text {
                         color: theme.onSurfaceVariant
                         font.pixelSize: 13
@@ -686,6 +667,7 @@ ApplicationWindow {
                                 required property var modelData
                                 label: modelData.storeName + (modelData.installed ? " · installed" : "")
                                 dot: modelData.storeColor
+                                store: modelData.key.split(":")[0]
                                 active: modelData.key === win.selectedKey
                                 onPicked: {
                                     const k = modelData.key
@@ -1120,17 +1102,18 @@ ApplicationWindow {
         property string label
         property bool active: false
         property string dot: ""
+        property string store: ""
         signal picked()
-        implicitWidth: chipText.implicitWidth + (dot ? 40 : 26)
+        implicitWidth: chipText.implicitWidth + (dot ? 42 : 26)
         implicitHeight: 32
         radius: 16
         color: active ? theme.primaryContainer : chipHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
         border.width: 1
         border.color: active ? theme.primary : theme.outlineVariant
-        Rectangle { visible: chip.dot !== ""; x: 12; anchors.verticalCenter: parent.verticalCenter; width: 9; height: 9; radius: 5; color: chip.dot || "transparent" }
+        StoreIcon { visible: chip.dot !== ""; x: 11; anchors.verticalCenter: parent.verticalCenter; size: 14; store: chip.store; color: chip.dot || "transparent" }
         Text {
             id: chipText
-            x: chip.dot ? 28 : 13
+            x: chip.dot ? 31 : 13
             anchors.verticalCenter: parent.verticalCenter
             text: chip.label
             color: chip.active ? theme.onPrimaryContainer : theme.onSurface

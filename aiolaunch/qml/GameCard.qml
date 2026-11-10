@@ -8,6 +8,8 @@ Item {
     required property var theme
     required property bool current
     required property string key
+    required property string store
+    required property var covers
     required property string title
     required property string storeName
     required property string storeColor
@@ -69,19 +71,13 @@ Item {
                 }
             }
 
-            Image {
+            ArtImage {
                 id: img
                 anchors.fill: parent
-                source: card.cover
-                asynchronous: true
-                fillMode: Image.PreserveAspectCrop
+                sources: card.covers
                 sourceSize.width: app.light ? 280 : 400
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.55) : 0
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
-                onStatusChanged: {
-                    if (status === Image.Error && card.coverFallback && source != card.coverFallback)
-                        source = card.coverFallback
-                }
             }
 
             // Title strip, on hover or when there is no art to read.
@@ -144,10 +140,10 @@ Item {
             visible: card.showBadge
             x: 10; y: 10
             height: 22; radius: 11
-            width: chip.implicitWidth + 26
+            width: chip.implicitWidth + 31
             color: "#cc000000"
-            Rectangle { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 8; height: 8; radius: 4; color: card.storeColor }
-            Text { id: chip; x: 20; anchors.verticalCenter: parent.verticalCenter; text: card.storeName + (card.copies > 1 ? "  +" + (card.copies - 1) : ""); color: "white"; font.pixelSize: 11 }
+            StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: card.store; color: card.storeColor }
+            Text { id: chip; x: 23; anchors.verticalCenter: parent.verticalCenter; text: card.storeName + (card.copies > 1 ? "  +" + (card.copies - 1) : ""); color: "white"; font.pixelSize: 11 }
         }
 
         // Not-installed marker.

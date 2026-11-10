@@ -92,19 +92,30 @@ FocusScope {
                     required property string modelData
                     readonly property bool active: library.storeFilter === modelData
                     readonly property var info: app.storesInfo.find(s => s.id === modelData) || ({ name: "All games", color: "" })
-                    implicitWidth: tabText.implicitWidth + 36
+                    implicitWidth: tabRow.implicitWidth + 36
                     implicitHeight: 46
                     radius: 23
                     color: active ? theme.primary : "transparent"
                     border.width: active ? 0 : 1
                     border.color: theme.outlineVariant
-                    Text {
-                        id: tabText
+                    Row {
+                        id: tabRow
                         anchors.centerIn: parent
-                        text: parent.info.name
-                        color: parent.active ? theme.onPrimary : theme.onSurfaceVariant
-                        font.pixelSize: 18
-                        font.weight: parent.active ? Font.DemiBold : Font.Normal
+                        spacing: 9
+                        StoreIcon {
+                            visible: parent.parent.modelData !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: 20
+                            store: parent.parent.modelData
+                            color: parent.parent.active ? theme.onPrimary : (parent.parent.info.color || theme.onSurfaceVariant)
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: parent.parent.info.name
+                            color: parent.parent.active ? theme.onPrimary : theme.onSurfaceVariant
+                            font.pixelSize: 18
+                            font.weight: parent.parent.active ? Font.DemiBold : Font.Normal
+                        }
                     }
                     TapHandler { onTapped: { library.storeFilter = parent.modelData; grid.currentIndex = 0; tv.sync() } }
                 }

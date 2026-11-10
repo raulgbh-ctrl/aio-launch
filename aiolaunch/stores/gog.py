@@ -179,14 +179,17 @@ class Gog(Store):
 
         # Vertical box art lives on a per-game endpoint; fetched once, then cached.
         meta = read_json(META_FILE) or {}
-        missing = [g for g in games if g not in meta]
+        missing = [g for g in games if not isinstance(meta.get(g), dict)]  # older cache: box art only
 
         def boxart(gid):
+            """Portrait box art and the wide Galaxy background for one game."""
             try:
-                j = requests.get(f"https://api.gog.com/v2/games/{gid}", timeout=15).json()
-                return gid, (j.get("_links", {}).get("boxArtImage", {}) or {}).get("href", "")
+                links = requests.get(f"https://api.gog.com/v2/games/{gid}", timeout=15).json().get("_links", {})
             except (requests.RequestException, ValueError):
                 return gid, None
+            href = lambda name: (links.get(name) or {}).get("href", "")
+            return gid, {"box": href("boxArtImage"),
+                         "hero": href("galaxyBackgroundImage") or href("backgroundImage")}
 
         if missing:
             with ThreadPoolExecutor(8) as pool:
@@ -195,8 +198,12 @@ class Gog(Store):
                         meta[gid] = url
             write_json(META_FILE, meta)
         for gid, g in games.items():
-            if meta.get(gid):
-                g.cover = meta[gid]
+            m = meta.get(gid)
+            m = m if isinstance(m, dict) else {"box": m or ""}
+            if m.get("box"):
+                g.cover = m["box"]
+            if m.get("hero"):
+                g.extra["store_heroes"] = [m["hero"]]
         return games
 
     def dlcs(self, game):

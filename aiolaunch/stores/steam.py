@@ -96,11 +96,25 @@ class Steam(Store):
         hits = glob.glob(str(cache / appid / "*" / "library_600x900.jpg"))
         return "file://" + hits[0] if hits else ""
 
+    def _local_hero(self, appid):
+        """Steam's own cached banner for a game, if the client has downloaded it."""
+        root = self.root()
+        if not root:
+            return ""
+        cache = root / "appcache/librarycache"
+        for cand in (cache / f"{appid}_library_hero.jpg", cache / appid / "library_hero.jpg"):
+            if cand.is_file():
+                return cand.as_uri()
+        hits = glob.glob(str(cache / appid / "*" / "library_hero.jpg"))
+        return "file://" + hits[0] if hits else ""
+
     def _game(self, appid, title, installed=False, path=""):
+        hero = self._local_hero(appid)
         return Game(
             store=self.id, id=appid, title=title, installed=installed, install_path=path,
             cover=self._local_cover(appid) or f"{CDN}/{appid}/library_600x900.jpg",
             cover_fallback=f"{CDN}/{appid}/header.jpg",
+            extra={"store_heroes": [hero]} if hero else {},
         )
 
     def fetch(self):

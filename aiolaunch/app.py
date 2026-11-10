@@ -30,7 +30,7 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
-         "update", "playtime", "lastPlayed"]
+         "update", "playtime", "lastPlayed", "covers", "heroes"]
 GROUP_ROLES = ("copies", "playtime", "lastPlayed")
 SORTS = ("name", "recent", "playtime")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
@@ -48,14 +48,29 @@ def _short_date(stamp, with_year=False):
 STEAM_ART = re.compile(r"/steam/apps/(\d+)/")
 
 
-def _hero_art(g):
-    """Steam's wide library_hero art for a game with a known Steam id ("" if none).
-    Covers that came from Steam's store carry the id in their URL."""
+def _unique(urls):
+    out = []
+    for u in urls:
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
+def _covers(g):
+    """Portrait cover sources, best first; the UI moves to the next when one fails to load."""
+    return _unique([_cover(g), *(g.extra.get("covers") or []), g.cover_fallback])
+
+
+def _heroes(g):
+    """Wide banner sources, best first (see covers.add_backup_art)."""
+    heroes = list(g.extra.get("heroes") or g.extra.get("store_heroes") or [])
     appid = g.id if g.store == "steam" else str(g.extra.get("steam_appid") or "")
-    if not appid:
+    if not appid:  # covers that came from Steam's store carry the id in their URL
         m = STEAM_ART.search(_cover(g) or "")
         appid = m.group(1) if m else ""
-    return f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_hero.jpg" if appid else ""
+    if appid:
+        heroes.append(f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_hero.jpg")
+    return _unique(heroes + [g.cover_fallback])
 
 
 def _cover(g):
@@ -63,6 +78,33 @@ def _cover(g):
     if custom.startswith("/"):
         return "file://" + custom
     return custom or g.cover
+
+
+def _job(m, g):
+    return m.jobs.get(g.key) or {}
+
+
+_FIELDS = {
+    "key": lambda m, g: g.key,
+    "store": lambda m, g: g.store,
+    "storeName": lambda m, g: m.stores[g.store].name,
+    "storeColor": lambda m, g: m.stores[g.store].color,
+    "title": lambda m, g: g.title,
+    "cover": lambda m, g: _cover(g),
+    "coverFallback": lambda m, g: g.cover_fallback,
+    "installed": lambda m, g: g.installed,
+    "job": lambda m, g: _job(m, g).get("kind", ""),
+    "progress": lambda m, g: _job(m, g).get("progress", 0.0),
+    "external": lambda m, g: m.stores[g.store].external_installs,
+    "installPath": lambda m, g: g.install_path,
+    "copies": lambda m, g: 1,
+    "update": lambda m, g: bool(g.installed and g.extra.get("update")),
+    "playtime": lambda m, g: playtime.of(g, m.played)[0],
+    "lastPlayed": lambda m, g: playtime.of(g, m.played)[1],
+    "covers": lambda m, g: _covers(g),
+    "heroes": lambda m, g: _heroes(g),
+}
+assert set(_FIELDS) == set(ROLES)
 
 
 class LibraryModel(QAbstractListModel):
@@ -114,17 +156,8 @@ class LibraryModel(QAbstractListModel):
 
     # --- data ------------------------------------------------------------
     def value(self, g: Game, role: str):
-        store = self.stores[g.store]
-        job = self.jobs.get(g.key)
-        return {
-            "key": g.key, "store": g.store, "storeName": store.name, "storeColor": store.color,
-            "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
-            "installed": g.installed, "job": job["kind"] if job else "",
-            "progress": job["progress"] if job else 0.0,
-            "external": store.external_installs, "installPath": g.install_path, "copies": 1,
-            "update": bool(g.installed and g.extra.get("update")),
-            "playtime": playtime.of(g, self.played)[0], "lastPlayed": playtime.of(g, self.played)[1],
-        }[role]
+        """One field of one game; only the asked-for field is worked out (the grid asks a lot)."""
+        return _FIELDS[role](self, g)
 
     def group_value(self, group, role):
         """Row-level values: a game owned on several stores counts the time played on each."""
@@ -363,6 +396,10 @@ class AioLaunch(QObject):
 
     storesInfo = Property("QVariantList", _stores_info, notify=storesChanged)
 
+    # Store logos as SVG text (white); QML recolours them (see qml/StoreIcon.qml).
+    _icons = {p.stem: p.read_text() for p in (Path(__file__).parent / "icons").glob("*.svg")}
+    storeIcons = Property("QVariantMap", lambda s: s._icons, constant=True)
+
     def _recent_games(self):
         """The "Continue playing" row: installed games, most recently played first."""
         m = self.model
@@ -375,8 +412,8 @@ class AioLaunch(QObject):
         out = []
         for last, group in rows[:RECENT_ROW]:
             g = m.rep(group)
-            out.append({"key": g.key, "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
-                        "hero": _hero_art(g),
+            out.append({"key": g.key, "store": g.store, "title": g.title, "cover": _cover(g), "coverFallback": g.cover_fallback,
+                        "covers": _covers(g), "heroes": _heroes(g),
                         "storeName": self.stores[g.store].name, "storeColor": self.stores[g.store].color,
                         "lastPlayed": last})
         return out
@@ -453,7 +490,7 @@ class AioLaunch(QObject):
             error = f"{store.name}: {type(e).__name__}: {e}"
         if games:
             try:
-                error = error or covers.fill(games)
+                error = error or covers.fill_all(games)
             except Exception as e:  # cover art is never worth failing a refresh
                 error = error or f"Cover lookup: {type(e).__name__}: {e}"
         self._fetched.emit(store.id, games, error)
@@ -1092,5 +1129,5 @@ class AioLaunch(QObject):
                              "gog:588650": {"seconds": 9 * 3600, "last": now - 26 * 3600},
                              "battlenet:pro": {"seconds": 1800, "last": now - 20 * 86400}}
         self.model.set_games(games)
-        self.pool.submit(lambda: (covers.fill(games), self._after.emit(self.model.touch)))
+        self.pool.submit(lambda: (covers.fill_all(games), self._after.emit(lambda: (self.model.touch(), self.storesChanged.emit()))))
         self.model.jobs["gog:646570"] = {"kind": "install", "progress": 42.0}
