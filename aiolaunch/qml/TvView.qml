@@ -54,55 +54,95 @@ FocusScope {
         function onGameChanged(key) { tv.sync(); if (panel.visible) panel.rows = tv.buildActions() }
     }
 
+    // One of the two full-screen art images that take turns (see stage).
+    component ArtLayer: ArtImage {
+        property string tag: ""
+        anchors.fill: parent
+        sourceSize.width: app.light ? 1280 : 1920
+        horizontalAlignment: Image.AlignRight
+        Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+        onStatusChanged: {
+            if (stage.incoming !== tag) return
+            if (status === Image.Ready) {
+                stage.showA = tag === "a"; stage.none = false; stage.incoming = ""
+            } else if (status === Image.Error && at >= sources.length - 1) {
+                stage.none = true; stage.incoming = ""
+            }
+        }
+    }
+
     Rectangle { anchors.fill: parent; color: theme.background }
 
-    // Backdrop: the focused game's wide art across the top, fading into the background;
-    // its blurred cover when there is no wide art.
-    Image {
-        id: backdrop
-        anchors.fill: parent
-        source: tv.visible && !app.light && wideArt.status !== Image.Ready ? (tv.cur.cover || "") : ""
-        asynchronous: true
-        fillMode: Image.PreserveAspectCrop
-        sourceSize.width: 200
-        visible: false
-    }
-    MultiEffect {
-        anchors.fill: parent
-        source: backdrop
-        visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software && backdrop.status === Image.Ready
-        blurEnabled: true
-        blur: 1.0
-        blurMax: 64
-        opacity: 0.28
-    }
+    // ---------------------------------------------------------------- full-screen artwork
+    // The focused game's wide art fills the screen and cross-fades to the next game's.
+    // Two images take turns: the incoming one loads hidden, then fades in over the other.
     Item {
-        anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: parent.height * 0.78
+        id: stage
+        anchors.fill: parent
         visible: tv.visible
-        ArtImage {
-            id: wideArt
-            anchors.fill: parent
-            sources: tv.cur.heroes || []
-            sourceSize.width: app.light ? 1280 : 1920
-            horizontalAlignment: Image.AlignRight
-            opacity: status === Image.Ready ? 0.62 : 0
-            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 300 } }
+        property bool showA: true
+        property bool none: true      // no wide art for this game: show its blurred cover instead
+        property string incoming: ""  // "a" or "b" while that image loads the next game's art
+        function load(list) {
+            if (!list || !list.length) { none = true; incoming = ""; return }
+            const next = showA ? artB : artA
+            incoming = next.tag
+            next.sources = list
+            if (next.status === Image.Ready && next.at === 0) { showA = next.tag === "a"; none = false; incoming = "" }
         }
+        // Wait until the focus settles, so fast scrolling does not load every game on the way.
+        Timer { id: settle; interval: 140; onTriggered: stage.load(tv.cur.heroes) }
+        Connections {
+            target: tv
+            function onCurChanged() {
+                if (JSON.stringify(tv.cur.heroes || []) !== stage.lastSig) {
+                    stage.lastSig = JSON.stringify(tv.cur.heroes || [])
+                    settle.restart()
+                }
+            }
+        }
+        property string lastSig: ""
+
+        ArtLayer { id: artA; tag: "a"; opacity: !stage.none && stage.showA ? 1 : 0 }
+        ArtLayer { id: artB; tag: "b"; opacity: !stage.none && !stage.showA ? 1 : 0 }
+
+        Image {
+            id: backdrop
+            anchors.fill: parent
+            source: stage.none && !app.light ? (tv.cur.cover || "") : ""
+            asynchronous: true
+            fillMode: Image.PreserveAspectCrop
+            sourceSize.width: 200
+            visible: false
+        }
+        MultiEffect {
+            anchors.fill: parent
+            source: backdrop
+            visible: stage.none && !app.light && GraphicsInfo.api !== GraphicsInfo.Software && backdrop.status === Image.Ready
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 64
+            opacity: 0.45
+        }
+
+        // Shade: dark on the left for the title, and at the bottom for the covers.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.25) }
-                GradientStop { position: 0.55; color: Qt.alpha(theme.background, 0.7) }
-                GradientStop { position: 1.0; color: theme.background }
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.88) }
+                GradientStop { position: 0.38; color: Qt.alpha(theme.background, 0.45) }
+                GradientStop { position: 0.7; color: Qt.alpha(theme.background, 0.0) }
             }
         }
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.85) }
-                GradientStop { position: 0.6; color: Qt.alpha(theme.background, 0.0) }
+                GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.55) }
+                GradientStop { position: 0.16; color: Qt.alpha(theme.background, 0.0) }
+                GradientStop { position: 0.5; color: Qt.alpha(theme.background, 0.0) }
+                GradientStop { position: 0.82; color: Qt.alpha(theme.background, 0.85) }
+                GradientStop { position: 1.0; color: theme.background }
             }
         }
     }
@@ -111,10 +151,15 @@ FocusScope {
         anchors.fill: parent
         anchors.margins: 48
         anchors.bottomMargin: 28
-        spacing: 22
+        spacing: 18
 
-        // Store tabs.
+        // Store tabs. On narrower screens (the Steam Deck) the stores you are not on show only
+        // their logo, and the row never pushes the layout wider than the screen.
         RowLayout {
+            readonly property bool compact: tv.width < 1500
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            clip: true
             spacing: 12
             Text { text: "AIO Launch"; color: theme.onSurface; font.pixelSize: 30; font.weight: Font.Bold; Layout.rightMargin: 20 }
             Repeater {
@@ -142,6 +187,7 @@ FocusScope {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
+                            visible: !parent.parent.parent.compact || parent.parent.active || parent.parent.modelData === ""
                             text: parent.parent.info.name
                             color: parent.parent.active ? theme.onPrimary : theme.onSurfaceVariant
                             font.pixelSize: 18
@@ -160,25 +206,96 @@ FocusScope {
             }
         }
 
+        // The focused game, big, over its artwork.
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            ColumnLayout {
+                anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 6 }
+                width: Math.min(parent.width * 0.62, 980)
+                spacing: 12
+                Text {
+                    Layout.fillWidth: true
+                    text: tv.cur.title || ""
+                    color: theme.onSurface
+                    font.pixelSize: Math.round(Math.min(72, Math.max(40, tv.height * 0.06)))
+                    font.weight: Font.Black
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                    style: Text.Raised
+                    styleColor: Qt.alpha("black", 0.35)
+                }
+                Row {
+                    spacing: 14
+                    Repeater {
+                        model: tv.cur.key ? (tv.cur.copies.length ? tv.cur.copies : [{ key: tv.cur.key, storeColor: tv.cur.storeColor }]) : []
+                        StoreIcon {
+                            required property var modelData
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: 24
+                            store: modelData.key.split(":")[0]
+                            color: modelData.storeColor || "white"
+                        }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: theme.onSurface
+                        opacity: 0.85
+                        font.pixelSize: 19
+                        text: {
+                            if (!tv.cur.key) return ""
+                            const stores = tv.cur.copies.length ? tv.cur.copies.map(c => c.storeName).join(", ") : tv.cur.storeName
+                            const pct = Math.max(0, Math.floor(tv.cur.progress)) + "%"
+                            const state = tv.cur.job === "install" ? "Installing " + pct
+                                        : tv.cur.job === "update" ? "Updating " + pct
+                                        : tv.cur.job ? "Removing…"
+                                        : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
+                            return stores + "  ·  " + state
+                        }
+                    }
+                }
+                Text {
+                    readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
+                    visible: played !== ""
+                    text: played
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 17
+                }
+            }
+        }
+
+        // One row of covers along the bottom; left / right to browse.
         GridView {
             id: grid
             objectName: "tvGrid"
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: Math.round(Math.max(220, tv.height * 0.34))
             focus: true
-            clip: true
+            clip: false
             model: library
-            readonly property int columns: Math.max(3, Math.floor(width / (app.settingsMap.card_size * 1.3)))
-            cellWidth: Math.floor(width / columns)
-            cellHeight: Math.round(cellWidth * 1.46)
-            cacheBuffer: cellHeight * 2
+            flow: GridView.FlowTopToBottom
+            cellHeight: height
+            cellWidth: Math.round(height / 1.46)
+            cacheBuffer: cellWidth * 4
             keyNavigationEnabled: true
             boundsBehavior: Flickable.StopAtBounds
-            highlightMoveDuration: app.light ? 0 : 160
-            preferredHighlightBegin: cellHeight * 0.15
-            preferredHighlightEnd: height - cellHeight * 0.15
-            highlightRangeMode: GridView.ApplyRange
-            onCurrentIndexChanged: tv.sync()
+            highlightFollowsCurrentItem: false
+            // Glide just far enough to keep the focused cover (and a bit of its neighbour) in view.
+            // A cover you point at is already in view, so the row never shifts under the mouse.
+            function reveal() {
+                if (currentIndex < 0 || width <= 0) return
+                const x = currentIndex * cellWidth
+                const margin = Math.min(cellWidth * 0.5, width / 4)
+                let to = contentX
+                if (x - contentX < margin) to = x - margin
+                else if (x + cellWidth - contentX > width - margin) to = x + cellWidth - width + margin
+                to = Math.max(0, Math.min(to, contentWidth - width))
+                if (Math.abs(to - contentX) > 1) { glide.to = to; glide.restart() }
+            }
+            NumberAnimation { id: glide; target: grid; property: "contentX"; duration: app.light ? 0 : 220; easing.type: Easing.OutCubic }
+            onWidthChanged: Qt.callLater(reveal)
+            onCurrentIndexChanged: { tv.sync(); reveal() }
             onCountChanged: { if (currentIndex < 0 && count > 0) currentIndex = 0; tv.sync() }
             delegate: GameCard {
                 required property int index
@@ -190,6 +307,8 @@ FocusScope {
                 showTitle: false
                 dim: app.settingsMap.dim_uninstalled
                 current: GridView.isCurrentItem
+                // Pointing at a cover focuses it, so its artwork fills the screen.
+                onHoveredChanged: if (hovered && grid.currentIndex !== index) grid.currentIndex = index
                 onOpened: { grid.currentIndex = index; tv.sync(); panel.show() }
                 onActivated: { grid.currentIndex = index; tv.sync(); tv.accept() }
             }
@@ -212,44 +331,17 @@ FocusScope {
             }
         }
 
-        // Focused game + button hints.
-        RowLayout {
-            spacing: 16
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                Text {
-                    Layout.fillWidth: true
-                    text: tv.cur.title || ""
-                    color: theme.onSurface
-                    font.pixelSize: 30
-                    font.weight: Font.Bold
-                    elide: Text.ElideRight
-                }
-                Text {
-                    color: theme.onSurfaceVariant
-                    font.pixelSize: 17
-                    text: {
-                        if (!tv.cur.key) return ""
-                        const stores = tv.cur.copies.length ? tv.cur.copies.map(c => c.storeName).join(", ") : tv.cur.storeName
-                        const pct = Math.max(0, Math.floor(tv.cur.progress)) + "%"
-                        const state = tv.cur.job === "install" ? "Installing " + pct
-                                    : tv.cur.job === "update" ? "Updating " + pct
-                                    : tv.cur.job ? "Removing…"
-                                    : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
-                        const played = app.playedText(tv.cur.playtime, tv.cur.lastPlayed)
-                        return stores + "  ·  " + state + (played ? "  ·  " + played : "")
-                    }
-                }
-            }
-            Text {
-                visible: tv.width >= 1100
-                color: theme.outline
-                font.pixelSize: 15
-                text: pad.connected
-                      ? "Ⓐ Play    Ⓧ Actions    Ⓨ Installed only    LB / RB Store    Ⓑ Exit"
-                      : "Enter Play    F2 Actions    F3 Installed only    PgUp / PgDn Store    Esc Exit"
-            }
+        // Button hints.
+        Text {
+            Layout.fillWidth: true
+            visible: tv.width >= 1100
+            horizontalAlignment: Text.AlignRight
+            elide: Text.ElideLeft
+            color: theme.outline
+            font.pixelSize: 15
+            text: pad.connected
+                  ? "Ⓐ Play    Ⓧ Actions    Ⓨ Installed only    LB / RB Store    Ⓑ Exit"
+                  : "Enter Play    F2 Actions    F3 Installed only    PgUp / PgDn Store    Esc Exit"
         }
     }
 

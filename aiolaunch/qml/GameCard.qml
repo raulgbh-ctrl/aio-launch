@@ -27,6 +27,7 @@ Item {
     signal opened()
     signal activated()
 
+    readonly property bool hovered: hover.hovered
     readonly property bool lit: hover.hovered || current
 
     // Accent glow around the pointed-at card: a few fading outlines, cheap on any GPU.
