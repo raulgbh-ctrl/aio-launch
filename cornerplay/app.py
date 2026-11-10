@@ -1793,10 +1793,20 @@ class AioLaunch(QObject):
         self.toast.emit(f"Syncing saves for {g.title}…")
         self._bg(work)
 
+    def _vulkan_warning(self, g):
+        """Before a Proton game: say so when the GPU has no Vulkan driver (it would just crash)."""
+        if g.store in ("epic", "gog", "amazon", "battlenet"):
+            msg = runner.vulkan_problem()
+            if msg:
+                self.toast.emit(msg)
+                return True
+        return False
+
     def _play(self, key, mode):
         g, store = self._guard(key)
         if not g:
             return
+        self._vulkan_warning(g)  # warn, but still try: the check should never stop a game that would run
         opts = self._options_for(g)
         sync = saves.enabled_for(g) and mode != "skip"
         if sync:

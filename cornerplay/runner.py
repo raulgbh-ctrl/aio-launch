@@ -132,6 +132,75 @@ def perf_env(store: str, game_id: str) -> dict:
     return env
 
 
+# Vulkan: DXVK and VKD3D (how Proton draws Windows games) need the GPU's Vulkan driver.
+_VENDORS = {"0x8086": ("Intel", "intel", "vulkan-intel lib32-vulkan-intel"),
+            "0x1002": ("AMD", "radeon", "vulkan-radeon lib32-vulkan-radeon"),
+            "0x10de": ("NVIDIA", "nvidia", "nvidia-utils lib32-nvidia-utils")}
+
+
+def _vulkan_gpus() -> int:
+    """How many GPUs Vulkan can use right now (-1: Vulkan itself is missing). A GPU that is
+    switched off (a laptop's second GPU) or has no driver does not count."""
+    import ctypes
+    try:
+        vk = ctypes.CDLL("libvulkan.so.1")
+    except OSError:
+        return -1
+
+    class AppInfo(ctypes.Structure):
+        _fields_ = [("sType", ctypes.c_int), ("pNext", ctypes.c_void_p), ("name", ctypes.c_char_p),
+                    ("version", ctypes.c_uint32), ("engine", ctypes.c_char_p), ("engineVersion", ctypes.c_uint32),
+                    ("apiVersion", ctypes.c_uint32)]
+
+    class CreateInfo(ctypes.Structure):
+        _fields_ = [("sType", ctypes.c_int), ("pNext", ctypes.c_void_p), ("flags", ctypes.c_uint32),
+                    ("app", ctypes.POINTER(AppInfo)), ("layers", ctypes.c_uint32), ("layerNames", ctypes.c_void_p),
+                    ("exts", ctypes.c_uint32), ("extNames", ctypes.c_void_p)]
+    app = AppInfo(0, None, b"cornerplay", 1, b"cornerplay", 1, (1 << 22) | (1 << 12))
+    info = CreateInfo(1, None, 0, ctypes.pointer(app), 0, None, 0, None)
+    inst = ctypes.c_void_p()
+    if vk.vkCreateInstance(ctypes.byref(info), None, ctypes.byref(inst)) != 0:
+        return 0
+    count = ctypes.c_uint32(0)
+    ok = vk.vkEnumeratePhysicalDevices(inst, ctypes.byref(count), None) == 0
+    vk.vkDestroyInstance(inst, None)
+    return count.value if ok else 0
+
+
+_vulkan_cache = None
+
+
+def vulkan_problem() -> str:
+    """"" when Vulkan has a GPU to draw with, else what is wrong and what to install."""
+    global _vulkan_cache
+    if _vulkan_cache is not None:
+        return _vulkan_cache
+    import glob
+    msg = ""
+    if _vulkan_gpus() <= 0:
+        # Name the driver for a GPU whose Vulkan driver is not installed (the one that is on).
+        icds = " ".join(os.path.basename(p).lower() for d in ("/usr/share/vulkan/icd.d", "/etc/vulkan/icd.d",
+                                                                 os.path.expanduser("~/.local/share/vulkan/icd.d"))
+                        for p in glob.glob(os.path.join(d, "*.json")))
+        vendors = set()
+        for f in glob.glob("/sys/class/drm/card*/device/vendor"):
+            try:
+                vendors.add(open(f).read().strip())
+            except OSError:
+                pass
+        missing = [_VENDORS[v] for v in sorted(vendors) if v in _VENDORS and _VENDORS[v][1] not in icds]
+        fix = (f"Install the {missing[0][0]} Vulkan driver: sudo pacman -S {missing[0][2]}" if missing
+               else "Check that your GPU's Vulkan driver is installed and the GPU is switched on.")
+        msg = "Vulkan has no GPU to draw with, so Windows games and the Battle.net app will crash. " + fix
+    _vulkan_cache = msg
+    return msg
+
+
+def forget_vulkan_check():
+    global _vulkan_cache
+    _vulkan_cache = None
+
+
 def extras() -> list:
     """Optional wrappers the user switched on in Settings."""
     out = []
