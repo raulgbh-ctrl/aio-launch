@@ -15,7 +15,7 @@ import re
 import subprocess
 import zlib
 
-import requests
+from .net import requests
 
 from .config import CONFIG_DIR, find_tool, read_json, settings, write_json
 from .runner import prefix_path

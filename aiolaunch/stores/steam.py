@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 
-import requests
+from ..net import requests
 
 from .. import vdf
 from ..config import HOME, settings

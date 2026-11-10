@@ -7,7 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qs, urlparse
 
-import requests
+from ..net import requests
 
 from ..config import CACHE_DIR, CONFIG_DIR, find_tool, read_json, settings, write_json
 from ..runner import StoreError, wine_env, wrapper_argv

@@ -10,7 +10,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 
-import requests
+from .net import requests
 
 from .config import CACHE_DIR, read_json, settings, write_json
 

@@ -27,8 +27,12 @@ ACTIVE_MS, IDLE_MS = 16, 1000  # 60 checks a second while in use, one a second o
 FIRST_REPEAT, NEXT_REPEAT = 0.38, 0.11
 
 
+START_DELAY_MS = 300  # SDL_Init scans every input device (~150 ms); do it after the window is up
+
+
 class Gamepad(QObject):
     connectedChanged = Signal()
+    availableChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -37,15 +41,21 @@ class Gamepad(QObject):
         self._held = {}    # Qt key -> time of next repeat
         self._stick = {}   # (pad, axis) -> key currently held by that stick axis
         self._event = ctypes.create_string_buffer(128)
+        self._timer = None
+        QTimer.singleShot(START_DELAY_MS, self._start)
+
+    def _start(self):
         try:
             self._load()
         except (OSError, AttributeError):
             self._sdl = None
             return
+        self.availableChanged.emit()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._poll)
         self._timer.start(IDLE_MS)
         QGuiApplication.instance().focusWindowChanged.connect(lambda _w: self._pace())
+        self._poll()  # pick up controllers that were plugged in before we started
 
     def _pace(self):
         """Fast polling only while a controller is plugged in and this app has focus."""
@@ -55,8 +65,10 @@ class Gamepad(QObject):
             self._timer.setInterval(interval)
 
     def _load(self):
-        name = ctypes.util.find_library("SDL2") or "libSDL2-2.0.so.0"
-        sdl = ctypes.CDLL(name)
+        try:
+            sdl = ctypes.CDLL("libSDL2-2.0.so.0")  # direct load; find_library runs ldconfig (~25 ms)
+        except OSError:
+            sdl = ctypes.CDLL(ctypes.util.find_library("SDL2") or "libSDL2.so")
         sdl.SDL_SetHint.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
         sdl.SDL_Init.argtypes = [ctypes.c_uint32]
         sdl.SDL_PollEvent.argtypes = [ctypes.c_void_p]
@@ -73,7 +85,7 @@ class Gamepad(QObject):
             raise OSError("SDL_Init failed")
         self._sdl = sdl
 
-    available = Property(bool, lambda s: s._sdl is not None, constant=True)
+    available = Property(bool, lambda s: s._sdl is not None, notify=availableChanged)
     connected = Property(bool, lambda s: bool(s._pads), notify=connectedChanged)
 
     # --- SDL events ------------------------------------------------------

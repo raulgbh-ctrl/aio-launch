@@ -137,14 +137,17 @@ def main():
             nam.setCache(cache)
             return nam
 
-    # The built-in sign-in window needs Qt's web engine, set up before the app object exists.
-    web_login = False
-    try:
-        from PySide6.QtWebEngineQuick import QtWebEngineQuick
-        QtWebEngineQuick.initialize()
-        web_login = True
-    except ImportError:
-        pass
+    # The built-in sign-in window needs Qt's web engine. Importing it here would load
+    # Chromium on every start (~35 MB, ~0.1 s), so only set the two options it needs
+    # before the app object exists; QML loads the engine when the sign-in window opens.
+    from PySide6.QtCore import QLibraryInfo
+    qml_dir = Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.QmlImportsPath))
+    web_login = (qml_dir / "QtWebEngine" / "qmldir").is_file()
+    if web_login:
+        from PySide6.QtCore import QCoreApplication, Qt
+        from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+        QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+        QQuickWindow.setGraphicsApi(QSGRendererInterface.OpenGL)
 
     app = QGuiApplication(sys.argv[:1])
     app.setApplicationName("AIO Launch")

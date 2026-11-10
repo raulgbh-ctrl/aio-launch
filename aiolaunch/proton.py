@@ -5,7 +5,7 @@ import shutil
 import tarfile
 import tempfile
 
-import requests
+from .net import requests
 
 from .config import HOME
 

@@ -11,7 +11,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import requests
+from .net import requests
 
 from . import covers
 from .config import CACHE_DIR, settings
