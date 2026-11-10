@@ -221,9 +221,51 @@ class Gog(Store):
                 owned = {str(i) for i in o.json().get("owned", [])} if o.ok else set()
         except (requests.RequestException, ValueError) as e:
             raise StoreError(f"Could not reach GOG ({type(e).__name__})")
-        return [{"title": d.get("title", str(d.get("id"))),
-                 "status": "owned" if str(d.get("id")) in owned else "available",
-                 "url": (d.get("links") or {}).get("product_card", "")} for d in items]
+        prices = self._prices([str(d.get("id")) for d in items])
+        # gogdl leaves a goggame-<id>.info file in the game's folder for each DLC it installed
+        installed = {os.path.basename(p)[8:-5] for p in glob.glob(os.path.join(game.install_path or "/nonexistent",
+                                                                               "goggame-*.info"))}
+        rows = []
+        for d in items:
+            did = str(d.get("id"))
+            status = "installed" if did in installed else "owned" if did in owned else "available"
+            img = (d.get("images") or {}).get("logo2x") or (d.get("images") or {}).get("logo") or ""
+            rows.append({"id": did, "title": d.get("title", did), "status": status,
+                         "image": ("https:" + img) if img.startswith("//") else img,
+                         "price": "" if status != "available" else prices.get(did, ""),
+                         "url": (d.get("links") or {}).get("product_card", ""),
+                         "canInstall": status == "owned" and game.installed and d.get("is_installable", True)})
+        return rows
+
+    def _prices(self, ids):
+        """{product id: "€29.99"} in the player's country (GOG account, else the system locale)."""
+        if not ids:
+            return {}
+        country = (read_json(CACHE_DIR / "gog_user.json") or {}).get("country", "")
+        if not country:
+            from PySide6.QtCore import QLocale
+            name = QLocale.system().name()  # "es_ES"
+            country = name.split("_")[1] if "_" in name else "US"
+        try:
+            r = requests.get("https://api.gog.com/products/prices",
+                             params={"ids": ",".join(ids), "countryCode": country}, timeout=15)
+            items = (r.json().get("_embedded") or {}).get("items") or []
+        except (requests.RequestException, ValueError):
+            return {}
+        out = {}
+        for it in items:
+            pid = ((it.get("_embedded") or {}).get("product") or {}).get("id") or it.get("id")
+            for p in (it.get("_embedded") or {}).get("prices") or []:
+                amount, _, cur = (p.get("finalPrice") or "").partition(" ")
+                if amount.isdigit():
+                    sym = {"USD": "$", "EUR": "€", "GBP": "£", "PLN": "zł "}.get(cur, cur + " ")
+                    out[str(pid)] = "Free" if amount == "0" else f"{sym}{int(amount) / 100:.2f}"
+                    break
+        return out
+
+    def install_dlc(self, game, dlc_id):
+        # gogdl's update with --with-dlcs fetches every owned DLC that is not on disk yet.
+        return self.update(game)
 
     # --- actions ---------------------------------------------------------
     def install(self, game):

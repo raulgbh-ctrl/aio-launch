@@ -355,6 +355,7 @@ class AioLaunch(QObject):
         self._colour_pending = set()
         self._details_pending = set()
         self._sounds = None  # TV-mode sound effects, created on first use
+        self._dlc_cache = {}  # key -> (time, rows)
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         self._worker_toast.connect(self.toast)
@@ -823,24 +824,58 @@ class AioLaunch(QObject):
             game_options.set(self.model.group_id(g), "prefer", key)
             self._touch(key)
 
+    DLC_TTL = 30 * 60  # a game's DLC list is asked for again after half an hour (or after a DLC install)
+
     @Slot(str)
-    def loadDlcs(self, key):
+    @Slot(str, bool)
+    def loadDlcs(self, key, fresh=False):
         g = self.model.find(key)
         if not g:
             return
         store = self.stores[g.store]
+        hit = self._dlc_cache.get(key)
+        if hit and not fresh and time.time() - hit[0] < self.DLC_TTL:
+            self.dlcsReady.emit(key, hit[1], store.dlc_note)
+            return
 
         def work():
             try:
-                rows = ([{"title": f"{g.title}: Expansion Pass", "status": "owned", "url": ""},
-                         {"title": f"{g.title}: Soundtrack", "status": "available", "url": "https://example.org"}]
-                        if self.demo else (store.dlcs(g) or []))
+                rows = self._demo_dlcs(g) if self.demo else (store.dlcs(g) or [])
             except StoreError as e:
                 return lambda msg=str(e): self.dlcsReady.emit(key, [], msg)
-            rank = {"installed": 0, "owned": 1, "available": 2}
+            rank = {"installed": 0, "owned": 1, "missing": 2, "available": 3}
             rows.sort(key=lambda r: (rank.get(r["status"], 3), r["title"].lower()))
-            return lambda: self.dlcsReady.emit(key, rows, store.dlc_note)
+
+            def done():
+                self._dlc_cache[key] = (time.time(), rows)
+                self.dlcsReady.emit(key, rows, store.dlc_note)
+            return done
         self._bg(work)
+
+    @Slot(str, str)
+    def installDlc(self, key, dlc_id):
+        """Install one owned DLC; it runs as a job on the game, with progress like an install."""
+        g, store = self._guard(key)
+        if not g or key in self.procs:
+            return
+        try:
+            with runner.using(self._options_for(g)):
+                cmd = store.install_dlc(g, dlc_id)
+        except StoreError as e:
+            self.toast.emit(str(e))
+            return
+        self._dlc_cache.pop(key, None)
+        self._start_job(g, "dlc", cmd)
+
+    @staticmethod
+    def _demo_dlcs(g):
+        cdn = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps"
+        return [{"id": "1", "title": f"{g.title}: Expansion Pass", "status": "installed", "image": f"{cdn}/2778580/header.jpg",
+                 "price": "", "url": "", "canInstall": False},
+                {"id": "2", "title": f"{g.title}: Bonus Outfits", "status": "owned", "image": f"{cdn}/2778590/header.jpg",
+                 "price": "", "url": "", "canInstall": True},
+                {"id": "3", "title": f"{g.title}: Original Soundtrack", "status": "available", "image": f"{cdn}/3655690/header.jpg",
+                 "price": "€9.99 (-30%)", "url": "https://store.steampowered.com", "canInstall": False}]
 
     def _options_for(self, g):
         # Battle.net games all run through the one launcher prefix, so they share its options.
@@ -1200,7 +1235,10 @@ class AioLaunch(QObject):
         elif code == 0:
             if kind == "update":
                 g.extra.pop("update", None)  # the refresh below confirms it
-            self.toast.emit(f"{ {'install': 'Installed', 'update': 'Updated'}.get(kind, 'Removed')} {g.title}")
+            self.toast.emit(f"Installed DLC for {g.title}" if kind == "dlc" else
+                            f"{ {'install': 'Installed', 'update': 'Updated'}.get(kind, 'Removed')} {g.title}")
+            if kind in ("dlc", "update", "install"):
+                self._dlc_cache.pop(key, None)
         else:
             detail = next((l for l in reversed(lines) if "error" in l.lower()), lines[-1] if lines else "")
             self.toast.emit(f"{kind.capitalize()} failed for {g.title}: {detail[-160:]}".rstrip(": "))

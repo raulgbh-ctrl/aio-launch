@@ -645,10 +645,16 @@ ApplicationWindow {
             target: app
             function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
             function onDetailsReady(key, d) { if (key === win.selectedKey) detail.info = d }
+            function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
         property var info: ({})
-        onOpened: { accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey) }
+        property int dlcCount: -1   // -1 until known
+        onOpened: {
+            accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
+            dlcCount = -1
+            if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
+        }
         width: Math.min(win.width - 60, 860)
         // The game's wide art runs across the top; the cover and title start inside its faded lower part.
         readonly property int bannerH: Math.round(width * 0.34)
@@ -889,7 +895,7 @@ ApplicationWindow {
                         font.pixelSize: 13
                         text: win.selected.job === "uninstall" ? "Removing…"
                               : win.selected.progress < 0 ? "Starting…"
-                              : (win.selected.job === "update" ? "Updating  " : "Installing  ")
+                              : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
                                 + (win.selected.progress || 0).toFixed(1) + "%"
                     }
                     Rectangle {
@@ -945,8 +951,8 @@ ApplicationWindow {
                     }
                     KButton {
                         theme: detail.tint
-                        visible: !!win.selected.hasDlc
-                        text: "DLC"
+                        visible: !!win.selected.hasDlc && detail.dlcCount !== 0
+                        text: detail.dlcCount > 0 ? "DLC · " + detail.dlcCount : "DLC"
                         iconName: "puzzle"
                         onClicked: dlc.show(win.selectedKey, win.selected.title)
                     }
@@ -1043,15 +1049,20 @@ ApplicationWindow {
     // -------------------------------------------------------------------- DLC
     KDialog {
         id: dlc
+        objectName: "dlc"
         theme: win.theme
         property string key: ""
         property var rows: []
         property string note: ""
         property bool loading: false
+        property string error: ""
+        property bool busy: false   // a DLC install for this game is running
         heading: "DLC"
-        width: Math.min(win.width - 60, 620)
+        headingIcon: "puzzle"
+        width: Math.min(win.width - 60, 680)
         function show(k, title) {
-            key = k; rows = []; note = ""; loading = true
+            key = k; rows = []; note = ""; error = ""; loading = true
+            busy = app.game(k).job === "dlc"
             heading = "DLC · " + title
             open()
             app.loadDlcs(k)
@@ -1060,65 +1071,166 @@ ApplicationWindow {
             target: app
             function onDlcsReady(key, rows, note) {
                 if (key !== dlc.key) return
-                dlc.rows = rows; dlc.note = note; dlc.loading = false
+                dlc.rows = rows; dlc.loading = false
+                // a store message without rows is an error; with rows it is a note
+                const isNote = note.indexOf("Steam installs") === 0 || note.indexOf("Epic lists") === 0
+                if (rows.length) { dlc.note = note; dlc.error = "" } else { dlc.error = isNote ? "" : note; dlc.note = "" }
+            }
+            function onGameChanged(key) {
+                // the DLC install finished: show the new state
+                if (key === dlc.key && dlc.busy && app.game(key).job !== "dlc") { dlc.busy = false; app.loadDlcs(key, true) }
             }
         }
         contentItem: ColumnLayout {
             spacing: 12
+            readonly property var counts: {
+                const c = { installed: 0, owned: 0, missing: 0, available: 0 }
+                for (const r of dlc.rows) c[r.status] = (c[r.status] || 0) + 1
+                return c
+            }
+            // Summary: how many, and what you have.
+            Text {
+                Layout.fillWidth: true
+                visible: dlc.rows.length > 0
+                color: theme.onSurfaceVariant
+                font.pixelSize: 13
+                text: {
+                    const c = parent.counts, parts = [dlc.rows.length + " DLC"]
+                    if (c.installed) parts.push(c.installed + " installed")
+                    if (c.owned) parts.push(c.owned + " owned, not installed")
+                    if (c.available) parts.push(c.available + " to buy")
+                    return parts.join("  ·  ")
+                }
+            }
             Text {
                 Layout.fillWidth: true
                 visible: dlc.loading || dlc.rows.length === 0
                 color: theme.onSurfaceVariant
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
-                text: dlc.loading ? "Looking up DLC…" : (dlc.note && dlc.rows.length === 0 && !dlc.note.includes("lists") && !dlc.note.includes("only tells") ? dlc.note : "No DLC found for this game.")
+                text: dlc.loading ? "Looking up DLC…" : (dlc.error || "No DLC found for this game.")
+            }
+            // Install all owned DLC at once (GOG installs them together anyway).
+            KButton {
+                theme: win.theme
+                primary: true
+                iconName: "download"
+                visible: !dlc.busy && dlc.rows.filter(r => r.canInstall).length > 1
+                text: "Install all owned DLC"
+                onClicked: { const r = dlc.rows.find(r => r.canInstall); if (r) { dlc.busy = true; app.installDlc(dlc.key, r.id) } }
+            }
+            Text {
+                visible: dlc.busy
+                color: theme.primary
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                text: "Installing DLC… " + (win.selected.job === "dlc" && win.selected.progress >= 0 ? Math.floor(win.selected.progress) + "%" : "")
             }
             ListView {
                 id: dlcList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(contentHeight, 400)
+                Layout.preferredHeight: Math.min(contentHeight, Math.max(240, win.height - 320))
                 visible: dlc.rows.length > 0
                 clip: true
-                spacing: 6
+                spacing: 8
                 model: dlc.rows
+                boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { }
                 delegate: Rectangle {
+                    id: dlcRow
                     required property var modelData
+                    readonly property var info: ({
+                        installed: { label: "Installed", icon: "check" },
+                        owned: { label: "Owned", icon: "check" },
+                        missing: { label: "Not installed", icon: "" },
+                        available: { label: "Not owned", icon: "" } })[modelData.status] || { label: modelData.status, icon: "" }
                     width: dlcList.width - 10
-                    height: 46
-                    radius: 10
+                    height: 76
+                    radius: 12
                     color: theme.surfaceContainerHigh
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 14; anchors.rightMargin: 8
-                        spacing: 10
-                        Text {
-                            Layout.fillWidth: true
-                            text: modelData.title
-                            color: theme.onSurface
-                            font.pixelSize: 13
-                            elide: Text.ElideRight
-                        }
+                        anchors.margins: 8
+                        anchors.rightMargin: 12
+                        spacing: 14
+                        // The DLC's own art (wide), or a placeholder tile.
                         Rectangle {
-                            readonly property bool have: modelData.status !== "available"
-                            implicitWidth: st.implicitWidth + 20; implicitHeight: 24; radius: 12
-                            color: have ? theme.primaryContainer : "transparent"
-                            border.width: have ? 0 : 1
-                            border.color: theme.outlineVariant
+                            Layout.preferredWidth: 128
+                            Layout.preferredHeight: 60
+                            radius: 8
+                            color: theme.surfaceContainerHighest
+                            clip: true
+                            Icon { anchors.centerIn: parent; name: "puzzle"; size: 22; color: theme.outline; visible: dlcArt.status !== Image.Ready }
+                            Image {
+                                id: dlcArt
+                                anchors.fill: parent
+                                source: dlcRow.modelData.image || ""
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 256
+                                opacity: status === Image.Ready ? (dlcRow.modelData.status === "available" ? 0.7 : 1) : 0
+                                Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 5
                             Text {
-                                id: st
-                                anchors.centerIn: parent
-                                font.pixelSize: 11
-                                color: parent.have ? theme.onPrimaryContainer : theme.onSurfaceVariant
-                                text: ({ installed: "Installed", owned: "Owned", available: "Available" })[modelData.status] || modelData.status
+                                Layout.fillWidth: true
+                                text: dlcRow.modelData.title
+                                color: theme.onSurface
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Row {
+                                spacing: 8
+                                Rectangle {
+                                    readonly property bool have: dlcRow.modelData.status === "installed" || dlcRow.modelData.status === "owned"
+                                    height: 22; radius: 11
+                                    width: stRow.implicitWidth + 18
+                                    color: have ? theme.primaryContainer : "transparent"
+                                    border.width: have ? 0 : 1
+                                    border.color: theme.outlineVariant
+                                    Row {
+                                        id: stRow
+                                        anchors.centerIn: parent
+                                        spacing: 5
+                                        Icon { visible: dlcRow.info.icon !== ""; name: dlcRow.info.icon; size: 12; color: theme.onPrimaryContainer; anchors.verticalCenter: parent.verticalCenter }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: dlcRow.info.label
+                                            font.pixelSize: 11
+                                            font.weight: Font.DemiBold
+                                            color: parent.parent.have ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: !!dlcRow.modelData.price
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: dlcRow.modelData.price || ""
+                                    color: theme.onSurfaceVariant
+                                    font.pixelSize: 12
+                                }
                             }
                         }
                         KButton {
                             theme: win.theme
-                            implicitHeight: 30
-                            visible: modelData.status === "available" && !!modelData.url
-                            text: "Store page"
-                            onClicked: app.openUrl(modelData.url)
+                            implicitHeight: 34
+                            primary: true
+                            iconName: "download"
+                            visible: !!dlcRow.modelData.canInstall && !dlc.busy
+                            text: "Install"
+                            onClicked: { dlc.busy = true; app.installDlc(dlc.key, dlcRow.modelData.id) }
+                        }
+                        KButton {
+                            theme: win.theme
+                            implicitHeight: 34
+                            iconName: "external-link"
+                            visible: !dlcRow.modelData.canInstall && !!dlcRow.modelData.url
+                            text: dlcRow.modelData.url.indexOf("steam://") === 0 ? "Open in Steam" : "Store page"
+                            onClicked: app.openUrl(dlcRow.modelData.url)
                         }
                     }
                 }

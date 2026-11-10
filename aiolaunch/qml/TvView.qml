@@ -300,6 +300,7 @@ FocusScope {
                             const pct = Math.max(0, Math.floor(tv.cur.progress)) + "%"
                             const state = tv.cur.job === "install" ? "Installing " + pct
                                         : tv.cur.job === "update" ? "Updating " + pct
+                                        : tv.cur.job === "dlc" ? "Installing DLC " + pct
                                         : tv.cur.job ? "Removing…"
                                         : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
                             return stores + "  ·  " + state

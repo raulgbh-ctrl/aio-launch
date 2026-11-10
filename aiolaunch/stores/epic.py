@@ -85,7 +85,8 @@ class Epic(Store):
                     store=self.id, id=app, title=(g.get("app_title") or app).strip(),
                     cover=tall or wide, cover_fallback=wide,
                     installed=bool(inst), install_path=(inst or {}).get("install_path", ""),
-                    extra={"dlcs": [{"id": d.get("app_name", ""), "title": (d.get("app_title") or "").strip()}
+                    extra={"dlcs": [{"id": d.get("app_name", ""), "title": (d.get("app_title") or "").strip(),
+                                     "image": _images(d.get("metadata") or {})[1]}
                                     for d in g.get("dlcs") or []],
                            "store_heroes": [hero] if hero else [], "store_logos": [logo] if logo else [],
                            "description": ((g.get("metadata") or {}).get("description") or "")[:600]},
@@ -103,9 +104,18 @@ class Epic(Store):
 
     def dlcs(self, game):
         installed = self._installed()
-        return [{"title": d["title"] or d["id"], "url": "",
-                 "status": "installed" if d["id"] in installed else "owned"}
-                for d in game.extra.get("dlcs") or []]
+        rows = []
+        for d in game.extra.get("dlcs") or []:
+            status = "installed" if d["id"] in installed else "owned"
+            rows.append({"id": d["id"], "title": d["title"] or d["id"], "status": status,
+                         "image": d.get("image", ""), "price": "", "url": "",
+                         "canInstall": status == "owned" and game.installed})
+        return rows
+
+    def install_dlc(self, game, dlc_id):
+        if not game.installed:
+            raise StoreError("Install the game first")
+        return Command([self.tool(), "-y", "install", dlc_id])
 
     def install(self, game):
         base = settings.games_dir / "epic"

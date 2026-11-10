@@ -28,7 +28,8 @@ class Steam(Store):
     id = "steam"
     name = "Steam"
     color = "#66c0f4"
-    dlc_note = "Steam only tells AIO Launch which DLC is installed; the rest is listed as available even if you own it."
+    dlc_note = ("Steam installs the DLC you own by itself. AIO Launch can only see which DLC is installed; "
+                "open the others in Steam to buy or install them.")
     external_installs = True
     login_kind = "external"
 
@@ -181,17 +182,25 @@ class Steam(Store):
                 pass
 
     def dlcs(self, game):
-        try:
+        try:  # no country given: Steam answers in the player's own currency
             r = requests.get("https://store.steampowered.com/api/dlcforapp/",
-                             params={"appid": game.id}, timeout=20)
+                             params={"appid": game.id, "l": "english"}, timeout=20)
             r.raise_for_status()
             items = r.json().get("dlc") or []
         except (requests.RequestException, ValueError) as e:
             raise StoreError(f"Could not reach the Steam store ({type(e).__name__})")
         have = set(game.extra.get("dlc_installed") or [])
-        return [{"title": d.get("name", str(d.get("id"))),
-                 "status": "installed" if str(d.get("id")) in have else "available",
-                 "url": f"https://store.steampowered.com/app/{d.get('id')}"} for d in items]
+        client = bool(self.client())
+        rows = []
+        for d in items:
+            did = str(d.get("id"))
+            rows.append({"id": did, "title": d.get("name", did),
+                         "status": "installed" if did in have else "missing",  # owned or not: Steam does not say
+                         "image": d.get("header_image", ""), "price": _price(d.get("price_overview")),
+                         # the Steam client opens on the DLC's page, where it can be bought or installed
+                         "url": f"steam://store/{did}" if client else f"https://store.steampowered.com/app/{did}",
+                         "canInstall": False})
+        return rows
 
     def _url(self, url):
         client = self.client()
@@ -208,3 +217,17 @@ class Steam(Store):
     def launch(self, game):
         return self._url(f"steam://rungameid/{game.id}")
 
+
+CURRENCY = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "BRL": "R$", "AUD": "A$", "CAD": "C$", "RUB": "₽"}
+
+
+def _price(p):
+    """ "€39.99", "€9.99 (-50%)", "Free", or "" when there is no price."""
+    if not p:
+        return ""
+    final = p.get("final", 0) / 100
+    if not final:
+        return "Free"
+    cur = p.get("currency", "")
+    text = f"{CURRENCY.get(cur, '')}{final:.2f}" + ("" if cur in CURRENCY else f" {cur}")
+    return text + (f" (-{p['discount_percent']}%)" if p.get("discount_percent") else "")

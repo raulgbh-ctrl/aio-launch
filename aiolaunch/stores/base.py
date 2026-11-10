@@ -81,8 +81,13 @@ class Store:
         return []
 
     def dlcs(self, game: Game) -> list | None:
-        """Blocking. [{"title", "status": installed|owned|available, "url"}], or None if unsupported."""
+        """Blocking. None if unsupported, else a list of
+        {"id", "title", "status": installed|owned|available, "url", "image", "price", "canInstall"}."""
         return None
+
+    def install_dlc(self, game: Game, dlc_id: str) -> Command:
+        """Install one owned DLC of an installed game."""
+        raise StoreError("Installing DLC is not supported for this store")
 
     # --- actions ---------------------------------------------------------
     def install(self, game: Game) -> Command:
