@@ -534,9 +534,13 @@ FocusScope {
                 to = Math.max(0, Math.min(to, contentWidth - width))
                 if (Math.abs(to - contentX) > 1) { glide.to = to; glide.restart() }
             }
-            NumberAnimation { id: glide; target: grid; property: "contentX"; duration: app.light ? 0 : 220; easing.type: Easing.OutCubic }
+            // While a direction is held (auto-repeat) the row keeps up instead of easing behind.
+            property bool fast: false
+            NumberAnimation { id: glide; target: grid; property: "contentX"; duration: app.light ? 0 : grid.fast ? 80 : 220; easing.type: Easing.OutCubic }
             onWidthChanged: Qt.callLater(reveal)
-            onCurrentIndexChanged: { tv.sync(); reveal(); if (tv.visible) app.uiSound("move") }
+            onCurrentIndexChanged: { tv.sync(); reveal(); if (tv.visible && !fast) app.uiSound("move") }
+            function jump(to) { currentIndex = Math.max(0, Math.min(count - 1, to)) }
+            readonly property int page: Math.max(1, Math.floor(width / cellWidth) - 1)
             onCountChanged: { if (currentIndex < 0 && count > 0) currentIndex = 0; tv.sync() }
             delegate: GameCard {
                 required property int index
@@ -558,7 +562,13 @@ FocusScope {
             Keys.onEnterPressed: tv.accept()
             Keys.onEscapePressed: { app.uiSound("back"); tv.exit() }
             Keys.onPressed: event => {
-                if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
+                grid.fast = event.isAutoRepeat
+                if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && (event.modifiers & Qt.ShiftModifier)) {
+                    grid.jump(currentIndex + (event.key === Qt.Key_Right ? page : -page)); event.accepted = true
+                }
+                else if (event.key === Qt.Key_Home) { grid.jump(0); event.accepted = true }
+                else if (event.key === Qt.Key_End) { grid.jump(count - 1); event.accepted = true }
+                else if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
                 else if (event.key === Qt.Key_F3 || (event.key === Qt.Key_Space && pad.deck && !pad.connected)) { library.installedOnly = !library.installedOnly; event.accepted = true }
                 else if (event.key === Qt.Key_PageUp) { tv.cycleStore(-1); event.accepted = true }
                 else if (event.key === Qt.Key_PageDown) { tv.cycleStore(1); event.accepted = true }
@@ -581,12 +591,12 @@ FocusScope {
             Repeater {
                 model: pad.connected
                        ? [{ b: ["a"], t: "Play" }, { b: ["x"], t: "Actions" }, { b: ["y"], t: "Installed only" },
-                          { b: ["lb", "rb"], t: "Store" }, { b: ["b"], t: "Back" }]
+                          { b: ["lt", "rt"], t: "Jump" }, { b: ["lb", "rb"], t: "Store" }, { b: ["b"], t: "Back" }]
                        : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
                        ? [{ b: ["a"], t: "Play" }, { k: "F2", t: "Actions" }, { b: ["y"], t: "Installed only" },
                           { b: ["b"], t: "Back" }]
                        : [{ k: "Enter", t: "Play" }, { k: "F2", t: "Actions" }, { k: "F3", t: "Installed only" },
-                          { k: "PgUp / PgDn", t: "Store" }, { k: "Esc", t: "Back" }]
+                          { k: "Shift ←/→", t: "Jump" }, { k: "PgUp / PgDn", t: "Store" }, { k: "Esc", t: "Back" }]
                 Row {
                     required property var modelData
                     spacing: 8

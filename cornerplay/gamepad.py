@@ -28,7 +28,21 @@ STYLES = {3: "playstation", 4: "playstation", 7: "playstation",
           5: "nintendo", 11: "nintendo", 12: "nintendo", 13: "nintendo"}
 STICK_ON, STICK_OFF = 18000, 12000
 ACTIVE_MS, IDLE_MS = 16, 1000  # 60 checks a second while in use, one a second otherwise
-FIRST_REPEAT, NEXT_REPEAT = 0.38, 0.11
+FIRST_REPEAT = 0.38
+# Holding a direction speeds up: (held for at least, seconds between moves).
+REPEAT_STEPS = ((0.0, 0.11), (1.0, 0.06), (2.0, 0.035))
+# The triggers (axes 4 and 5: LT / RT, L2 / R2) page through a row: Shift+Left / Shift+Right.
+TRIGGERS = {4: Qt.Key_Left, 5: Qt.Key_Right}
+TRIGGER_ON, TRIGGER_OFF = 16000, 8000
+PAGE = Qt.ShiftModifier
+
+
+def _repeat_gap(held_for):
+    gap = REPEAT_STEPS[0][1]
+    for after, step in REPEAT_STEPS:
+        if held_for >= after:
+            gap = step
+    return gap
 
 
 START_DELAY_MS = 300  # SDL_Init scans every input device (~150 ms); do it after the window is up
@@ -149,11 +163,13 @@ class Gamepad(QObject):
                 value = ctypes.c_int16.from_buffer(ev, 16).value
                 if axis in (0, 1):
                     self._axis(which, axis, value)
+                elif axis in TRIGGERS:
+                    self._trigger(which, axis, value)
         now = time.monotonic()
-        for key, due in list(self._held.items()):
+        for held, (due, since) in list(self._held.items()):
             if now >= due:
-                self._held[key] = now + NEXT_REPEAT
-                self._send(key)
+                self._held[held] = (now + _repeat_gap(now - since), since)
+                self._send(*held, repeat=True)
 
     def _axis(self, pad, axis, value):
         low, high = (Qt.Key_Left, Qt.Key_Right) if axis == 0 else (Qt.Key_Up, Qt.Key_Down)
@@ -172,18 +188,29 @@ class Gamepad(QObject):
                 self._set(wanted, True)
             self._stick[(pad, axis)] = wanted
 
-    def _set(self, key, down):
+    def _trigger(self, pad, axis, value):
+        on = self._stick.get((pad, axis))
+        if not on and value >= TRIGGER_ON:
+            self._stick[(pad, axis)] = True
+            self._set(TRIGGERS[axis], True, PAGE)
+        elif on and value <= TRIGGER_OFF:
+            self._stick[(pad, axis)] = False
+            self._set(TRIGGERS[axis], False, PAGE)
+
+    def _set(self, key, down, mods=Qt.NoModifier):
+        held = (key, mods)
         if not down:
-            self._held.pop(key, None)
+            self._held.pop(held, None)
             return
         if key in REPEATING:
-            self._held[key] = time.monotonic() + FIRST_REPEAT
-        self._send(key)
+            now = time.monotonic()
+            self._held[held] = (now + FIRST_REPEAT, now)
+        self._send(key, mods)
 
-    def _send(self, key):
+    def _send(self, key, mods=Qt.NoModifier, repeat=False):
         window = QGuiApplication.focusWindow()
         if window is None:  # a game (or anything else) has focus: stay out of the way
             self._held.clear()
             return
         for kind in (QEvent.KeyPress, QEvent.KeyRelease):
-            QGuiApplication.postEvent(window, QKeyEvent(kind, key, Qt.NoModifier))
+            QGuiApplication.postEvent(window, QKeyEvent(kind, key, mods, "", repeat))

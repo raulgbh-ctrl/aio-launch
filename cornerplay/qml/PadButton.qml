@@ -1,14 +1,14 @@
 import QtQuick
 
 // One controller button, drawn the way the connected pad labels it.
-// button: the position SDL reports ("a" bottom, "b" right, "x" left, "y" top, "lb", "rb", "start");
+// button: the position SDL reports ("a" bottom, "b" right, "x" left, "y" top, "lb", "rb", "lt", "rt", "start");
 // style: "xbox", "playstation" or "nintendo" (from pad.style).
 Item {
     id: pb
     property string button: "a"
     property string style: "xbox"
     property int size: 26
-    readonly property bool shoulder: button === "lb" || button === "rb" || button === "start"
+    readonly property bool shoulder: ["lb", "rb", "lt", "rt", "start"].indexOf(button) !== -1
     implicitWidth: shoulder ? label.implicitWidth + size * 0.7 : size
     implicitHeight: size
     width: implicitWidth
@@ -18,9 +18,9 @@ Item {
     readonly property var nintendo: ({ a: "B", b: "A", x: "Y", y: "X" })   // by position: bottom is B on a Switch pad
     readonly property var psColour: ({ a: "#7fa9ec", b: "#ec6f6f", x: "#d58ad8", y: "#41c7a0" })
     readonly property var shoulders: ({
-        xbox: { lb: "LB", rb: "RB", start: "☰" },
-        playstation: { lb: "L1", rb: "R1", start: "OPTIONS" },
-        nintendo: { lb: "L", rb: "R", start: "+" } })
+        xbox: { lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "☰" },
+        playstation: { lb: "L1", rb: "R1", lt: "L2", rt: "R2", start: "OPTIONS" },
+        nintendo: { lb: "L", rb: "R", lt: "ZL", rt: "ZR", start: "+" } })
 
     // PlayStation face symbols as SVG (cross, circle, square, triangle).
     function psSvg(b, c) {
