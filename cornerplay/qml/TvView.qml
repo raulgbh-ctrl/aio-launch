@@ -179,6 +179,41 @@ FocusScope {
             opacity: 0.45
         }
 
+        // No wide art: the cover itself stands large on the right, lit in the game's colour,
+        // so the screen is never an empty band.
+        Rectangle {
+            anchors.fill: parent
+            opacity: stage.none ? 1 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450 } }
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.3; color: "transparent" }
+                GradientStop { position: 1.0; color: Qt.alpha(tv.accent, 0.30) }
+            }
+        }
+        ArtImage {
+            id: poster
+            // From below the tabs to just above the cover row.
+            readonly property real h: Math.round(Math.max(180, tv.height - grid.height - tv.height * 0.12 - 150))
+            anchors { right: parent.right; rightMargin: Math.round(tv.width * 0.07); top: parent.top; topMargin: Math.round(tv.height * 0.12) }
+            height: h
+            width: Math.round(h / 1.5)
+            sources: stage.none && tv.cur.key ? (tv.cur.covers || [tv.cur.cover]).filter(u => !!u) : []
+            sourceSize.width: 600
+            fillMode: Image.PreserveAspectCrop
+            opacity: stage.none && status === Image.Ready ? 1 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+            transform: Rotation { origin.x: poster.width; origin.y: poster.height / 2; axis { x: 0; y: 1; z: 0 } angle: -9 }
+            layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: tv.accent
+                shadowBlur: 1.0
+                shadowOpacity: 0.55
+                shadowScale: 1.04
+            }
+        }
+
         // Shade: dark on the left for the title, and at the bottom for the covers.
         Rectangle {
             anchors.fill: parent
@@ -256,32 +291,64 @@ FocusScope {
                 }
             }
             Item { Layout.fillWidth: true }
-            Text {
-                visible: library.installedOnly
-                text: "Installed only"
-                color: theme.primary
-                font.pixelSize: 16
+            // Console-style status: battery (Steam Deck, laptops) and the time.
+            Row {
+                id: topStatus
+                spacing: 18
+                property var batt: ({})
+                property string clock: ""
+                function tick() {
+                    clock = Qt.formatTime(new Date(), Qt.locale().timeFormat(Locale.ShortFormat))
+                    batt = app.battery()
+                }
+                Timer { interval: 20000; running: tv.visible; repeat: true; triggeredOnStart: true; onTriggered: topStatus.tick() }
+                Row {
+                    visible: topStatus.batt.level !== undefined
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: topStatus.batt.charging ? "battery-charging" : "battery"
+                        size: 24
+                        color: (topStatus.batt.level || 100) <= 15 && !topStatus.batt.charging ? theme.error : theme.onSurfaceVariant
+                    }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: (topStatus.batt.level || 0) + "%"; color: theme.onSurfaceVariant; font.pixelSize: 18 }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: topStatus.clock
+                    color: theme.onSurface
+                    font.pixelSize: 24
+                    font.weight: Font.Medium
+                }
             }
         }
 
-        // The focused game, big, over its artwork.
+        // The focused game, big, over its artwork. On short screens (the Steam Deck) the
+        // description and then the genres step aside so the title never runs into the tabs.
         Item {
+            id: infoArea
             Layout.fillWidth: true
             Layout.fillHeight: true
+            readonly property real core: titleBlock.height + metaRow.height + playedLine.height + actionsRow.height + 60
+            readonly property bool roomForGenres: height >= core + 40
+            readonly property bool roomForText: height >= core + 40 + 110
             ColumnLayout {
                 anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 6 }
                 width: Math.min(parent.width * 0.62, 980)
                 spacing: 12
                 LogoTitle {
+                    id: titleBlock
                     Layout.fillWidth: true
                     logos: tv.cur.logos || []
                     title: tv.cur.title || ""
                     color: theme.onSurface
                     pixelSize: Math.round(Math.min(72, Math.max(40, tv.height * 0.06)))
-                    logoHeight: Math.round(Math.min(170, Math.max(90, tv.height * 0.15)))
+                    logoHeight: Math.round(Math.min(170, Math.max(80, Math.min(tv.height * 0.15, infoArea.height * 0.3))))
                     maxWidth: Math.min(width, 640)
                 }
                 Row {
+                    id: metaRow
                     spacing: 14
                     Repeater {
                         model: tv.cur.key ? (tv.cur.copies.length ? tv.cur.copies : [{ key: tv.cur.key, storeColor: tv.cur.storeColor }]) : []
@@ -323,6 +390,7 @@ FocusScope {
                     }
                 }
                 Text {
+                    id: playedLine
                     readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
                     visible: played !== ""
                     text: played
@@ -331,7 +399,7 @@ FocusScope {
                 }
                 Row {
                     spacing: 8
-                    visible: (tv.info.genres || []).length > 0
+                    visible: (tv.info.genres || []).length > 0 && infoArea.roomForGenres
                     Repeater {
                         model: tv.info.genres || []
                         Rectangle {
@@ -348,7 +416,7 @@ FocusScope {
                 Text {
                     Layout.fillWidth: true
                     Layout.maximumWidth: 760
-                    visible: text !== "" && tv.height >= 640
+                    visible: text !== "" && infoArea.roomForText
                     text: tv.info.description || ""
                     color: theme.onSurface
                     opacity: 0.82
@@ -358,6 +426,83 @@ FocusScope {
                     maximumLineCount: 3
                     elide: Text.ElideRight
                 }
+                // The two things you can do, with the button that does them.
+                Row {
+                    id: actionsRow
+                    Layout.topMargin: 6
+                    spacing: 14
+                    visible: !!tv.cur.key
+                    Rectangle {
+                        id: playBtn
+                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC" }[tv.cur.job] || "Removing")
+                                                                       + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
+                                                        : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
+                        height: 56; radius: 28
+                        width: playRow.implicitWidth + 44
+                        color: tv.tint.primary
+                        Rectangle {  // install progress fills the button
+                            visible: !!tv.cur.job
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: parent.width * Math.max(0, Math.min(1, (tv.cur.progress || 0) / 100))
+                            radius: parent.radius
+                            color: Qt.alpha(tv.tint.onPrimary, 0.18)
+                        }
+                        Row {
+                            id: playRow
+                            anchors.centerIn: parent
+                            spacing: 10
+                            PadButton { visible: pad.connected || pad.deck; anchors.verticalCenter: parent.verticalCenter; button: "a"; style: pad.style; size: 28 }
+                            Icon { visible: !pad.connected && !pad.deck; anchors.verticalCenter: parent.verticalCenter; name: tv.cur.installed ? "play" : "download"; size: 22; color: tv.tint.onPrimary }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: playBtn.label; color: tv.tint.onPrimary; font.pixelSize: 21; font.weight: Font.DemiBold }
+                        }
+                        TapHandler { onTapped: tv.accept() }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                    Rectangle {
+                        height: 56; radius: 28
+                        width: moreRow.implicitWidth + 40
+                        color: Qt.alpha(theme.background, 0.55)
+                        border.width: 1
+                        border.color: Qt.alpha(theme.onSurface, 0.25)
+                        Row {
+                            id: moreRow
+                            anchors.centerIn: parent
+                            spacing: 10
+                            PadButton { visible: pad.connected; anchors.verticalCenter: parent.verticalCenter; button: "x"; style: pad.style; size: 28 }
+                            Icon { visible: !pad.connected; anchors.verticalCenter: parent.verticalCenter; name: "ellipsis"; size: 22; color: theme.onSurface }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "More"; color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Medium }
+                        }
+                        TapHandler { onTapped: panel.show() }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+        }
+
+        // Shelf label: which list this is, and where you are in it.
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.bottomMargin: -6
+            spacing: 12
+            Text {
+                text: (library.storeFilter ? (app.storesInfo.find(s => s.id === library.storeFilter) || {}).name || "Library" : "Library")
+                color: theme.onSurface
+                font.pixelSize: 20
+                font.weight: Font.DemiBold
+            }
+            Rectangle {
+                visible: library.installedOnly
+                height: 26; radius: 13
+                width: instText.implicitWidth + 22
+                color: Qt.alpha(tv.tint.primary, 0.2)
+                border.width: 1; border.color: tv.tint.primary
+                Text { id: instText; anchors.centerIn: parent; text: "Installed only"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+            }
+            Text {
+                visible: grid.count > 0
+                text: (grid.currentIndex + 1) + " of " + grid.count
+                color: theme.onSurfaceVariant
+                font.pixelSize: 17
             }
         }
 

@@ -868,6 +868,20 @@ class AioLaunch(QObject):
             return None, None
         return g, self.stores[g.store]
 
+    @Slot(result="QVariantMap")
+    def battery(self):
+        """The first battery's charge (Steam Deck, laptops) for TV mode's top bar; {} on desktops."""
+        for dev in sorted(Path("/sys/class/power_supply").glob("*")):
+            try:
+                if (dev / "type").read_text().strip() != "Battery" or (dev / "scope").exists():
+                    continue  # "scope" marks a controller's or mouse's battery
+                level = int((dev / "capacity").read_text().strip())
+                status = (dev / "status").read_text().strip()
+            except (OSError, ValueError):
+                continue
+            return {"level": level, "charging": status in ("Charging", "Full")}
+        return {}
+
     @Slot(str, result=str)
     def launchTarget(self, key):
         """Which copy Play should start: the only installed one, or the user's pick. "" = ask."""
