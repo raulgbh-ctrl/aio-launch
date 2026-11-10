@@ -699,14 +699,19 @@ class AioLaunch(QObject):
                 continue
             self._pending.add(s.id)
             self.pool.submit(self._fetch, s, force)
-        if not store_id and battlenet.owned() is not None:
-            # New Blizzard purchases come in a few seconds later. At start it waits a little:
+        linked = battlenet.owned() if not store_id else None
+        if linked is not None:
+            # Blizzard's account site asks for the password again quite often, and owned games
+            # rarely change: sync at most once a day (or on Refresh), never while the sign-in
+            # has expired (only Refresh or a new link tries then). At start it waits a little:
             # the hidden page needs Chromium (~0.5 s to load), and the window comes first.
-            if getattr(self, "_blizzard_started", False):
-                self.blizzardSync.emit()
-            else:
-                self._blizzard_started = True
-                QTimer.singleShot(6000, self.blizzardSync.emit)
+            stale = time.time() - linked.get("t", 0) > 86400
+            if force or (stale and not linked.get("expired")):
+                if getattr(self, "_blizzard_started", False):
+                    self.blizzardSync.emit()
+                else:
+                    self._blizzard_started = True
+                    QTimer.singleShot(6000, self.blizzardSync.emit)
         self.refreshingChanged.emit()
         self.storesChanged.emit()
 
@@ -1194,6 +1199,11 @@ class AioLaunch(QObject):
     def blizzardFailed(self, reason):
         if battlenet.owned() is None:
             self.loginDone.emit("blizzard", False, reason)  # still in the sign-in window
+        elif "expired" in reason:
+            if battlenet.mark_expired():  # told once; Accounts keeps saying it
+                self.toast.emit("Battle.net: Blizzard wants your password again to update your owned games. "
+                                "Your games stay listed; Accounts > Battle.net > Link account when you like.")
+            self.storesChanged.emit()
         else:
             self.toast.emit(f"Battle.net: {reason}")
 

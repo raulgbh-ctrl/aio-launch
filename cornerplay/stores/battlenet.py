@@ -94,8 +94,19 @@ def save_owned(raw):
         name = (c.get("localizedGameName") or "").strip()
         if name:
             games.append({"title_id": 0, "title": name, "launch": "", "classic": True})
-    write_json(OWNED_FILE, {"t": time.time(), "games": games})
+    write_json(OWNED_FILE, {"t": time.time(), "games": games, "expired": False})
     return games
+
+
+def mark_expired():
+    """Blizzard wants the password again: keep the list, remember it needs a new sign-in.
+    Returns True the first time (so the user is told once, not at every start)."""
+    data = owned()
+    if not data or data.get("expired"):
+        return False
+    data["expired"] = True
+    write_json(OWNED_FILE, data)
+    return True
 
 
 def forget_owned():
@@ -141,6 +152,8 @@ class BattleNet(Store):
 
     def account(self):
         linked = owned()
+        if linked and linked.get("expired"):
+            return f"{len(linked.get('games') or [])} games owned · sign in again (Link account) to update the list"
         if linked:
             return f"Blizzard account linked · {len(linked.get('games') or [])} games owned"
         return "app installed; sign in inside it" if self.launcher_exe() else ""
