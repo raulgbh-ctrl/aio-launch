@@ -323,11 +323,19 @@ if ! "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
             zypper)  sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6 qt6-webengine || true ;;
             *) note "Optional: install Qt's web engine for the built-in sign-in window." ;;
         esac
-    elif ask "Add the built-in sign-in window? (downloads about 150 MB more)"; then
-        "$PYTHON" -m pip install --quiet "PySide6-Addons==$("$PYTHON" -c 'import PySide6; print(PySide6.__version__)')" \
-            && note "Built-in sign-in window: added" || note "Could not add it; sign-in will use your browser instead."
+    elif ask "Add the built-in sign-in window? It also links a Blizzard account to list your Battle.net games (downloads about 150 MB more)"; then
+        # PySide6 6.12+ ships the web engine as its own package; older ones keep it in Addons.
+        v=$("$PYTHON" -c 'import PySide6; print(PySide6.__version__)')
+        "$PYTHON" -m pip install --quiet "PySide6-Addons==$v" >/dev/null 2>&1
+        "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1 \
+            || "$PYTHON" -m pip install --quiet "PySide6-WebEngine==$v.*" >/dev/null 2>&1
+        if "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
+            note "Built-in sign-in window: added"
+        else
+            note "Could not add it; sign-in will use your browser instead."
+        fi
     else
-        note "Skipped. Sign-in will open your normal browser and ask you to paste a code."
+        note "Skipped. Sign-in will open your normal browser and ask you to paste a code; Blizzard account linking needs it."
     fi
 else
     note "Built-in sign-in window: available"
