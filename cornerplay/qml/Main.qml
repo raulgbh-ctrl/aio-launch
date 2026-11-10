@@ -2925,10 +2925,12 @@ ApplicationWindow {
         property string label
         property string hint: ""
         default property alias body: slot.data
+        readonly property bool hit: prefs.query !== "" && (label + " " + hint).toLowerCase().indexOf(prefs.query) !== -1
         Layout.fillWidth: true
         implicitHeight: r2col.implicitHeight + 28
         radius: 12
         color: theme.surfaceContainerHigh
+        border.width: hit ? 2 : 0; border.color: theme.primary
         ColumnLayout {
             id: r2col
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
@@ -2954,10 +2956,12 @@ ApplicationWindow {
         readonly property var theme: app.theme
         property string label
         property string settingKey
+        readonly property bool hit: prefs.query !== "" && label.toLowerCase().indexOf(prefs.query) !== -1
         Layout.fillWidth: true
         implicitHeight: 48
         radius: 12
         color: theme.surfaceContainerHigh
+        border.width: hit ? 2 : 0; border.color: theme.primary
         Text {
             anchors { left: parent.left; leftMargin: 14; right: sw.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
             text: tg.label; color: tg.theme.onSurface; font.pixelSize: 13; elide: Text.ElideRight
@@ -3134,20 +3138,63 @@ ApplicationWindow {
         width: Math.min(win.width - 60, 640)
         property int tab: 0
         onTabChanged: prefsScroll.contentY = 0
+        // Search: matching options light up; the first page with a match opens; tabs show counts.
+        property string query: ""
+        property var counts: []
+        function hitsIn(item) {
+            let n = 0
+            for (const c of item.children || []) {
+                if (c.hit === true) n++
+                n += hitsIn(c)
+            }
+            return n
+        }
+        function firstHit(item) {
+            for (const c of item.children || []) {
+                if (c.hit === true) return c
+                const d = firstHit(c)
+                if (d) return d
+            }
+            return null
+        }
+        onQueryChanged: Qt.callLater(function() {
+            const stack = prefsStack.item
+            if (!stack) return
+            counts = query ? [...Array(stack.children.length).keys()].map(i => hitsIn(stack.children[i])) : []
+            if (query && counts.length && !counts[tab]) {
+                const i = counts.findIndex(n => n > 0)
+                if (i >= 0) tab = i
+            }
+            Qt.callLater(function() {
+                const hit = query ? firstHit(stack.children[tab]) : null
+                if (hit) prefsScroll.contentY = Math.max(0, hit.mapToItem(stack, 0, 0).y - 20)
+            })
+        })
+        onClosed: { query = ""; prefsFind.text = "" }
         property bool wasOpened: false
         onAboutToShow: wasOpened = true
 
         contentItem: ColumnLayout {
             spacing: 18
+            KField {
+                id: prefsFind
+                theme: win.theme
+                Layout.fillWidth: true
+                iconName: "search"
+                placeholderText: "Find a setting (e.g. proton, cover, sync)"
+                onTextChanged: prefs.query = text.trim().toLowerCase()
+            }
             RowLayout {
                 spacing: 8
                 Repeater {
-                    model: [{ name: "Appearance", icon: "eye" }, { name: "Compatibility", icon: "gamepad-2" },
-                            { name: "People & sync", icon: "user-round" }, { name: "Library", icon: "library" }]
+                    model: [{ name: "Appearance", icon: "eye" }, { name: "Games & Proton", icon: "gamepad-2" },
+                            { name: "People & sync", icon: "user-round" }, { name: "Library", icon: "library" },
+                            { name: "Advanced", icon: "sliders-horizontal" }]
                     Chip {
                         required property var modelData
                         required property int index
-                        label: modelData.name
+                        label: modelData.name + (prefs.query && prefs.counts.length ? "  " + (prefs.counts[index] || 0) : "")
+                        opacity: prefs.query && prefs.counts.length && !prefs.counts[index] ? 0.45 : 1
                         icon: modelData.icon
                         active: prefs.tab === index
                         onPicked: prefs.tab = index
@@ -3269,21 +3316,9 @@ ApplicationWindow {
                         Toggle { label: "TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"; settingKey: "tv_animated" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
                         Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
-                            Row2 {
-                                label: "Performance"
-                                hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
-                                KCombo {
-                                    id: perfBox
-                                    theme: win.theme; Layout.fillWidth: true
-                                    model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
-                                            { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
-                                    Component.onCompleted: select(app.settingsMap.performance)
-                                    onActivated: app.setSetting("performance", currentValue)
-                                }
-                            }
                         }
 
-                        // ---- Compatibility
+                        // ---- Games & Proton
                         ColumnLayout {
                             spacing: 16
                             Row2 {
@@ -3400,20 +3435,10 @@ ApplicationWindow {
                                     }
                                 }
                             }
-                            Row2 {
-                                label: "Or a custom Proton folder"
-                                KField {
-                                    theme: win.theme; Layout.fillWidth: true
-                                    placeholderText: "/path/to/a/Proton/folder"
-                                    text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
-                                    onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
-                                }
-                            }
                             Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
                             Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
                             Toggle { label: "FPS counter in games"; settingKey: "show_fps" }
                             Toggle { label: "GOG: install the Linux version when a game has one (no Proton needed)"; settingKey: "gog_native" }
-                            Toggle { label: "Keep each game's shader cache (less stutter after the first run)"; settingKey: "shader_cache" }
                             Row2 {
                                 label: "Performance profile for every game"
                                 hint: "Battery saver caps at 30 fps and Balanced at 60, both with FSR upscaling. Each game can choose its own under Options. Steam games use Steam's settings."
@@ -3423,16 +3448,6 @@ ApplicationWindow {
                                             { label: "Balanced (60 fps)", value: "balanced" }, { label: "Max quality (no cap)", value: "quality" }]
                                     Component.onCompleted: select(app.settingsMap.perf || "")
                                     onActivated: app.setSetting("perf", currentValue)
-                                }
-                            }
-                            Row2 {
-                                label: "Environment variables for every game"
-                                hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
-                                KField {
-                                    theme: win.theme; Layout.fillWidth: true
-                                    placeholderText: "KEY=value KEY2=value"
-                                    text: app.settingsMap.env
-                                    onEditingFinished: app.setSetting("env", text.trim())
                                 }
                             }
                         }
@@ -3647,6 +3662,51 @@ ApplicationWindow {
                                 }
                             }
                         }
+
+                        // ---- Advanced
+                        ColumnLayout {
+                            spacing: 16
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                color: theme.onSurfaceVariant; font.pixelSize: 13
+                                text: "Things most people never need to change."
+                            }
+                            Row2 {
+                                label: "Performance"
+                                hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
+                                KCombo {
+                                    id: perfBox
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
+                                            { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
+                                    Component.onCompleted: select(app.settingsMap.performance)
+                                    onActivated: app.setSetting("performance", currentValue)
+                                }
+                            }
+                            Row2 {
+                                label: "Or a custom Proton folder"
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: "/path/to/a/Proton/folder"
+                                    text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
+                                    onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
+                                }
+                            }
+                            Toggle { label: "Keep each game's shader cache (less stutter after the first run)"; settingKey: "shader_cache" }
+                            Row2 {
+                                label: "Environment variables for every game"
+                                hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: "KEY=value KEY2=value"
+                                    text: app.settingsMap.env
+                                    onEditingFinished: app.setSetting("env", text.trim())
+                                }
+                            }
+                            Toggle { label: "Check for new Cornerplay versions (once a day)"; settingKey: "update_check" }
+                        }
+
                     }
                 }
             }
