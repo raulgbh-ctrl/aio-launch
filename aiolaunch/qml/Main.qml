@@ -748,6 +748,7 @@ ApplicationWindow {
                     }
                     Pill {
                         visible: !!win.selected.protondb
+                        store: "protondb"
                         dot: ProtonDB.color(win.selected.protondb)
                         label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
                                + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb

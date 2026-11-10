@@ -226,10 +226,10 @@ Item {
             visible: card.showProtonDb && card.protondb !== ""
             x: 10; y: card.showBadge ? 38 : 10
             height: 22; radius: 11
-            width: pdbText.implicitWidth + 26
+            width: pdbText.implicitWidth + 31
             color: "#cc000000"
-            Rectangle { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 8; height: 8; radius: 4; color: ProtonDB.color(card.protondb) }
-            Text { id: pdbText; x: 20; anchors.verticalCenter: parent.verticalCenter; text: ProtonDB.label(card.protondb); color: "white"; font.pixelSize: 11 }
+            StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: "protondb"; color: ProtonDB.color(card.protondb) }
+            Text { id: pdbText; x: 23; anchors.verticalCenter: parent.verticalCenter; text: ProtonDB.label(card.protondb); color: "white"; font.pixelSize: 11 }
         }
 
         // Update-available marker.

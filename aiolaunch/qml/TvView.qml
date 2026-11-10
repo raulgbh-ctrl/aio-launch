@@ -309,12 +309,12 @@ FocusScope {
                         visible: !!tv.cur.protondb
                         anchors.verticalCenter: parent.verticalCenter
                         height: 30; radius: 15
-                        width: tvPdb.implicitWidth + 34
+                        width: tvPdb.implicitWidth + 40
                         color: Qt.alpha(theme.background, 0.5)
                         border.width: 1
                         border.color: ProtonDB.color(tv.cur.protondb || "")
-                        Rectangle { x: 12; anchors.verticalCenter: parent.verticalCenter; width: 10; height: 10; radius: 5; color: ProtonDB.color(tv.cur.protondb || "") }
-                        Text { id: tvPdb; x: 28; anchors.verticalCenter: parent.verticalCenter; text: "ProtonDB " + ProtonDB.label(tv.cur.protondb || ""); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        StoreIcon { x: 11; anchors.verticalCenter: parent.verticalCenter; size: 16; store: "protondb"; color: ProtonDB.color(tv.cur.protondb || "") }
+                        Text { id: tvPdb; x: 33; anchors.verticalCenter: parent.verticalCenter; text: "ProtonDB " + ProtonDB.label(tv.cur.protondb || ""); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
                     }
                 }
                 Text {
