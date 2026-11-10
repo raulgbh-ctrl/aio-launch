@@ -66,6 +66,7 @@ Code: `aiolaunch/stores/*.py` is one file per store; `aiolaunch/app.py` is the Q
 - **Themes**: follow the Ryoku desktop palette, presets, or your own accent + background; cover size, corner radius, badges (Settings > Appearance).
 - **Proton**: default version in Settings > Compatibility; per-game Proton, MangoHud, GameMode, env vars and launch arguments under a game's Options.
 - **TV mode / controller** (`aiolaunch/gamepad.py`, SDL2): D-pad or stick = move, A = play, X = actions, Y = installed only, LB/RB = store, B = back, Start = toggle TV mode. The on-screen hints use the connected pad's own glyphs: Xbox (also the Steam Deck), PlayStation, or Nintendo (labelled by position).
+- **ProtonDB**: each game matched to Steam shows its [ProtonDB](https://www.protondb.com) rating (Platinum, Gold, Silver, Bronze, Borked), from players' reports of how it runs on Linux: a badge on the cover (Settings > Appearance to hide it), a label in the game panel that opens the game's ProtonDB page (with the trending tier when it differs), and in TV mode. Fetched in the background after a refresh, cached for a week (`protondb.py`).
 - **About each game**: description, genres, developer and release year in the game panel and in TV mode, from GOG for GOG games, from Steam's store for any game matched to Steam, or the store's own text (`details.py`, cached for a month).
 
 ## Status and licence

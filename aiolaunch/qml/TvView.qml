@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Effects
 import QtQuick.Layouts
+import "protondb.js" as ProtonDB
 
 // Full-screen, couch-distance view driven entirely by arrows / a controller.
 FocusScope {
@@ -303,6 +304,17 @@ FocusScope {
                                         : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
                             return stores + "  ·  " + state
                         }
+                    }
+                    Rectangle {  // ProtonDB rating
+                        visible: !!tv.cur.protondb
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 30; radius: 15
+                        width: tvPdb.implicitWidth + 34
+                        color: Qt.alpha(theme.background, 0.5)
+                        border.width: 1
+                        border.color: ProtonDB.color(tv.cur.protondb || "")
+                        Rectangle { x: 12; anchors.verticalCenter: parent.verticalCenter; width: 10; height: 10; radius: 5; color: ProtonDB.color(tv.cur.protondb || "") }
+                        Text { id: tvPdb; x: 28; anchors.verticalCenter: parent.verticalCenter; text: "ProtonDB " + ProtonDB.label(tv.cur.protondb || ""); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
                     }
                 }
                 Text {

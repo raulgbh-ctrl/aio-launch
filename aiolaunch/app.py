@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, details, gamecolour, playtime, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import covers, details, gamecolour, playtime, protondb, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -30,7 +30,7 @@ PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
-         "update", "playtime", "lastPlayed", "covers", "heroes", "logos"]
+         "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb"]
 GROUP_ROLES = ("copies", "playtime", "lastPlayed")
 SORTS = ("name", "recent", "playtime")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
@@ -117,6 +117,8 @@ _FIELDS = {
     "covers": lambda m, g: _covers(g),
     "heroes": lambda m, g: _heroes(g),
     "logos": lambda m, g: _logos(g),
+    # ProtonDB tier ("platinum" … "borked", "" if unknown). Steam games too: most are Windows builds.
+    "protondb": lambda m, g: protondb.rating(_appid(g)).get("tier", "") if g.id != "battlenet-app" else "",
 }
 assert set(_FIELDS) == set(ROLES)
 
@@ -211,6 +213,10 @@ class LibraryModel(QAbstractListModel):
                        for c in group] if len(group) > 1 else []
         d["hasDlc"] = g.store in ("steam", "epic", "gog")
         d["hidden"] = self.is_hidden(group or [g])
+        pdb = protondb.rating(_appid(g)) if g.id != "battlenet-app" else {}
+        d["protondbTrending"] = pdb.get("trending", "")
+        d["protondbReports"] = pdb.get("reports", 0)
+        d["steamAppId"] = _appid(g)
         d["playtime"] = self.group_value(group or [g], "playtime")
         d["lastPlayed"] = self.group_value(group or [g], "lastPlayed")
         return d
@@ -633,7 +639,11 @@ class AioLaunch(QObject):
             try:
                 covers.add_backup_art(games)
             except Exception:
-                return
+                pass
+            try:  # ratings use the Steam matches made just above
+                protondb.refresh(_appid(g) for g in games if g.id != "battlenet-app")
+            except Exception:
+                pass
             self._after.emit(self._art_added)
 
     def _art_added(self):
@@ -1275,5 +1285,6 @@ class AioLaunch(QObject):
                              "gog:588650": {"seconds": 9 * 3600, "last": now - 26 * 3600},
                              "battlenet:pro": {"seconds": 1800, "last": now - 20 * 86400}}
         self.model.set_games(games)
-        self.pool.submit(lambda: (covers.fill_all(games), self._after.emit(lambda: (self.model.touch(), self.storesChanged.emit()))))
+        self.pool.submit(lambda: (covers.fill_all(games), protondb.refresh(_appid(g) for g in games),
+                                  self._after.emit(lambda: (self.model.touch(), self.storesChanged.emit()))))
         self.model.jobs["gog:646570"] = {"kind": "install", "progress": 42.0}

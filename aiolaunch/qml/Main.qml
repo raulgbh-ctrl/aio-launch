@@ -3,6 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Dialogs
+import "protondb.js" as ProtonDB
 
 ApplicationWindow {
     id: win
@@ -576,6 +577,7 @@ ApplicationWindow {
                         theme: win.theme
                         cornerRadius: app.settingsMap.card_radius
                         showBadge: app.settingsMap.show_badges
+                        showProtonDb: app.settingsMap.show_protondb
                         showTitle: app.settingsMap.show_titles
                         dim: app.settingsMap.dim_uninstalled
                         current: GridView.isCurrentItem && grid.activeFocus
@@ -743,6 +745,15 @@ ApplicationWindow {
                         readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
                         visible: played !== ""
                         label: played
+                    }
+                    Pill {
+                        visible: !!win.selected.protondb
+                        dot: ProtonDB.color(win.selected.protondb)
+                        label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
+                               + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb
+                                  ? " (trending " + ProtonDB.label(win.selected.protondbTrending) + ")" : "")
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
                     }
                 }
                 Text {
@@ -1354,6 +1365,12 @@ ApplicationWindow {
             id: pillRow
             anchors.centerIn: parent
             spacing: 7
+            Rectangle {
+                visible: pill.store === "" && pill.dot !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                width: 9; height: 9; radius: 5
+                color: pill.dot || "transparent"
+            }
             StoreIcon {
                 visible: pill.store !== ""
                 anchors.verticalCenter: parent.verticalCenter
@@ -1524,6 +1541,7 @@ ApplicationWindow {
                             Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
                         Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: "TV mode: play the focused game's trailer (muted)"; settingKey: "tv_trailers" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
+                        Toggle { label: "Show ProtonDB ratings on covers"; settingKey: "show_protondb" }
                             Row2 {
                                 label: "Performance"
                                 hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."

@@ -56,6 +56,7 @@ DEFAULTS = {
     "sort": "name",            # library order: "name", "recent" or "playtime"
     "tv_trailers": True,       # TV mode plays the focused game's trailer (muted) after a moment
     "tv_sounds": False,        # TV mode makes soft clicks when moving and choosing
+    "show_protondb": True,     # ProtonDB rating badge on covers
 }
 
 # Where Heroic keeps its bundled copies of legendary / gogdl / nile.

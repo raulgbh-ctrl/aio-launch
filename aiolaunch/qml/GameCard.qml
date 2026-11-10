@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Effects
+import "protondb.js" as ProtonDB
 
 // One cover tile in the library grid.
 Item {
@@ -20,6 +21,8 @@ Item {
     required property real progress
     required property int copies
     required property bool update
+    required property string protondb
+    property bool showProtonDb: true
     property int cornerRadius: 14
     property bool showBadge: true
     property bool showTitle: false
@@ -216,6 +219,17 @@ Item {
             width: 22; height: 22; radius: 11
             color: "#cc000000"
             Text { anchors.centerIn: parent; text: "↓"; color: "white"; font.pixelSize: 13; font.bold: true }
+        }
+
+        // ProtonDB rating, under the store chip (the bottom is used by the title and progress).
+        Rectangle {
+            visible: card.showProtonDb && card.protondb !== ""
+            x: 10; y: card.showBadge ? 38 : 10
+            height: 22; radius: 11
+            width: pdbText.implicitWidth + 26
+            color: "#cc000000"
+            Rectangle { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 8; height: 8; radius: 4; color: ProtonDB.color(card.protondb) }
+            Text { id: pdbText; x: 20; anchors.verticalCenter: parent.verticalCenter; text: ProtonDB.label(card.protondb); color: "white"; font.pixelSize: 11 }
         }
 
         // Update-available marker.
