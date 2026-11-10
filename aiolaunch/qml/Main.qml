@@ -1537,12 +1537,12 @@ ApplicationWindow {
                                     onMoved: app.setSetting("card_radius", value)
                                 }
                             }
-                            Toggle { label: "Show store badges on covers"; settingKey: "show_badges" }
+                            Toggle { label: "Show the store on a cover when pointed at"; settingKey: "show_badges" }
                             Toggle { label: "Always show game titles"; settingKey: "show_titles" }
                             Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
                         Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: "TV mode: play the focused game's trailer (muted)"; settingKey: "tv_trailers" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
-                        Toggle { label: "Show ProtonDB ratings on covers"; settingKey: "show_protondb" }
+                        Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
                             Row2 {
                                 label: "Performance"
                                 hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."

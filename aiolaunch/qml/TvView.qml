@@ -394,7 +394,8 @@ FocusScope {
                 height: grid.cellHeight
                 theme: tv.tint
                 cornerRadius: app.settingsMap.card_radius
-                showBadge: app.settingsMap.show_badges
+                showBadge: false      // the focused game's store and ProtonDB rating are shown above the row
+                showProtonDb: false
                 showTitle: false
                 dim: app.settingsMap.dim_uninstalled
                 current: GridView.isCurrentItem

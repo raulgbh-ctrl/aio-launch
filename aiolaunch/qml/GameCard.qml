@@ -201,9 +201,11 @@ Item {
 
         Rectangle { id: mask; anchors.fill: parent; radius: frame.radius; layer.enabled: true; visible: false }
 
-        // Store chip.
+        // Store chip: shown while the card is pointed at or selected, so covers stay clean.
         Rectangle {
-            visible: card.showBadge
+            visible: card.showBadge && opacity > 0
+            opacity: card.lit ? 1 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 140 } }
             x: 10; y: 10
             height: 22; radius: 11
             width: chip.implicitWidth + 31
@@ -223,7 +225,9 @@ Item {
 
         // ProtonDB rating, under the store chip (the bottom is used by the title and progress).
         Rectangle {
-            visible: card.showProtonDb && card.protondb !== ""
+            visible: card.showProtonDb && card.protondb !== "" && opacity > 0
+            opacity: card.lit ? 1 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 140 } }
             x: 10; y: card.showBadge ? 38 : 10
             height: 22; radius: 11
             width: pdbText.implicitWidth + 31
