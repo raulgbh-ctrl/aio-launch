@@ -541,12 +541,12 @@ class AioLaunch(QObject):
         return ""
 
     def _recent_games(self):
-        """The "Continue playing" row: installed games, most recently played first."""
+        """The "Continue playing" row: games you have played (here or on another PC), most recent first."""
         m = self.model
         rows = []
         for group in m.groups:
             last = m.group_value(group, "lastPlayed")
-            if last and not m.is_hidden(group) and any(g.installed for g in group):
+            if last and not m.is_hidden(group):  # installed here or not: played is what counts
                 rows.append((last, group))
         rows.sort(key=lambda r: -r[0])
         out = []

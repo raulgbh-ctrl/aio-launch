@@ -314,6 +314,7 @@ ApplicationWindow {
                     focus: true
                     model: library
                     readonly property int columns: Math.max(2, Math.floor(width / app.settingsMap.card_size))
+                    property int hoverIndex: -1
                     cellWidth: Math.floor(width / columns)
                     cellHeight: Math.round(cellWidth * 1.46)
                     cacheBuffer: app.light ? 0 : cellHeight * 2
@@ -471,9 +472,13 @@ ApplicationWindow {
                                             theme: hero.tint
                                             primary: true
                                             visible: !hero.game.job
-                                            text: "Resume"
-                                            iconName: "play"
-                                            onClicked: win.activate(hero.info.key)
+                                            // Played on another PC (or uninstalled since): install it from here.
+                                            text: hero.game.installed ? "Resume" : "Install"
+                                            iconName: hero.game.installed ? "play" : "download"
+                                            onClicked: {
+                                                if (hero.game.installed) win.activate(hero.info.key)
+                                                else { app.preferCopy(hero.info.key); app.install(hero.info.key) }
+                                            }
                                         }
                                         KButton {
                                             theme: hero.tint
@@ -580,7 +585,10 @@ ApplicationWindow {
                         showProtonDb: app.settingsMap.show_protondb
                         showTitle: app.settingsMap.show_titles
                         dim: app.settingsMap.dim_uninstalled
-                        current: GridView.isCurrentItem && grid.activeFocus
+                        // One highlight at a time: while the pointer is over a card, the keyboard
+                        // selection steps back.
+                        current: GridView.isCurrentItem && grid.activeFocus && grid.hoverIndex < 0
+                        onHoveredChanged: grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
                         onOpened: { grid.currentIndex = index; win.select(key) }
                         onActivated: { grid.currentIndex = index; win.activate(key) }
                         required property int index
