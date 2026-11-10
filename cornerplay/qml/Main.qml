@@ -463,7 +463,7 @@ ApplicationWindow {
                     header: Column {
                         width: grid.width
                         readonly property bool shown: app.recentGames.length > 0 && !library.search
-                                                      && !library.storeFilter && !library.showHidden
+                                                      && !library.storeFilter && !library.showHidden && !library.shelf
                         visible: shown
                         height: shown ? implicitHeight : 0
                         // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
@@ -743,6 +743,78 @@ ApplicationWindow {
                             }
                         }
 
+                        // Epic's free games this week (and next): Get opens the store page.
+                        Column {
+                            visible: app.epicFree.length > 0
+                            x: 8
+                            width: parent.width - 16
+                            spacing: 10
+                            bottomPadding: 18
+                            Row {
+                                spacing: 8
+                                Icon { name: "gift"; size: 15; color: theme.primary; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "Free on Epic"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            }
+                            ListView {
+                                width: parent.width
+                                height: 132
+                                orientation: ListView.Horizontal
+                                spacing: 12
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: app.epicFree
+                                delegate: Rectangle {
+                                    id: freeTile
+                                    required property var modelData
+                                    width: 300; height: 132
+                                    radius: 12
+                                    color: theme.surfaceContainerHigh
+                                    RoundedArt {
+                                        anchors.fill: parent
+                                        radius: freeTile.radius
+                                        ArtImage {
+                                            width: 94; height: parent.height
+                                            sources: [freeTile.modelData.tall, freeTile.modelData.wide].filter(u => !!u)
+                                            sourceSize.width: 188
+                                        }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent; radius: freeTile.radius; color: "transparent"; z: 1
+                                        border.width: freeHover.hovered ? 2 : 1
+                                        border.color: freeHover.hovered ? theme.primary : theme.outlineVariant
+                                    }
+                                    Column {
+                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                        spacing: 6
+                                        Text {
+                                            width: parent.width
+                                            text: freeTile.modelData.title
+                                            color: theme.onSurface
+                                            font.pixelSize: 14; font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: freeTile.modelData.now ? "Free until " + freeTile.modelData.when
+                                                                         : "Free from " + freeTile.modelData.when
+                                            color: freeTile.modelData.now ? theme.primary : theme.outline
+                                            font.pixelSize: 12
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            visible: freeTile.modelData.now
+                                            primary: !freeTile.modelData.owned
+                                            enabled: !freeTile.modelData.owned
+                                            text: freeTile.modelData.owned ? "In your library" : "Get"
+                                            iconName: freeTile.modelData.owned ? "check" : "external-link"
+                                            onClicked: app.openUrl(freeTile.modelData.url)
+                                        }
+                                    }
+                                    HoverHandler { id: freeHover; cursorShape: Qt.PointingHandCursor }
+                                }
+                            }
+                        }
+
                         Text {
                             x: 8
                             text: library.shelf === "" ? "Library"
@@ -829,13 +901,16 @@ ApplicationWindow {
             target: app
             function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
             function onDetailsReady(key, d) { if (key === win.selectedKey) detail.info = d }
+            function onAchievementsReady(key, d) { if (key === win.selectedKey) detail.ach = d }
             function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
         property var info: ({})
+        property var ach: ({})      // Steam achievements: {done, total}
         property int dlcCount: -1   // -1 until known
         onOpened: {
             accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
+            ach = app.achievements(win.selectedKey)
             dlcCount = -1
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
         }
@@ -935,6 +1010,11 @@ ApplicationWindow {
                         readonly property string played: app.playedText(win.selected.playtime, win.selected.lastPlayed)
                         visible: played !== ""
                         label: played
+                    }
+                    Pill {
+                        visible: !!detail.ach.total
+                        label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + " achievements"
+                        accent: !!detail.ach.total && detail.ach.done === detail.ach.total
                     }
                     Pill {
                         visible: !!win.selected.protondb

@@ -28,12 +28,13 @@ FocusScope {
     property string trailerUrl: ""
     Timer { id: trailerTimer; interval: 2500; onTriggered: tv.trailerUrl = tv.info.trailer || "" }
     onInfoChanged: { trailerUrl = ""; if (info.trailer) trailerTimer.restart(); else trailerTimer.stop() }
-    Timer { id: infoTimer; interval: 350; onTriggered: tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({}) }
+    property var ach: ({})
+    Timer { id: infoTimer; interval: 350; onTriggered: { tv.info = tv.infoKey ? app.gameDetails(tv.infoKey) : ({}); tv.ach = tv.infoKey ? app.achievements(tv.infoKey) : ({}) } }
     onCurChanged: {
         if ((cur.key || "") === infoKey) return  // same game, just refreshed
         infoKey = cur.key || ""
         gameAccent = cur.key ? app.gameColour(cur.key) : ""
-        info = ({})
+        info = ({}); ach = ({})
         infoTimer.restart()
     }
     readonly property var storeIds: [""].concat(app.storesInfo.map(s => s.id))
@@ -130,6 +131,7 @@ FocusScope {
         function onGameChanged(key) { tv.sync(); if (panel.visible) panel.rows = tv.buildActions() }
         function onGameColourReady(key, colour) { if (key === tv.cur.key) tv.gameAccent = colour }
         function onDetailsReady(key, d) { if (key === tv.infoKey) tv.info = d }
+        function onAchievementsReady(key, d) { if (key === tv.infoKey) tv.ach = d }
     }
 
     // One of the two full-screen art images that take turns (see stage).
@@ -440,8 +442,9 @@ FocusScope {
                 Text {
                     id: playedLine
                     readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
-                    visible: played !== ""
-                    text: played
+                    readonly property string trophies: tv.ach.total ? "\u{1F3C6} " + tv.ach.done + " / " + tv.ach.total : ""
+                    visible: text !== ""
+                    text: [played, trophies].filter(t => !!t).join("   \u00B7   ")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 17
                 }

@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import covers, details, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -377,6 +377,8 @@ class AioLaunch(QObject):
     loginDone = Signal(str, bool, str)   # store, ok, message
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
+    epicFreeChanged = Signal()
+    achievementsReady = Signal(str, "QVariantMap")  # key, {"done", "total"}
     blizzardSync = Signal()      # QML's hidden page reads the Blizzard account's games (BlizzardSync.qml)
     blizzardForget = Signal()    # QML clears the Blizzard sign-in it keeps
 
@@ -438,6 +440,7 @@ class AioLaunch(QObject):
 
         if demo:
             self._load_demo()
+            QTimer.singleShot(0, self._load_epic_free)  # real, public data: shown in the demo too
         else:
             cached = read_json(LIBRARY_CACHE) or []
             self.model.set_games(Game.from_dict(d) for d in cached if d.get("store") in self.stores)
@@ -636,6 +639,8 @@ class AioLaunch(QObject):
     @Slot(str, bool)
     def refresh(self, store_id="", force=False):
         """force (the Refresh button): skip the stores' own caches so new purchases show at once."""
+        if not store_id:
+            self._load_epic_free(force)
         if self.demo:
             return
         for s in ([self.stores[store_id]] if store_id else self.stores.values()):
@@ -647,6 +652,56 @@ class AioLaunch(QObject):
             self.blizzardSync.emit()  # new Blizzard purchases come in a few seconds later
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- Epic's free games ---------------------------------------------------
+    _epic_free = []
+
+    def _load_epic_free(self, force=False):
+        def work():
+            games = epicfree.get(force)
+            return lambda: (setattr(self, "_epic_free", games), self.epicFreeChanged.emit())
+        self._bg(work)
+
+    def _epic_free_info(self):
+        """This week's free Epic games (and the next ones), marked when already in the library."""
+        owned = {covers.norm(g.title) for g in self.model.games if g.store == "epic"}
+        now = time.time()
+        out = []
+        for g in self._epic_free:
+            if g.get("end") and g["end"] < now:
+                continue  # the offer ran out since the list was fetched
+            live = g["now"] or (g.get("start") and g["start"] <= now)
+            when = g["end"] if live else g.get("start", 0)
+            out.append(dict(g, now=bool(live), owned=covers.norm(g["title"]) in owned,
+                            when=_short_date(when) if when else ""))
+        return out
+
+    epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
+
+    # --- achievements (Steam) --------------------------------------------------
+    @Slot(str, result="QVariantMap")
+    def achievements(self, key):
+        """Steam achievement progress for a game; {} until known (achievementsReady follows)."""
+        g = self.model.find(key)
+        key_, steamid = settings.get("steam_api_key").strip(), settings.get("steam_id").strip()
+        if not g or g.store != "steam" or not key_:
+            return {}
+        if not steamid:
+            steamid = self.stores["steam"]._recent_user()[0] or ""
+        if not steamid:
+            return {}
+        hit = achievements.cached(g.id)
+        if hit is not None:
+            return hit
+        pend = "ach:" + key
+        if pend not in self._details_pending:
+            self._details_pending.add(pend)
+
+            def work():
+                d = achievements.fetch(g.id, key_, steamid) or {}
+                return lambda: (self._details_pending.discard(pend), self.achievementsReady.emit(key, d))
+            self._bg(work)
+        return {}
 
     # --- Blizzard account (owned Battle.net games) -------------------------
     BLIZZARD_LOGIN = "https://account.battle.net/oauth2/authorization/account-settings"
@@ -767,6 +822,8 @@ class AioLaunch(QObject):
         self._pending.discard(store_id)
         if games:
             shelves.note(store_id, [g.key for g in games])
+        if store_id == "epic":
+            self.epicFreeChanged.emit()  # "In your library" marks
         if games is not None:
             self.model.replace_store(store_id, games)
             write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
