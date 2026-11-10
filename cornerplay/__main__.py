@@ -186,6 +186,7 @@ def main():
     ctx.setContextProperty("app", cornerplay)
     ctx.setContextProperty("library", cornerplay.proxy)
     ctx.setContextProperty("tvLibrary", cornerplay.tvProxy)
+    ctx.setContextProperty("tvNextLibrary", cornerplay.tvNextProxy)
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
     ctx.setContextProperty("startTv", args.tv)

@@ -440,6 +440,34 @@ ApplicationWindow {
                 Behavior on opacity { NumberAnimation { duration: 200 } }
             }
 
+            // A newer Cornerplay is out (installed copies only; checked once a day).
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
+                visible: !!app.appUpdate.version
+                height: 52; radius: 14
+                color: theme.primaryContainer
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 16; rightMargin: 8 }
+                    spacing: 10
+                    Icon { name: app.appUpdate.installed ? "check" : "gift"; size: 18; color: theme.onPrimaryContainer }
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: app.appUpdate.installed ? "Cornerplay " + app.appUpdate.version + " is installed. Restart to use it."
+                              : app.appUpdate.busy ? "Updating to Cornerplay " + app.appUpdate.version + "…"
+                              : "Cornerplay " + app.appUpdate.version + " is out."
+                        color: theme.onPrimaryContainer; font.pixelSize: 14; font.weight: Font.DemiBold
+                    }
+                    KButton { theme: win.theme; visible: !app.appUpdate.installed && !app.appUpdate.busy; text: "What's new"; onClicked: app.openUrl(app.appUpdate.url) }
+                    KButton { theme: win.theme; primary: true; visible: !app.appUpdate.busy
+                              text: app.appUpdate.installed ? "Restart" : "Update"
+                              iconName: app.appUpdate.installed ? "refresh-cw" : "download"
+                              onClicked: app.appUpdate.installed ? app.restartApp() : app.installUpdate() }
+                    KButton { theme: win.theme; visible: !app.appUpdate.busy; iconName: "x"; text: ""; onClicked: app.dismissUpdate() }
+                }
+            }
+
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true

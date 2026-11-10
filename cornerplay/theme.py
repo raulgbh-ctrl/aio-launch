@@ -15,6 +15,9 @@ PRESETS = {
     "Ocean": ("#0f1620", "#7fd0ff"),
     "Sakura": ("#1a1216", "#ffb1c8"),
     "Paper": ("#f6f3ee", "#6750a4"),
+    "Daylight": ("#f8f9fc", "#2f6fde"),
+    "Linen": ("#f5efe6", "#b4532a"),
+    "Mint": ("#f0f6f2", "#1d7a55"),
 }
 ACCENTS = ["#d2bcfd", "#8ab4f8", "#7fd0ff", "#8fd6a4", "#d7e075", "#ffd166", "#ffb59c", "#ff8a80",
            "#ffb1c8", "#e0e0e0"]

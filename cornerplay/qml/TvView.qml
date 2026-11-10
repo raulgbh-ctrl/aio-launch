@@ -43,12 +43,23 @@ FocusScope {
     property var shelfList: []
     property int shelfAt: 0
     readonly property var shelf: shelfList[shelfAt] || ({ id: "", name: "Library" })
+    property bool shelvesShown: false   // the first time, start on the top shelf, like a console's home
     function loadShelves() {
         const keep = tvLibrary.shelf
         shelfList = app.shelfList()
         const i = shelfList.findIndex(s => s.id === keep)
-        shelfAt = i >= 0 ? i : shelfList.length - 1
+        shelfAt = !shelvesShown ? 0 : i >= 0 ? i : shelfList.length - 1
+        shelvesShown = true
         if (!searching && tvLibrary.search === "") tvLibrary.shelf = shelf.id
+    }
+    readonly property var nextShelf: tvLibrary.search === "" ? (shelfList[shelfAt + 1] || null) : null
+    onNextShelfChanged: tvNextLibrary.shelf = nextShelf ? nextShelf.id : ""
+    Connections {
+        target: tvLibrary
+        function onFilterChanged() {
+            tvNextLibrary.storeFilter = tvLibrary.storeFilter
+            tvNextLibrary.installedOnly = tvLibrary.installedOnly
+        }
     }
     function stepShelf(step) {
         if (tvLibrary.search !== "") return
@@ -586,7 +597,7 @@ FocusScope {
             id: grid
             objectName: "tvGrid"
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.round(Math.max(220, tv.height * 0.34))
+            Layout.preferredHeight: Math.round(Math.max(200, tv.height * (peek.visible ? 0.29 : 0.34)))
             focus: true
             clip: false
             model: tvLibrary
@@ -665,6 +676,37 @@ FocusScope {
                 text: app.refreshing ? "Loading your libraries…" : "No games here"
                 color: theme.onSurfaceVariant
                 font.pixelSize: 26
+            }
+        }
+
+        // The shelf below, previewed: smaller covers, dimmed. Down goes there.
+        ColumnLayout {
+            id: peek
+            visible: !!tv.nextShelf && tv.height >= 900  // the Steam Deck (800 tall) keeps the room for the game
+            Layout.fillWidth: true
+            spacing: 8
+            opacity: 0.55
+            Text {
+                text: "\u25BC  " + (tv.nextShelf ? tv.nextShelf.name : "")
+                color: theme.onSurfaceVariant
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.round(Math.max(70, tv.height * 0.1))
+                orientation: ListView.Horizontal
+                interactive: false
+                spacing: 10
+                clip: true
+                model: tvNextLibrary
+                delegate: RoundedArt {
+                    required property var covers
+                    height: ListView.view.height
+                    width: Math.round(height / 1.46)
+                    radius: 8
+                    ArtImage { anchors.fill: parent; sources: covers || []; sourceSize.width: 160 }
+                }
             }
         }
 

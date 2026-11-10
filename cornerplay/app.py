@@ -14,7 +14,7 @@ import shlex
 
 import sys
 
-from . import achievements, storage, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .runner import StoreError
 from .stores.amazon import Amazon
@@ -393,6 +393,7 @@ class AioLaunch(QObject):
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
     epicFreeChanged = Signal()
     storageReady = Signal("QVariantMap")
+    updateChanged = Signal()
     achievementsReady = Signal(str, "QVariantMap")  # key, {"done", "total"}
     blizzardSync = Signal()      # QML's hidden page reads the Blizzard account's games (BlizzardSync.qml)
     blizzardForget = Signal()    # QML clears the Blizzard sign-in it keeps
@@ -408,6 +409,7 @@ class AioLaunch(QObject):
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
         self.tvProxy = LibraryProxy(self.model)  # TV mode's own list: its shelves leave the main view alone
+        self.tvNextProxy = LibraryProxy(self.model)  # the shelf below, shown as a preview under TV mode's row
         self.pool = ThreadPoolExecutor(min(4, os.cpu_count() or 2))
         self.procs: dict[str, QProcess] = {}
         self.logs: dict[str, list] = {}
@@ -656,6 +658,7 @@ class AioLaunch(QObject):
         """force (the Refresh button): skip the stores' own caches so new purchases show at once."""
         if not store_id:
             self._load_epic_free(force)
+            self._check_update()
         if self.demo:
             return
         for s in ([self.stores[store_id]] if store_id else self.stores.values()):
@@ -667,6 +670,67 @@ class AioLaunch(QObject):
             self.blizzardSync.emit()  # new Blizzard purchases come in a few seconds later
         self.refreshingChanged.emit()
         self.storesChanged.emit()
+
+    # --- Cornerplay's own updates ---------------------------------------------
+    _update = {}
+    _updating = False
+
+    def _check_update(self):
+        if self.demo or updates.from_source() or not settings.get("update_check"):
+            return
+
+        def work():
+            info = updates.latest()
+            return lambda: (setattr(self, "_update", info), self.updateChanged.emit())
+        self._bg(work)
+
+    appUpdate = Property("QVariantMap", lambda s: dict(s._update, busy=s._updating), notify=updateChanged)
+
+    @Slot()
+    def installUpdate(self):
+        """Download the new installer and run it (no root: --no-system); then offer a restart."""
+        info = self._update
+        if not info.get("asset") or self._updating:
+            return
+        self._updating = True
+        self.updateChanged.emit()
+
+        def work():
+            path = updates.download(info["asset"])
+
+            def run():
+                p = QProcess(self)
+                p.finished.connect(lambda code, _s: self._update_done(code, info["version"]))
+                p.start("sh", [str(path), "--yes", "--no-system"])
+                self._update_proc = p
+            return run
+        self._bg(work)
+
+    def _update_done(self, code, version):
+        self._updating = False
+        if code == 0:
+            self._update = {"version": version, "installed": True}
+            self.toast.emit(f"Cornerplay {version} is installed. Restart to use it.")
+        else:
+            self.toast.emit("The update did not install; try again, or download it from GitHub")
+        self.updateChanged.emit()
+
+    @Slot()
+    def restartApp(self):
+        # The launcher the installer wrote knows where the new copy and its Python live.
+        import shutil
+        launcher = shutil.which("cornerplay") or str(Path.home() / ".local/bin/cornerplay")
+        args = [a for a in sys.argv[1:] if a == "--tv"]
+        if os.path.exists(launcher):
+            QProcess.startDetached(launcher, args)
+        else:
+            QProcess.startDetached(sys.executable, ["-m", "cornerplay"] + args)
+        QGuiApplication.quit()
+
+    @Slot()
+    def dismissUpdate(self):
+        self._update = {}
+        self.updateChanged.emit()
 
     # --- storage: sizes, drives, moving installs ------------------------------
     MOVABLE = ("epic", "gog", "amazon")
