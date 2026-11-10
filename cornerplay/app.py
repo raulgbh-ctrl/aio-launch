@@ -140,6 +140,9 @@ class LibraryModel(QAbstractListModel):
         self.focus_store = ""            # the sidebar's store filter decides which copy is shown
         self.played = playtime.load()    # Cornerplay's own playtime record
         self.generation = 0              # bumped on every change, so cached sort keys know they are stale
+        self._gids = {}                  # id(group) -> group id, worked out once per regroup
+        self._reps = {}                  # id(group) -> the copy shown, for the current generation
+        self._reps_gen = -1
 
     def roleNames(self):
         return {Qt.UserRole + i: QByteArray(r.encode()) for i, r in enumerate(ROLES)}
@@ -163,11 +166,15 @@ class LibraryModel(QAbstractListModel):
         for copies in groups.values():
             copies.sort(key=lambda g: order.index(g.store))
         self.groups = list(groups.values())
+        self._gids = {id(grp): gid for gid, grp in groups.items()}
+        self._by_key = {g.key: g for g in self.games}
+        self._group_by_key = {g.key: grp for grp in self.groups for g in grp}
+        self._reps_gen = -1
 
     def is_hidden(self, group):
         """Hidden in Cornerplay, or hidden in Steam when every copy is a hidden Steam copy
         (a copy on another store keeps it visible). Unhiding in Cornerplay overrides Steam."""
-        opts = [game_options.get(g.key).get("hidden") for g in group]
+        opts = [game_options.peek(g.key).get("hidden") for g in group]
         if any(o is True for o in opts):
             return True
         if any(o is False for o in opts):
@@ -175,13 +182,23 @@ class LibraryModel(QAbstractListModel):
         return bool(group) and all(g.extra.get("steam_hidden") for g in group)
 
     def group_of(self, key):
-        return next((grp for grp in self.groups if any(g.key == key for g in grp)), [])
+        return self._group_by_key.get(key, []) if hasattr(self, "_group_by_key") else []
 
     def rep(self, group):
-        """The copy a row stands for: focused store, running job, user's pick, installed."""
-        prefer = game_options.get(self.group_id(group[0])).get("prefer", "")
-        return min(group, key=lambda g: (g.store != self.focus_store, g.key not in self.jobs,
-                                         g.key != prefer, not g.installed))
+        """The copy a row stands for: focused store, running job, user's pick, installed.
+        Remembered until the library next changes (every change bumps the generation)."""
+        if len(group) == 1:
+            return group[0]
+        if self._reps_gen != self.generation:
+            self._reps, self._reps_gen = {}, self.generation
+        hit = self._reps.get(id(group))
+        if hit is None:
+            gid = self._gids.get(id(group)) or self.group_id(group[0])
+            prefer = game_options.peek(gid).get("prefer", "")
+            hit = min(group, key=lambda g: (g.store != self.focus_store, g.key not in self.jobs,
+                                            g.key != prefer, not g.installed))
+            self._reps[id(group)] = hit
+        return hit
 
     # --- data ------------------------------------------------------------
     def value(self, g: Game, role: str):
@@ -201,24 +218,29 @@ class LibraryModel(QAbstractListModel):
         times = [playtime.of(g, self.played) for g in group]
         return sum(t[0] for t in times) if role == "playtime" else max(t[1] for t in times)
 
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid() or not 0 <= index.row() < len(self.groups):
+    # Plain ints: arithmetic on Qt's enum objects costs more than the rest of data() put together.
+    _USER = int(Qt.UserRole.value) if hasattr(Qt.UserRole, "value") else int(Qt.UserRole)
+    _DISPLAY = int(Qt.DisplayRole.value) if hasattr(Qt.DisplayRole, "value") else int(Qt.DisplayRole)
+    _NROLES = len(ROLES)
+    _GROUP = frozenset(GROUP_ROLES)
+
+    def data(self, index, role=0):
+        row = index.row()
+        if row < 0 or row >= len(self.groups):
             return None
-        group = self.groups[index.row()]
+        role = role.value if hasattr(role, "value") else role
+        group = self.groups[row]
         g = self.rep(group)
-        if role == Qt.DisplayRole:
+        if role == self._DISPLAY:
             return g.title
-        i = role - Qt.UserRole
-        if not 0 <= i < len(ROLES):
+        i = role - self._USER
+        if not 0 <= i < self._NROLES:
             return None
-        role = ROLES[i]
-        return self.group_value(group, role) if role in GROUP_ROLES else self.value(g, role)
+        name = ROLES[i]
+        return self.group_value(group, name) if name in self._GROUP else _FIELDS[name](self, g)
 
     def find(self, key):
-        for g in self.games:
-            if g.key == key:
-                return g
-        return None
+        return self._by_key.get(key) if hasattr(self, "_by_key") else None
 
     def as_dict(self, key):
         g = self.find(key)
@@ -669,7 +691,13 @@ class AioLaunch(QObject):
             self._pending.add(s.id)
             self.pool.submit(self._fetch, s, force)
         if not store_id and battlenet.owned() is not None:
-            self.blizzardSync.emit()  # new Blizzard purchases come in a few seconds later
+            # New Blizzard purchases come in a few seconds later. At start it waits a little:
+            # the hidden page needs Chromium (~0.5 s to load), and the window comes first.
+            if getattr(self, "_blizzard_started", False):
+                self.blizzardSync.emit()
+            else:
+                self._blizzard_started = True
+                QTimer.singleShot(6000, self.blizzardSync.emit)
         self.refreshingChanged.emit()
         self.storesChanged.emit()
 

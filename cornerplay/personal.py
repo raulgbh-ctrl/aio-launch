@@ -28,9 +28,15 @@ _lock = threading.RLock()
 _docs = {}  # slug -> personal doc (in memory)
 
 
+_slugs = {}
+
+
 def slug(name):
-    s = re.sub(r"[^A-Za-z0-9_-]+", "-", name.strip()).strip("-").lower()
-    return s or "me"
+    s = _slugs.get(name)
+    if s is None:
+        s = re.sub(r"[^A-Za-z0-9_-]+", "-", name.strip()).strip("-").lower() or "me"
+        _slugs[name] = s
+    return s
 
 
 def machine():

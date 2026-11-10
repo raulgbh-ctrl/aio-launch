@@ -97,7 +97,13 @@ FocusScope {
         grid.currentIndex = 0; sync()
     }
 
-    function sync() { cur = app.game(tvLibrary.keyAt(grid.currentIndex)) }
+    function sync() { cur = app.game(tvLibrary.keyAt(grid.currentIndex)); wake() }
+
+    // Calm: after 30 s without input the moving art and the trailer stop (they redraw the
+    // whole screen 60 times a second: a drained Steam Deck battery while you look at a menu).
+    property bool calm: false
+    function wake() { calm = false; calmTimer.restart() }
+    Timer { id: calmTimer; interval: 30000; running: tv.visible; onTriggered: tv.calm = true }
     function cycleStore(step) {
         app.uiSound("move")
         const i = storeIds.indexOf(tvLibrary.storeFilter)
@@ -163,6 +169,7 @@ FocusScope {
         transformOrigin: Item.Right
         transform: Translate { id: drift }
         readonly property bool drifting: opacity > 0 && status === Image.Ready && !app.light && tv.visible
+                                         && !tv.calm && Qt.application.state === Qt.ApplicationActive
         SequentialAnimation on scale {
             running: drifting
             loops: Animation.Infinite
@@ -224,6 +231,7 @@ FocusScope {
             active: typeof canPlayVideo !== "undefined" && canPlayVideo && app.settingsMap.tv_trailers
                     && !app.light && tv.visible && tv.trailerUrl !== ""
                     && Qt.application.state === Qt.ApplicationActive  // never behind a running game
+                    && !tv.calm
             source: "TvTrailer.qml"
             onLoaded: item.source = Qt.binding(() => tv.trailerUrl)
         }
@@ -677,6 +685,7 @@ FocusScope {
             Keys.onUpPressed: tv.stepShelf(-1)
             Keys.onDownPressed: tv.stepShelf(1)
             Keys.onPressed: event => {
+                tv.wake()
                 grid.fast = event.isAutoRepeat
                 if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && (event.modifiers & Qt.ShiftModifier)) {
                     grid.jump(currentIndex + (event.key === Qt.Key_Right ? page : -page)); event.accepted = true

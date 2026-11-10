@@ -150,6 +150,12 @@ class GameOptions:
     def get(self, key) -> dict:
         return dict(self.data.get(key, {}))
 
+    _EMPTY = {}
+
+    def peek(self, key) -> dict:
+        """The entry itself, for reading only (no copy: the library asks this thousands of times)."""
+        return self.data.get(key) or self._EMPTY
+
     def set(self, key, name, value):
         if name not in self.KEYS:
             return

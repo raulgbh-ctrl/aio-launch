@@ -64,10 +64,15 @@ ApplicationWindow {
         }
         function onToast(message) { toasts.append({ message: message }) }
         function onLoginWeb(store, name, url) {
-            const target = store === "blizzard" ? blizzardLogin : loginWindow
-            if (store === "blizzard") blizzardSync.active = true
-            target.active = true
-            target.item.begin(store, name, url)
+            if (store === "blizzard") {
+                blizzardSync.active = true
+                if (!blizzardLogin.item)
+                    blizzardLogin.setSource("LoginWindow.qml", { keptProfile: blizzardSync.item.profile })
+                blizzardLogin.item.begin(store, name, url)
+                return
+            }
+            loginWindow.active = true
+            loginWindow.item.begin(store, name, url)
         }
         function onBlizzardSync() {
             blizzardSync.active = true
@@ -3082,14 +3087,11 @@ ApplicationWindow {
     // Loaded only once an account is linked (or being linked): it starts Chromium.
     Loader {
         id: blizzardSync
-        active: typeof webLogin !== "undefined" && webLogin && app.blizzardLinked
+        active: false  // switched on by the first sync or sign-in (it starts Chromium)
         source: "BlizzardSync.qml"
     }
-    Loader {
-        id: blizzardLogin
-        active: false
-        sourceComponent: Component { LoginWindow { keptProfile: blizzardSync.item ? blizzardSync.item.profile : null } }
-    }
+    // Loaded by file name only when needed: naming LoginWindow here would load Chromium at every start.
+    Loader { id: blizzardLogin }
 
     // -------------------------------------------------------------------- screenshot viewer
     Popup {

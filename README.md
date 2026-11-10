@@ -86,6 +86,13 @@ Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the
 - **Backlog, ratings and notes**: mark a game Playing, Want to play, Finished or Dropped, give it 1-5 stars and a note ("stuck on boss 3") in its panel. Statuses show in the sidebar and as TV shelves; sort the library by your rating.
 - **Stats**: sidebar > Stats: hours played in total and per store, games played vs never started, your most played, and the last two weeks (Cornerplay logs each play session from 0.4.0 on; Steam only shares totals).
 - **Storage**: sidebar > Storage: every installed game by size, how full each drive is, Free up space (games over 2 GB not played for three months), Uninstall, and Move to another folder or drive (Epic, GOG and Amazon, with progress; Steam games move in Steam's Settings > Storage; Battle.net in its app).
+- **Performance profiles**: Battery saver (30 fps), Balanced (60 fps), both with FSR upscaling, or Max quality; an FPS counter (MangoHud). Default in Settings > Compatibility, per game under Options (Epic, GOG, Amazon). Each game keeps its own shader cache (`~/.cache/cornerplay/shaders`) so only the first run stutters.
+- **Fix it** (a game's Options): Repair files (Epic, GOG, Amazon), Reset Proton prefix (the old one is renamed, not deleted), Open log.
+- **Controller support**: from Steam's store data, in the game panel and TV mode; Steam games that are not fully supported link to Steam's controller layout.
+- **What should I play?** (sidebar): a pick from your backlog, by how long you have; never finished or dropped games.
+- **Now playing**: a bar (and a TV chip) while a game started from Cornerplay runs, with Quit and Force close.
+- **People**: Settings > People & sync: each person has their own favourites, collections, statuses, stars, notes and stats; switch at the top of the sidebar.
+- **Sync between PCs**: pick a folder Syncthing / Nextcloud / Dropbox already syncs; personal data merges game by game and playtime adds up across PCs.
 - **Updates**: an installed Cornerplay checks GitHub once a day and offers the new version (Update, then Restart). Settings: `update_check`.
 - **Free on Epic**: this week's free Epic games (and the next ones) above the library, from Epic's public promotions feed. Get opens the store page (Epic lets no other app claim them); claimed games show up on the next refresh.
 - **Steam achievements**: progress (12 / 50) in a Steam game's panel and in TV mode, when a Steam Web API key is set.
