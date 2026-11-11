@@ -942,7 +942,7 @@ FocusScope {
         id: searchBox
         visible: tv.searching
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 120 }
-        width: Math.min(parent.width - 96, 760)
+        width: Math.min(parent.width - 96, 880)
         height: searchCol.implicitHeight + 44
         radius: 30
         color: Qt.alpha(theme.surfaceContainer, 0.9)
@@ -964,9 +964,23 @@ FocusScope {
                 height: 56; radius: 28
                 color: theme.surfaceContainerHighest
                 Icon { x: 20; anchors.verticalCenter: parent.verticalCenter; name: "search"; size: 22; color: theme.onSurfaceVariant }
+                Rectangle {  // the cursor, blinking after what has been typed
+                    x: 54 + (tvLibrary.search !== "" ? Math.min(searchText.contentWidth, searchText.width) + 3 : 0)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 2; height: 26; radius: 1
+                    color: tv.tint.primary
+                    visible: keys.activeFocus
+                    SequentialAnimation on opacity {
+                        running: keys.activeFocus && !app.light
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0; duration: 500; easing.type: Easing.InOutQuad }
+                        NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutQuad }
+                    }
+                }
                 Text {
+                    id: searchText
                     x: 54; anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 74
+                    width: parent.width - 74 - 110
                     elide: Text.ElideLeft
                     text: tvLibrary.search !== "" ? tvLibrary.search : "Search your games"
                     color: tvLibrary.search !== "" ? theme.onSurface : theme.onSurfaceVariant
@@ -978,61 +992,135 @@ FocusScope {
                     color: theme.onSurfaceVariant; font.pixelSize: 16
                 }
             }
-            GridView {
+            // The on-screen keyboard, laid out like a phone's or the Steam Deck's: numbers on top,
+            // then the letters in QWERTY order, a dash and an apostrophe for titles like
+            // "Half-Life" or "Baldur's Gate", and a wide space bar. Left / right move along a row;
+            // up / down jump to the nearest key in the next row. On a controller: A types,
+            // X deletes, Y is a space, B deletes (or closes when empty), View / Select is done.
+            Item {
                 id: keys
-                readonly property var letters: "abcdefghijklmnopqrstuvwxyz1234567890".split("").concat(["space", "del", "done"])
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.ceil(letters.length / 10) * cellHeight
-                interactive: false
-                cellWidth: Math.floor(width / 10)
-                cellHeight: 58
-                model: letters
-                keyNavigationWraps: true
-                delegate: Rectangle {
-                    required property string modelData
-                    required property int index
-                    readonly property bool wide: modelData.length > 1
-                    readonly property bool lit: GridView.isCurrentItem && keys.activeFocus
-                    width: keys.cellWidth - 10; height: keys.cellHeight - 10
-                    radius: 16
-                    z: lit ? 1 : 0
-                    scale: lit && !app.light ? 1.1 : 1
-                    Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
-                    color: lit ? tv.tint.primary : Qt.alpha(theme.surfaceContainerHighest, 0.75)
-                    RectangularShadow {
-                        z: -1
-                        anchors.fill: parent
-                        visible: parent.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
-                        radius: parent.radius; blur: 22
-                        color: Qt.alpha(tv.tint.primary, 0.55)
+                Layout.preferredHeight: rows.length * rowH
+                readonly property int rowH: 62
+                readonly property real unit: width / 10
+                // [key, width in tenths of the board]
+                readonly property var rows: [
+                    "1234567890".split("").map(k => [k, 1]),
+                    "qwertyuiop".split("").map(k => [k, 1]),
+                    "asdfghjkl".split("").map(k => [k, 1]).concat([["'", 1]]),
+                    "zxcvbnm".split("").map(k => [k, 1]).concat([["-", 1], ["del", 2]]),
+                    [["space", 6], ["clear", 2], ["done", 2]]
+                ]
+                property int row: 1
+                property int col: 0
+                readonly property var current: (rows[row] || [])[col] || ["", 1]
+                function startOf(r, c) { let x = 0; for (let i = 0; i < c; i++) x += rows[r][i][1]; return x }
+                function centreOf(r, c) { return startOf(r, c) + rows[r][c][1] / 2 }
+                function moveRow(d) {
+                    const r = (row + d + rows.length) % rows.length
+                    const want = centreOf(row, col)
+                    let best = 0, gap = 1e9
+                    for (let c = 0; c < rows[r].length; c++) {
+                        const g = Math.abs(centreOf(r, c) - want)
+                        if (g < gap) { gap = g; best = c }
                     }
-                    Text {
-                        anchors.centerIn: parent
-                        text: ({ space: "\u2423", del: "\u232B", done: "\u2713" })[parent.modelData] || parent.modelData.toUpperCase()
-                        color: parent.GridView.isCurrentItem && keys.activeFocus ? tv.tint.onPrimary : theme.onSurface
-                        font.pixelSize: parent.wide ? 24 : 20
-                        font.weight: Font.DemiBold
-                    }
-                    TapHandler { onTapped: { keys.currentIndex = parent.index; keys.press(parent.modelData) } }
+                    row = r; col = best
+                    app.uiSound("move")
                 }
+                function moveCol(d) { col = (col + d + rows[row].length) % rows[row].length; app.uiSound("move") }
                 function press(k) {
                     app.uiSound("move")
-                    if (k === "done") tv.closeSearch(true)
+                    if (k === "done") { tv.closeSearch(true); return }
+                    if (k === "clear") tvLibrary.search = ""
                     else if (k === "del") tvLibrary.search = tvLibrary.search.slice(0, -1)
                     else tvLibrary.search = (tvLibrary.search + (k === "space" ? " " : k)).replace(/^ +/, "")
                     grid.currentIndex = 0; tv.sync()
                 }
-                Keys.onReturnPressed: press(letters[currentIndex])
-                Keys.onEnterPressed: press(letters[currentIndex])
+                Repeater {
+                    model: keys.rows.length
+                    Item {
+                        id: keyRow
+                        required property int index
+                        readonly property int r: index
+                        y: r * keys.rowH
+                        width: keys.width; height: keys.rowH
+                        Repeater {
+                            model: keys.rows[keyRow.r]
+                            Rectangle {
+                                id: key
+                                required property var modelData
+                                required property int index
+                                readonly property string k: modelData[0]
+                                readonly property bool lit: keys.activeFocus && keys.row === keyRow.r && keys.col === index
+                                readonly property bool special: k.length > 1
+                                x: keys.startOf(keyRow.r, index) * keys.unit + 4
+                                width: modelData[1] * keys.unit - 8
+                                height: keys.rowH - 10
+                                radius: 16
+                                z: lit ? 1 : 0
+                                scale: lit && !app.light ? 1.08 : 1
+                                Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                                color: lit ? tv.tint.primary
+                                     : special ? Qt.alpha(theme.surfaceContainerHighest, 0.95)
+                                     : Qt.alpha(theme.surfaceContainerHighest, 0.7)
+                                RectangularShadow {
+                                    z: -1
+                                    anchors.fill: parent
+                                    visible: key.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                                    radius: parent.radius; blur: 22
+                                    color: Qt.alpha(tv.tint.primary, 0.55)
+                                }
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 8
+                                    Icon {
+                                        visible: key.k === "del" || key.k === "done" || key.k === "clear"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: ({ del: "arrow-left", done: "check", clear: "x" })[key.k] || "x"
+                                        size: 20
+                                        color: key.lit ? tv.tint.onPrimary : theme.onSurface
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: ({ space: "space", del: "Delete", done: "Done", clear: "Clear" })[key.k] || key.k.toUpperCase()
+                                        color: key.lit ? tv.tint.onPrimary : key.special ? theme.onSurfaceVariant : theme.onSurface
+                                        font.pixelSize: key.special ? 17 : 21
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                                TapHandler { onTapped: { keys.row = keyRow.r; keys.col = key.index; keys.press(key.k) } }
+                            }
+                        }
+                    }
+                }
+                Keys.onLeftPressed: moveCol(-1)
+                Keys.onRightPressed: moveCol(1)
+                Keys.onUpPressed: moveRow(-1)
+                Keys.onDownPressed: moveRow(1)
+                Keys.onReturnPressed: press(current[0])
+                Keys.onEnterPressed: press(current[0])
                 Keys.onEscapePressed: {
                     if (tvLibrary.search !== "") press("del")
                     else { app.uiSound("back"); tv.closeSearch(false) }
                 }
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_F4) { tv.closeSearch(true); event.accepted = true }
+                    if (event.key === Qt.Key_F4) { tv.closeSearch(true); event.accepted = true }       // View / Select
+                    else if (event.key === Qt.Key_F2) { press("del"); event.accepted = true }           // X (and Start)
+                    else if (event.key === Qt.Key_F3) { press("space"); event.accepted = true }         // Y
                     else if (event.key === Qt.Key_Backspace) { press("del"); event.accepted = true }
                     else if (event.key === Qt.Key_Space) { press("space"); event.accepted = true }
-                    else if (event.text && /^[a-z0-9]$/i.test(event.text)) { press(event.text.toLowerCase()); event.accepted = true }
+                    else if (event.text && /^[a-z0-9'\-]$/i.test(event.text)) { press(event.text.toLowerCase()); event.accepted = true }
+                }
+            }
+            // What the controller's buttons do here.
+            Row {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 22
+                Repeater {
+                    model: pad.connected
+                        ? [{ b: ["a"], t: "Type" }, { b: ["x"], t: "Delete" }, { b: ["y"], t: "Space" }, { b: ["back"], t: "Done" }, { b: ["b"], t: "Back" }]
+                        : [{ k: "Type", t: "or use the keys" }, { k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                    Hint { required property var modelData; hint: modelData }
                 }
             }
         }
