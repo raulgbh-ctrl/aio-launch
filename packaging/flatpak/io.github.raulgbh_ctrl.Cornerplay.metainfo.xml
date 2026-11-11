@@ -10,7 +10,7 @@
   </developer>
   <description>
     <p>
-      Cornerplay gathers your games from Steam, Epic Games, GOG, Amazon Games and Battle.net into
+      Cornerplay gathers your games from Steam, Epic Games, GOG, Amazon Games, Battle.net and itch.io into
       one warm, quiet library, with a TV mode for the couch and a controller.
     </p>
     <ul>
@@ -19,6 +19,8 @@
       <li>Proton chosen and set up for you, with ProtonDB ratings, gamescope and performance profiles</li>
       <li>Playtime, favourites, collections, a backlog, notes and ratings, synced between PCs</li>
       <li>Save backups, DLC, game updates and Steam shortcuts for Game Mode</li>
+      <li>itch.io games, and retro games from your ROM folders through RetroArch</li>
+      <li>Wishlist sales, achievements for Steam and GOG, and Discord Rich Presence</li>
     </ul>
     <p>
       Cornerplay is not affiliated with Valve, Epic Games, GOG, Amazon or Blizzard.
@@ -51,6 +53,14 @@
     <category>Game</category>
   </categories>
   <releases>
+    <release version="0.9.0" date="2026-11-12">
+      <description>
+        <p>New: itch.io games, retro games through RetroArch, wishlist sales, GOG achievements,
+        Discord Rich Presence, time to beat from IGDB, gamescope per game, and the interface in
+        Romanian. Your keys and sign-ins are kept private, downloads are checked, and backups
+        leave secrets out.</p>
+      </description>
+    </release>
     <release version="0.8.0" date="2026-11-11"/>
   </releases>
 </component>
