@@ -509,6 +509,10 @@ class AioLaunch(QObject):
         self._wall_files = [p for p in wallpaper.watch_paths() if not os.path.isdir(p)]
         self._wall_watch.fileChanged.connect(lambda _: self._wall_changed())
         self._wall_watch.directoryChanged.connect(lambda _: self._wall_changed())
+        # swww and swaybg keep the wallpaper in a running program, not in a file: ask them now and then.
+        self._wall_poll = QTimer(self, interval=10000)
+        self._wall_poll.timeout.connect(self._poll_wallpaper)
+        self._arm_wall_poll()
 
         session.SESSIONS.mkdir(parents=True, exist_ok=True)
         self._sessions = QFileSystemWatcher([str(session.SESSIONS)], self)
@@ -553,6 +557,27 @@ class AioLaunch(QObject):
         if new != self._theme:
             self._theme = new
             self.themeChanged.emit()
+        self._arm_wall_poll()
+
+    POLLED_WALLPAPERS = ("swww", "awww", "swaybg")
+
+    def _arm_wall_poll(self):
+        poll = getattr(self, "_wall_poll", None)
+        if poll is None:
+            return
+        if self._theme.get("wallpaperSource") in self.POLLED_WALLPAPERS:
+            if not poll.isActive():
+                poll.start()
+        else:
+            poll.stop()
+
+    def _poll_wallpaper(self):
+        if settings.get("theme_mode") != "ryoku":
+            return
+        from . import wallpaper
+        _source, path = wallpaper.find()
+        if path and path != self._theme.get("wallpaper"):
+            self._load_theme()
 
     theme = Property("QVariantMap", lambda s: s._theme, notify=themeChanged)
     themePresets = Property("QVariantList", lambda s: list(themes.PRESETS), constant=True)
