@@ -1548,6 +1548,16 @@ class AioLaunch(QObject):
     def game(self, key):
         return self.model.as_dict(key)
 
+    @Slot(result="QVariantList")
+    def jobList(self):
+        """Installs, updates and the like under way or waiting, for TV mode's quick access."""
+        out = []
+        for key, job in list(self.model.jobs.items()):
+            g = self.model.as_dict(key)
+            out.append({"key": key, "title": g.get("title") or key, "job": job.get("kind", ""),
+                        "progress": float(job.get("progress", -1.0))})
+        return out
+
     def _env(self, extra):
         env = QProcessEnvironment.systemEnvironment()
         for k, v in extra.items():

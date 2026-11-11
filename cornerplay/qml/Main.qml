@@ -135,6 +135,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+R"; onActivated: app.refresh("", true) }
     Shortcut { sequence: "F5"; onActivated: app.refresh("", true) }
     Shortcut { sequence: "F11"; onActivated: win.tv = !win.tv }
+    Shortcut { sequence: "F10"; enabled: !win.tv; onActivated: win.tv = true }  // the controller's Guide button
     Shortcut { sequence: "Ctrl+Q"; onActivated: Qt.quit() }
 
     // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
@@ -249,7 +250,7 @@ ApplicationWindow {
                     Layout.margins: 8
                     Layout.bottomMargin: 16
                     spacing: 10
-                    WordMark { size: 22 }
+                    WordMark { size: 20 }
                 }
                 // Who is playing: only shown once there is more than one person.
                 Flow {
@@ -445,6 +446,7 @@ ApplicationWindow {
                 Item {
                     width: parent.width
                     height: 620
+                    clip: true  // the blur spreads past its box, under the fade that hides the bottom
                     ArtImage {
                         id: ambientArt
                         anchors.fill: parent
@@ -4114,12 +4116,10 @@ ApplicationWindow {
         Column {
             anchors.centerIn: parent
             spacing: 22
-            Image {
+            BrandMark {
                 id: splashIcon
                 anchors.horizontalCenter: parent.horizontalCenter
-                source: "../cornerplay.svg"
-                width: 108; height: 108
-                sourceSize: Qt.size(Math.ceil(width * Math.max(2, Screen.devicePixelRatio)), Math.ceil(height * Math.max(2, Screen.devicePixelRatio)))
+                size: 108
                 SequentialAnimation on scale {
                     running: splash.visible && !app.light
                     NumberAnimation { from: 0.85; to: 1.0; duration: 520; easing.type: Easing.OutBack }

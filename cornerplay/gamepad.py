@@ -1,9 +1,12 @@
 """Controller input through SDL2, turned into key presses for the focused Cornerplay window.
 
-Mapping: D-pad / left stick = arrows, A = Return, B = Escape, X = F2 (actions),
-Y = F3 (installed only), LB / RB = PageUp / PageDown (previous / next store),
-Start = F11 (TV mode). Nothing is sent while Cornerplay is not the focused window,
-so the pad never steers the library while a game is running.
+Laid out like SteamOS Game Mode: D-pad / left stick = arrows, A = Return (select),
+B = Escape (back), Start / Menu = F2 (the game's options), X = F2 as well, Y = F3 (installed
+only), View / Select = F4 (search), LB / RB = PageUp / PageDown (previous / next store),
+LT / RT = Shift+Left / Right (jump). Guide (the Xbox, PS or Home button) = F10 (the main
+menu, opened when it is let go), Guide + A or Share = F9 (quick access, Steam's "..." menu).
+Nothing is sent while Cornerplay is not the focused window, so the pad never steers the
+library while a game is running.
 """
 import ctypes
 import ctypes.util
@@ -18,9 +21,12 @@ AXIS_MOTION, BUTTON_DOWN, BUTTON_UP = 0x650, 0x651, 0x652
 
 BUTTONS = {
     0: Qt.Key_Return, 1: Qt.Key_Escape, 2: Qt.Key_F2, 3: Qt.Key_F3, 4: Qt.Key_F4,  # 4: View / Select: search
-    6: Qt.Key_F11, 9: Qt.Key_PageUp, 10: Qt.Key_PageDown,
+    6: Qt.Key_F2, 9: Qt.Key_PageUp, 10: Qt.Key_PageDown,                          # 6: Start / Menu: options
     11: Qt.Key_Up, 12: Qt.Key_Down, 13: Qt.Key_Left, 14: Qt.Key_Right,
+    15: Qt.Key_F9,                                                                # 15: Share / Capture: quick access
 }
+GUIDE, BUTTON_A = 5, 0
+MAIN_MENU, QUICK_ACCESS = Qt.Key_F10, Qt.Key_F9
 REPEATING = {Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right}
 # SDL_GameControllerType -> which button glyphs to show. Unknown pads (and the Steam Deck,
 # which Steam presents as an Xbox pad) get Xbox glyphs.
@@ -59,6 +65,8 @@ class Gamepad(QObject):
         self._pads = {}    # instance id -> controller handle
         self._held = {}    # Qt key -> time of next repeat
         self._stick = {}   # (pad, axis) -> key currently held by that stick axis
+        self._guide = None  # None, "held" (Guide down) or "chord" (Guide + A used: no menu on release)
+        self._swallow = set()  # buttons whose release must not send anything (the A of Guide + A)
         self._event = ctypes.create_string_buffer(128)
         self._timer = None
         self._style = "xbox"
@@ -154,10 +162,10 @@ class Gamepad(QObject):
                     self._pace()
                 self._held.clear()
                 self._stick.clear()
+                self._guide = None
+                self._swallow.clear()
             elif kind in (BUTTON_DOWN, BUTTON_UP):
-                key = BUTTONS.get(ev.raw[12])
-                if key is not None:
-                    self._set(key, kind == BUTTON_DOWN)
+                self._button(ev.raw[12], kind == BUTTON_DOWN)
             elif kind == AXIS_MOTION:
                 axis = ev.raw[12]
                 value = ctypes.c_int16.from_buffer(ev, 16).value
@@ -170,6 +178,29 @@ class Gamepad(QObject):
             if now >= due:
                 self._held[held] = (now + _repeat_gap(now - since), since)
                 self._send(*held, repeat=True)
+
+    def _button(self, button, down):
+        # Guide opens the main menu when let go, unless it was held for Guide + A (quick access),
+        # the way Steam treats its own button.
+        if button == GUIDE:
+            if down:
+                self._guide = "held"
+            else:
+                if self._guide == "held":
+                    self._send(MAIN_MENU)
+                self._guide = None
+            return
+        if button == BUTTON_A and down and self._guide:
+            self._guide = "chord"
+            self._swallow.add(button)
+            self._send(QUICK_ACCESS)
+            return
+        if not down and button in self._swallow:
+            self._swallow.discard(button)
+            return
+        key = BUTTONS.get(button)
+        if key is not None:
+            self._set(key, down)
 
     def _axis(self, pad, axis, value):
         low, high = (Qt.Key_Left, Qt.Key_Right) if axis == 0 else (Qt.Key_Up, Qt.Key_Down)

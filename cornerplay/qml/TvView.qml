@@ -351,7 +351,7 @@ FocusScope {
             Layout.minimumWidth: 0
             clip: true
             spacing: 12
-            WordMark { size: 30; accent: tv.tint.primary; Layout.rightMargin: 20 }
+            WordMark { size: 30; Layout.rightMargin: 20 }
             Repeater {
                 model: tv.storeIds
                 Rectangle {
@@ -748,7 +748,8 @@ FocusScope {
             Keys.onEscapePressed: {
                 app.uiSound("back")
                 if (tvLibrary.search !== "") tv.clearSearch()
-                else tv.exit()
+                else if (tv.shelfAt > 0) tv.stepShelf(-tv.shelfAt)  // back to the top shelf, like Home
+                else mainMenu.show()                              // home already: the menu (Exit TV mode is there)
             }
             Keys.onUpPressed: tv.stepShelf(-1)
             Keys.onDownPressed: tv.stepShelf(1)
@@ -761,6 +762,8 @@ FocusScope {
                 else if (event.key === Qt.Key_Home) { grid.jump(0); event.accepted = true }
                 else if (event.key === Qt.Key_End) { grid.jump(count - 1); event.accepted = true }
                 else if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
+                else if (event.key === Qt.Key_F10) { mainMenu.show(); event.accepted = true }
+                else if (event.key === Qt.Key_F9) { quickMenu.show(); event.accepted = true }
                 else if (event.key === Qt.Key_F4 || event.key === Qt.Key_Slash) { tv.openSearch(""); event.accepted = true }
                 else if (event.text && /^[a-z0-9]$/i.test(event.text) && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier))) {
                     tv.openSearch(event.text.toLowerCase()); event.accepted = true  // just start typing
@@ -821,18 +824,18 @@ FocusScope {
                     const play = tv.cur.key && !tv.cur.installed ? "Install" : "Play"
                     const jump = grid.count > grid.page + 1, stores = tv.storeIds.length > 2, shelves = tv.shelfList.length > 1
                     const all = pad.connected
-                        ? [{ b: ["a"], t: play }, { b: ["x"], t: "More" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                        ? [{ b: ["a"], t: play }, { b: ["start"], t: "Options" }, { b: ["guide"], t: "Menu" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
                            shelves ? { b: ["\u2195"], t: "Shelf", pad: true } : null, jump ? { b: ["lt", "rt"], t: "Jump" } : null,
                            stores ? { b: ["lb", "rb"], t: "Store" } : null, { b: ["back"], t: "Search" },
                            { b: ["b"], t: tvLibrary.search ? "Clear search" : "Back" }]
                         : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
-                        ? [{ b: ["a"], t: play }, { k: "F2", t: "More" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
-                        : [{ k: "Enter", t: play }, { k: "F2", t: "More" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                        ? [{ b: ["a"], t: play }, { k: "F2", t: "Options" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
+                        : [{ k: "Enter", t: play }, { k: "F2", t: "Options" }, { k: "F10", t: "Menu" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
                            shelves ? { k: "\u2191 \u2193", t: "Shelf" } : null, jump ? { k: "Shift \u2190/\u2192", t: "Jump" } : null,
                            stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
                            { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
                     // Four at most: the rest are listed on a game's page (More).
-                    return all.filter(h => h && !h.pad && ["Play", "Install", "More", "Search", "Back", "Clear search"].indexOf(h.t) !== -1)
+                    return all.filter(h => h && !h.pad && ["Play", "Install", "Options", "More", "Menu", "Back", "Clear search"].indexOf(h.t) !== -1)
                 }
                 Hint { required property var modelData; hint: modelData }
             }
@@ -866,16 +869,14 @@ FocusScope {
         id: intro
         anchors.fill: parent
         z: 100
-        color: "#0d0906"
+        color: theme.background
         visible: false
         function play() { visible = true; opacity = 1; app.uiSound("intro"); introAnim.restart() }
-        Image {
+        BrandMark {
             id: introIcon
             anchors.centerIn: parent
             anchors.verticalCenterOffset: -40
-            source: "../cornerplay.svg"
-            width: Math.round(tv.height * 0.22); height: width
-            sourceSize: Qt.size(width * 2, height * 2)
+            size: Math.round(tv.height * 0.22)
             opacity: 0; scale: 0.8
         }
         WordMark {
@@ -1190,8 +1191,8 @@ FocusScope {
         Text {
             anchors { left: parent.left; bottom: parent.bottom; margins: 30 }
             visible: tv.width >= 900
-            text: pad.connected ? "Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only"
-                                : "Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only"
+            text: pad.connected ? "Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only   \u00B7   \u29C9 search   \u00B7   Guide + A quick access"
+                                : "Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only   \u00B7   F9 quick access"
             color: theme.outline; font.pixelSize: 14
         }
         // The page's own hints: only what works here.
@@ -1202,6 +1203,226 @@ FocusScope {
                 model: pad.connected || pad.deck ? [{ b: ["a"], t: "Choose" }, { b: ["b"], t: "Back" }]
                                                  : [{ k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
                 Hint { required property var modelData; hint: modelData }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ side menus (SteamOS style)
+    // Guide: the main menu slides in from the left. Guide + A (or Share): quick access from the right.
+    function mainRows() {
+        return [
+            { label: "Home", icon: "library", act: "home" },
+            { label: "Search", icon: "search", act: "search" },
+            { label: "Installed only", icon: "filter", act: "installed", on: tvLibrary.installedOnly },
+            { label: "Next store", icon: "layout-grid", act: "store",
+              value: (app.storesInfo.find(x => x.id === tvLibrary.storeFilter) || { name: "All games" }).name },
+            { label: "Quick access", icon: "ellipsis", act: "quick" },
+            { label: "Exit TV mode", icon: "log-out", act: "exit", group: "Power" },
+            { label: "Quit Cornerplay", icon: "x", act: "quit", group: "Power", danger: true }
+        ]
+    }
+    function quickRows() {
+        const out = []
+        for (const p of app.nowPlaying)
+            out.push({ group: "Now playing", label: "Quit " + p.title, icon: "x", act: "quitgame", key: p.key })
+        for (const j of app.jobList())
+            out.push({ group: "Downloads", label: j.title, icon: j.job === "update" ? "arrow-up" : "download", act: "",
+                       value: j.job === "queued" ? "Queued" : j.progress < 0 ? "Starting" : Math.floor(j.progress) + "%" })
+        if (!out.length) out.push({ group: "Now playing", label: "Nothing running", icon: "gamepad-2", act: "" })
+        out.push({ group: "Quick settings", label: "Sounds", icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
+        out.push({ group: "Quick settings", label: "Trailers", icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
+        out.push({ group: "Quick settings", label: "Animated art", icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
+        return out
+    }
+    SideSheet {
+        id: mainMenu
+        objectName: "tvMainMenu"
+        side: "left"
+        title: "Cornerplay"
+        rowsFn: tv.mainRows
+        onPicked: (row) => {
+            if (row.act === "home") { hide(); if (tvLibrary.search !== "") tv.clearSearch(); if (tv.shelfAt > 0) tv.stepShelf(-tv.shelfAt) }
+            else if (row.act === "search") { hide(); tv.openSearch("") }
+            else if (row.act === "installed") { tvLibrary.installedOnly = !tvLibrary.installedOnly; refresh() }
+            else if (row.act === "store") { tv.cycleStore(1); refresh() }
+            else if (row.act === "quick") { hide(); quickMenu.show() }
+            else if (row.act === "exit") { hide(); tv.exit() }
+            else if (row.act === "quit") Qt.quit()
+        }
+    }
+    SideSheet {
+        id: quickMenu
+        objectName: "tvQuickMenu"
+        side: "right"
+        title: topStatus.clock + (topStatus.batt.level !== undefined ? "   ·   " + topStatus.batt.level + "%" + (topStatus.batt.charging ? " ⚡" : "") : "")
+        rowsFn: tv.quickRows
+        Timer { interval: 1000; repeat: true; running: quickMenu.open; onTriggered: quickMenu.refresh() }  // download progress
+        onPicked: (row) => {
+            if (row.act === "quitgame") { app.quitGame(row.key, false); hide() }
+            else if (row.act === "set") { app.setSetting(row.setting, !row.on); Qt.callLater(refresh) }
+        }
+    }
+
+    // A menu that slides in from one side over a dimmed screen. A chooses, B (or the way
+    // it came from) closes it. Rows: { label, icon, act, group, value, on (a switch), danger }.
+    component SideSheet: Item {
+        id: sheet
+        property string side: "left"
+        property string title: ""
+        property var rowsFn: function() { return [] }
+        property var rows: []
+        property bool open: false
+        signal picked(var row)
+        anchors.fill: parent
+        z: 90
+        visible: open || slide.running || fadeIn.running
+        function show() {
+            if (open) { hide(); return }
+            app.uiSound("select"); refresh(); sheetList.currentIndex = firstPickable(); open = true; sheetList.forceActiveFocus()
+        }
+        function hide() { if (!open) return; app.uiSound("back"); open = false; grid.forceActiveFocus() }
+        function refresh() { const i = sheetList.currentIndex; rows = rowsFn(); sheetList.currentIndex = Math.min(Math.max(0, i), rows.length - 1) }
+        function firstPickable() { const i = rows.findIndex(r => r.act); return Math.max(0, i) }
+        readonly property real w: Math.round(Math.min(460, Math.max(320, tv.width * 0.3)))
+
+        Rectangle {  // the dimmed screen behind; a click on it closes the menu
+            anchors.fill: parent
+            color: "black"
+            opacity: sheet.open ? 0.5 : 0
+            Behavior on opacity { enabled: !app.light; NumberAnimation { id: fadeIn; duration: 200 } }
+            MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: sheet.hide(); onWheel: w => w.accepted = true }
+        }
+        Rectangle {
+            id: pane
+            width: sheet.w
+            height: parent.height
+            x: sheet.side === "left" ? (sheet.open ? 0 : -width) : (sheet.open ? parent.width - width : parent.width)
+            Behavior on x { enabled: !app.light; NumberAnimation { id: slide; duration: 220; easing.type: Easing.OutCubic } }
+            color: theme.surfaceContainerLow
+            MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: w => w.accepted = true }
+            Rectangle {  // a thin light edge on the side facing the screen
+                width: 1; height: parent.height
+                x: sheet.side === "left" ? parent.width - 1 : 0
+                color: Qt.alpha("white", 0.08)
+            }
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 28
+                anchors.topMargin: 36
+                spacing: 18
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    WordMark { visible: sheet.side === "left"; anchors.verticalCenter: parent.verticalCenter; size: 28 }
+                    Text { visible: sheet.side !== "left"; anchors.verticalCenter: parent.verticalCenter
+                           text: sheet.title; color: theme.onSurface; font.pixelSize: 24; font.weight: Font.Medium }
+                }
+                ListView {
+                    id: sheetList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 6
+                    model: sheet.rows
+                    keyNavigationWraps: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    highlightMoveDuration: app.light ? 0 : 120
+                    section.property: "group"
+                    section.delegate: Text {
+                        required property string section
+                        width: ListView.view.width
+                        height: section ? 44 : 0
+                        visible: section !== ""
+                        verticalAlignment: Text.AlignBottom
+                        bottomPadding: 8
+                        text: section.toUpperCase()
+                        color: theme.outline; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 1.4
+                    }
+                    delegate: Rectangle {
+                        id: row
+                        required property var modelData
+                        required property int index
+                        readonly property bool lit: ListView.isCurrentItem && sheetList.activeFocus
+                        width: sheetList.width
+                        height: 56
+                        radius: 12
+                        color: lit ? tv.tint.primary : "transparent"
+                        Behavior on color { enabled: !app.light; ColorAnimation { duration: 100 } }
+                        opacity: modelData.act ? 1 : 0.7
+                        Icon {
+                            anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
+                            name: row.modelData.icon || "ellipsis"; size: 22
+                            color: row.lit ? tv.tint.onPrimary : row.modelData.danger ? theme.error : theme.onSurfaceVariant
+                        }
+                        Text {
+                            anchors { left: parent.left; leftMargin: 54; right: rowEnd.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                            text: row.modelData.label
+                            color: row.lit ? tv.tint.onPrimary : row.modelData.danger ? theme.error : theme.onSurface
+                            font.pixelSize: 19; font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        Item {
+                            id: rowEnd
+                            anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                            width: row.modelData.on !== undefined ? 44 : valueText.implicitWidth
+                            height: 26
+                            Text {
+                                id: valueText
+                                visible: row.modelData.on === undefined && !!row.modelData.value
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: row.modelData.value || ""
+                                color: row.lit ? tv.tint.onPrimary : theme.onSurfaceVariant
+                                font.pixelSize: 16
+                            }
+                            Rectangle {  // a switch
+                                visible: row.modelData.on !== undefined
+                                anchors.fill: parent
+                                radius: 13
+                                color: row.modelData.on ? (row.lit ? tv.tint.onPrimary : tv.tint.primary) : Qt.alpha(theme.onSurface, 0.18)
+                                Rectangle {
+                                    width: 20; height: 20; radius: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: row.modelData.on ? parent.width - width - 3 : 3
+                                    Behavior on x { enabled: !app.light; NumberAnimation { duration: 140 } }
+                                    color: row.modelData.on ? (row.lit ? tv.tint.primary : tv.tint.onPrimary) : theme.onSurface
+                                }
+                            }
+                        }
+                        TapHandler { onTapped: { sheetList.currentIndex = row.index; if (row.modelData.act) sheet.picked(row.modelData) } }
+                    }
+                    onCurrentIndexChanged: if (sheet.open) app.uiSound("move")
+                    // Skip rows that do nothing (headers of a sort, like "Nothing running").
+                    function step(d) {
+                        let i = currentIndex
+                        for (let n = 0; n < count; n++) {
+                            i = (i + d + count) % count
+                            if (sheet.rows[i] && sheet.rows[i].act) { currentIndex = i; return }
+                        }
+                    }
+                    Keys.onUpPressed: step(-1)
+                    Keys.onDownPressed: step(1)
+                    Keys.onReturnPressed: { const r = sheet.rows[currentIndex]; if (r && r.act) { app.uiSound("select"); sheet.picked(r) } }
+                    Keys.onEnterPressed: { const r = sheet.rows[currentIndex]; if (r && r.act) { app.uiSound("select"); sheet.picked(r) } }
+                    Keys.onEscapePressed: sheet.hide()
+                    Keys.onPressed: event => {
+                        // The way it came from closes it: Guide for the main menu, Guide + A for quick access,
+                        // or the stick pushed back toward the edge.
+                        if ((event.key === Qt.Key_F10 && sheet.side === "left") || (event.key === Qt.Key_F9 && sheet.side === "right")
+                            || (event.key === Qt.Key_Left && sheet.side === "left") || (event.key === Qt.Key_Right && sheet.side === "right")) {
+                            sheet.hide(); event.accepted = true
+                        } else if (event.key === Qt.Key_F10 || event.key === Qt.Key_F9) {
+                            sheet.hide(); (event.key === Qt.Key_F10 ? mainMenu : quickMenu).show(); event.accepted = true
+                        }
+                    }
+                }
+                Row {
+                    spacing: 22
+                    Repeater {
+                        model: pad.connected || pad.deck ? [{ b: ["a"], t: "Choose" }, { b: ["b"], t: "Back" }]
+                                                         : [{ k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                        Hint { required property var modelData; hint: modelData }
+                    }
+                }
             }
         }
     }

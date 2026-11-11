@@ -8,7 +8,7 @@ Item {
     property string button: "a"
     property string style: "xbox"
     property int size: 26
-    readonly property bool shoulder: ["lb", "rb", "lt", "rt", "start", "back"].indexOf(button) !== -1
+    readonly property bool shoulder: ["lb", "rb", "lt", "rt", "start", "back", "guide"].indexOf(button) !== -1
     implicitWidth: shoulder ? label.implicitWidth + size * 0.7 : size
     implicitHeight: size
     width: implicitWidth
@@ -18,9 +18,9 @@ Item {
     readonly property var nintendo: ({ a: "B", b: "A", x: "Y", y: "X" })   // by position: bottom is B on a Switch pad
     readonly property var psColour: ({ a: "#7fa9ec", b: "#ec6f6f", x: "#d58ad8", y: "#41c7a0" })
     readonly property var shoulders: ({
-        xbox: { lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "☰", back: "⧉" },
-        playstation: { lb: "L1", rb: "R1", lt: "L2", rt: "R2", start: "OPTIONS", back: "CREATE" },
-        nintendo: { lb: "L", rb: "R", lt: "ZL", rt: "ZR", start: "+", back: "−" } })
+        xbox: { lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "☰", back: "⧉", guide: "GUIDE" },
+        playstation: { lb: "L1", rb: "R1", lt: "L2", rt: "R2", start: "OPTIONS", back: "CREATE", guide: "PS" },
+        nintendo: { lb: "L", rb: "R", lt: "ZL", rt: "ZR", start: "+", back: "−", guide: "HOME" } })
 
     // PlayStation face symbols as SVG (cross, circle, square, triangle).
     function psSvg(b, c) {
@@ -43,7 +43,7 @@ Item {
         id: label
         visible: pb.shoulder || pb.style !== "playstation"
         anchors.centerIn: parent
-        font.pixelSize: pb.shoulder ? Math.round(pb.size * (pb.button === "start" && pb.style === "playstation" ? 0.34 : 0.46))
+        font.pixelSize: pb.shoulder ? Math.round(pb.size * ((pb.button === "start" && pb.style === "playstation") || (pb.button === "guide" && pb.style !== "playstation") ? 0.34 : 0.46))
                                     : Math.round(pb.size * 0.56)
         font.weight: Font.Bold
         color: pb.shoulder || pb.style === "nintendo" ? "#ececf0" : pb.xbox[pb.button][1]
