@@ -2341,12 +2341,25 @@ class AioLaunch(QObject):
     # The launch card in the window: "start" (getting ready), then "ok" or "fail"; "cancel" when a
     # save conflict needs an answer first.
     launching = Signal(str, str)
+    _starting = {}  # key -> when its launch began (or succeeded): a second press then starts nothing
+    START_GRACE = 12  # seconds a game gets to show its window before Play starts another copy
+
+    def _launch_state(self, key, state):
+        if state == "start" or state == "ok":
+            self._starting[key] = time.monotonic()
+        else:
+            self._starting.pop(key, None)
+        self.launching.emit(key, state)
 
     def _play(self, key, mode):
         g, store = self._guard(key)
         if not g:
             return
-        self.launching.emit(key, "start")
+        began = self._starting.get(key)
+        if began is not None and time.monotonic() - began < self.START_GRACE:
+            self.toast.emit(f"{g.title} is already starting")
+            return
+        self._launch_state(key, "start")
         self._vulkan_warning(g)  # warn, but still try: the check should never stop a game that would run
         opts = self._options_for(g)
         sync = saves.enabled_for(g) and mode != "skip"
@@ -2357,7 +2370,7 @@ class AioLaunch(QObject):
             if sync:
                 res = saves.sync(g, mode)
                 if res["status"] == "conflict":
-                    return lambda: (self.launching.emit(key, "cancel"), self.saveConflict.emit(key, res["local"], res["cloud"]))
+                    return lambda: (self._launch_state(key, "cancel"), self.saveConflict.emit(key, res["local"], res["cloud"]))
                 if res["status"] == "error":
                     self._worker_toast.emit(f"{g.title}: {res['message']} (launching anyway)")
             if settings.get("save_backups") and g.id != "battlenet-app":
@@ -2366,8 +2379,12 @@ class AioLaunch(QObject):
                         self._worker_toast.emit(f"Saves of {g.title} backed up")
                 except Exception:
                     pass
-            with runner.using(opts):
-                cmd = store.launch(g)
+            try:
+                with runner.using(opts):
+                    cmd = store.launch(g)
+            except Exception as e:  # a store said no (sign-in expired, files missing): say so at once
+                msg = str(e) or type(e).__name__
+                return lambda: (self._launch_state(key, "fail"), self.toast.emit(f"Could not start {g.title}: {msg}"))
             if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom"):
                 cmd.argv += shlex.split(opts["args"])
             return lambda: self._start(g, cmd, saves.enabled_for(g))
@@ -2385,7 +2402,7 @@ class AioLaunch(QObject):
             ok = self._detach([sys.executable, "-m", "cornerplay.session", str(job)], env, "", g.key + ".session")
         else:
             ok = self._detach(cmd.argv, cmd.env, cmd.cwd, g.key)
-        self.launching.emit(g.key, "ok" if ok else "fail")
+        self._launch_state(g.key, "ok" if ok else "fail")
         if not ok:
             self.toast.emit(f"Could not start {g.title} (log: {LOG_DIR})")
 
@@ -2434,6 +2451,7 @@ class AioLaunch(QObject):
                     changed = True
             elif key in self._playing:
                 self._playing.pop(key)
+                self._starting.pop(key, None)  # it closed: Play may start it again
                 changed = True
             stamp = (data.get("state"), data.get("since"))
             if self._sessions_seen.get(f.name) == stamp:
@@ -2457,6 +2475,7 @@ class AioLaunch(QObject):
         for key, info in list(self._playing.items()):  # ended without Cornerplay seeing "done"
             if info.get("pid") and not self._alive(info["pid"]):
                 self._playing.pop(key)
+                self._starting.pop(key, None)  # it closed: Play may start it again
                 changed = True
         if changed:
             self.nowPlayingChanged.emit()

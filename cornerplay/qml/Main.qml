@@ -197,7 +197,8 @@ ApplicationWindow {
         Image {
             id: wallImage
             anchors.fill: parent
-            source: win.backdropOn ? "file://" + app.wallpaperPath : ""
+            // Each part of the path escaped, so names with # % ? or spaces still load.
+            source: win.backdropOn ? "file://" + app.wallpaperPath.split("/").map(encodeURIComponent).join("/") : ""
             sourceSize.width: 720
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
@@ -901,6 +902,7 @@ ApplicationWindow {
                             }
                             Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
                             Rectangle {  // fold the banner away
+                                z: 2  // above the cover, which starts close to this corner
                                 anchors { left: parent.left; top: parent.top; margins: 12 }
                                 width: 28; height: 28; radius: 14
                                 color: Qt.alpha("black", foldHover.hovered ? 0.6 : 0.35)
