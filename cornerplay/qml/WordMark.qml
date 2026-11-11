@@ -7,8 +7,7 @@ Row {
     property int size: 22                    // roughly the letters' height in pixels
     property bool showIcon: true
     property color ink: app.theme.onSurface
-    // The wallpaper's accent; a colourless one (a grey wallpaper) falls back to the logo's orange.
-    property color accent: app.theme.primary.hslSaturation > 0.18 ? app.theme.primary : "#ff9a3c"
+    property color accent: app.theme.primary  // the wallpaper's accent, grey included
     spacing: Math.round(size * 0.42)
     BrandMark {
         visible: wm.showIcon

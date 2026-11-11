@@ -5,8 +5,7 @@ Item {
     id: bm
     property int size: 36
     property var theme: app.theme
-    // As in WordMark: the wallpaper's accent, or the logo's orange when it has no colour.
-    readonly property color accent: theme.primary.hslSaturation > 0.18 ? theme.primary : "#ff9a3c"
+    readonly property color accent: theme.primary  // the wallpaper's accent, grey included
     width: size; height: size
     Rectangle {
         id: tile
