@@ -701,6 +701,9 @@ ApplicationWindow {
                     model: library
                     readonly property int columns: Math.max(2, Math.floor(width / app.settingsMap.card_size))
                     property int hoverIndex: -1
+                    // Only show the keyboard selection once the keys (or a controller) are used.
+                    property bool keyed: false
+                    Keys.onPressed: (event) => { keyed = true; event.accepted = false }
                     cellWidth: Math.floor(width / columns)
                     cellHeight: Math.round(cellWidth * 1.46)
                     cacheBuffer: app.light ? 0 : cellHeight * 2
@@ -710,6 +713,7 @@ ApplicationWindow {
                     highlightFollowsCurrentItem: false
                     onCurrentIndexChanged: {
                         if (!activeFocus) return
+                        keyed = true
                         if (currentIndex <= 0) positionViewAtBeginning()
                         else positionViewAtIndex(currentIndex, GridView.Contain)
                     }
@@ -842,11 +846,11 @@ ApplicationWindow {
                             }
                             HoverHandler { id: heroHover }
                             // Corner brackets, the icon's corner, framing the banner.
-                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 16; rotation: 180; tone: hero.tint.primary; opacity: 0.85 }
-                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16; rotation: -90; tone: hero.tint.primary; opacity: 0.85 }
+                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; rotation: 180; tone: hero.tint.primary; opacity: 0.55; size: 20; thick: 3 }
+                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 18; rotation: -90; tone: hero.tint.primary; opacity: 0.55; size: 20; thick: 3 }
                             Rectangle {
                                 anchors.fill: parent; radius: 18; color: "transparent"
-                                border.width: 0; border.color: theme.outlineVariant
+                                border.width: 1; border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
                             }
                             // Dots: which of the recent games is showing; click one to jump to it.
                             Row {
@@ -871,13 +875,24 @@ ApplicationWindow {
                                 id: heroContent
                                 anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
                                 spacing: 26
+                                Item {
+                                    id: heroThumbBox
+                                    width: heroThumb.width; height: heroThumb.height
+                                    visible: hero.width >= 620
+                                    RectangularShadow {
+                                        anchors.fill: parent
+                                        visible: !app.light
+                                        radius: heroThumb.radius
+                                        blur: 28; offset.y: 12
+                                        color: Qt.alpha("black", 0.55)
+                                    }
                                 Rectangle {
                                     id: heroThumb
                                     width: Math.round(hero.height * 0.62); height: Math.round(width * 1.46)
                                     radius: 12
                                     color: theme.surfaceContainerHighest
                                     border.width: 1; border.color: Qt.alpha("white", 0.12)
-                                    visible: hero.width >= 620
+                                    anchors.verticalCenter: parent.verticalCenter
                                     RoundedArt {
                                         anchors.fill: parent; anchors.margins: 1
                                         radius: heroThumb.radius - 1
@@ -892,9 +907,10 @@ ApplicationWindow {
                                         border.width: 1; border.color: Qt.alpha("white", 0.12)
                                     }
                                 }
+                                }
                                 Column {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.min(560, hero.width - (heroThumb.visible ? heroThumb.width + 26 : 0) - 56)
+                                    width: Math.min(560, hero.width - (heroThumbBox.visible ? heroThumb.width + 26 : 0) - 56)
                                     spacing: 10
                                     Text {
                                         text: "BACK IN YOUR CORNER"
@@ -965,8 +981,13 @@ ApplicationWindow {
                         }
 
                         // The two sections sit in these slots, in the order the user chose.
-                        Item { id: homeSlotA; width: parent.width; height: childrenRect.height }
-                        Item { id: homeSlotB; width: parent.width; height: childrenRect.height }
+                        readonly property bool continueFirst: (app.settingsMap.home_order || ["continue"])[0] === "continue"
+                        readonly property bool continueShown: app.recentGames.length > 1
+                        readonly property bool freeShown: app.epicFree.length > 0
+                        Item { id: homeSlotA; width: parent.width; height: childrenRect.height
+                               visible: parent.continueFirst ? parent.continueShown : parent.freeShown }
+                        Item { id: homeSlotB; width: parent.width; height: childrenRect.height
+                               visible: parent.continueFirst ? parent.freeShown : parent.continueShown }
                         Column {
                             parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotA : homeSlotB
                             visible: app.recentGames.length > 1
@@ -980,39 +1001,63 @@ ApplicationWindow {
                                 width: parent.width
                                 height: 132
                                 orientation: ListView.Horizontal
-                                spacing: 12
+                                spacing: 14
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: app.recentGames.slice(1)
                             delegate: Rectangle {
                                 id: recentTile
                                 required property var modelData
-                                width: 236; height: 132
-                                radius: 12
+                                width: 300; height: 132
+                                radius: 14
                                 color: theme.surfaceContainerHigh
+                                scale: recentHover.hovered && !app.light ? 1.02 : 1
+                                Behavior on scale { enabled: !app.light; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                 // The cover takes the tile's left corners; the border is drawn over it.
                                 RoundedArt {
                                     anchors.fill: parent
                                     radius: recentTile.radius
+                                    // The game's wide art, faded in behind the text.
                                     ArtImage {
-                                        width: 84; height: parent.height
+                                        id: recentWide
+                                        visible: !app.light
+                                        anchors.fill: parent
+                                        sources: recentTile.modelData.heroes || []
+                                        horizontalAlignment: Image.AlignRight
+                                        sourceSize.width: 600
+                                        opacity: status === Image.Ready ? (recentHover.hovered ? 0.55 : 0.4) : 0
+                                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        visible: recentWide.visible && recentWide.status === Image.Ready
+                                        gradient: Gradient {
+                                            orientation: Gradient.Horizontal
+                                            GradientStop { position: 0.25; color: theme.surfaceContainerHigh }
+                                            GradientStop { position: 0.75; color: Qt.alpha(theme.surfaceContainerHigh, 0.55) }
+                                            GradientStop { position: 1.0; color: Qt.alpha(theme.surfaceContainerHigh, 0.15) }
+                                        }
+                                    }
+                                    ArtImage {
+                                        width: 88; height: parent.height
                                         sources: recentTile.modelData.covers || []
-                                        sourceSize.width: 168
+                                        sourceSize.width: 176
                                     }
                                 }
                                 Rectangle {
                                     anchors.fill: parent; radius: recentTile.radius; color: "transparent"; z: 1
-                                    border.width: recentHover.hovered ? 2 : 0
-                                    border.color: recentHover.hovered ? theme.primary : theme.outlineVariant
+                                    border.width: recentHover.hovered ? 2 : 1
+                                    border.color: recentHover.hovered ? theme.primary
+                                                  : theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
                                 }
                                 Column {
-                                    anchors { left: parent.left; leftMargin: 84 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                    anchors { left: parent.left; leftMargin: 88 + 16; right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
                                     spacing: 6
                                     Text {
                                         width: parent.width
                                         text: recentTile.modelData.title
                                         color: theme.onSurface
-                                        font.pixelSize: 14; font.weight: Font.DemiBold
+                                        font.pixelSize: 15; font.weight: Font.DemiBold
                                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                                     }
                                     Row {
@@ -1119,12 +1164,13 @@ ApplicationWindow {
 
                         Text {
                             x: 8
-                            text: (library.shelf === "" ? "Library" + "  \u00B7  " + grid.count + " games"
+                            textFormat: Text.StyledText
+                            text: (library.shelf === "" ? "Library" + "  <font color='" + theme.outline + "'>\u00B7  " + grid.count + " games</font>"
                                   : library.shelf === "fav" ? "Favourites"
                                   : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
                                   : library.shelf.replace(/^c:/, ""))
-                            color: theme.onSurfaceVariant
-                            font.pixelSize: 13; font.weight: Font.DemiBold
+                            color: theme.onSurface
+                            font.pixelSize: 15; font.weight: Font.DemiBold
                         }
                     }
                     delegate: GameCard {
@@ -1139,7 +1185,7 @@ ApplicationWindow {
                         // One highlight at a time: while the pointer is over a card, the keyboard
                         // selection steps back.
                         interactive: win.cardsLive
-                        current: GridView.isCurrentItem && grid.activeFocus && grid.hoverIndex < 0
+                        current: GridView.isCurrentItem && grid.activeFocus && grid.keyed && grid.hoverIndex < 0
                         onHoveredChanged: {
                             grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
                             if (hovered) { win.hoverKey = key; win.hoverAccent = app.gameColour(key); previewTimer.restart() }
@@ -3079,9 +3125,11 @@ ApplicationWindow {
     // An L-shaped corner mark (the icon's corner); rotate it to frame any corner.
     component CornerMark: Item {
         property color tone: "white"
-        width: 30; height: 30
-        Rectangle { width: 4; height: parent.height; radius: 2; color: parent.tone }
-        Rectangle { y: parent.height - 4; width: parent.width; height: 4; radius: 2; color: parent.tone }
+        property int size: 30
+        property int thick: 4
+        width: size; height: size
+        Rectangle { width: parent.thick; height: parent.height; radius: parent.thick / 2; color: parent.tone }
+        Rectangle { y: parent.height - parent.thick; width: parent.width; height: parent.thick; radius: parent.thick / 2; color: parent.tone }
     }
 
     // A small rounded label: optional store logo, text, optional accent colour.
@@ -3158,7 +3206,7 @@ ApplicationWindow {
         width: parent ? parent.width : 0
         spacing: 8
         Icon { visible: sh.icon !== ""; name: sh.icon; size: 15; color: app.theme.primary }
-        Text { text: sh.title; color: app.theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { text: sh.title; color: app.theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold }
         Icon { name: win.homeFolded(sh.sid) ? "chevron-right" : "chevron-down"; size: 14; color: app.theme.outline }
         Item { Layout.fillWidth: true }
         Row {

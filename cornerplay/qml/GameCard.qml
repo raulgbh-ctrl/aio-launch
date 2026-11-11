@@ -34,11 +34,22 @@ Item {
     readonly property bool hovered: hover.hovered
     readonly property bool lit: hover.hovered || current
 
-    // Accent glow around the pointed-at card: a few fading outlines, cheap on any GPU.
+    // Accent glow around the pointed-at card: a soft, blurred light that sits a little low.
+    RectangularShadow {
+        anchors.fill: frame
+        visible: card.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+        radius: frame.radius
+        scale: frame.scale
+        blur: 30
+        spread: 2
+        offset.y: 6
+        color: Qt.alpha(card.theme.primary, 0.42)
+    }
+    // Light mode (or no GPU): a few fading outlines instead, cheap on anything.
     Item {
         anchors.fill: frame
         scale: frame.scale
-        visible: card.lit
+        visible: card.lit && (app.light || GraphicsInfo.api === GraphicsInfo.Software)
         opacity: card.lit ? 1 : 0
         Repeater {
             model: 5
@@ -58,7 +69,7 @@ Item {
     // The cover's shadow (Settings > Appearance: none, soft or deep).
     RectangularShadow {
         anchors.fill: frame
-        visible: !app.light && (app.settingsMap.card_shadow || "soft") !== "none"
+        visible: !app.light && !card.lit && (app.settingsMap.card_shadow || "soft") !== "none"
         readonly property bool deep: app.settingsMap.card_shadow === "deep"
         radius: frame.radius
         scale: frame.scale
@@ -190,18 +201,19 @@ Item {
             // Title strip, on hover or when there is no art to read.
             Rectangle {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                height: 74
+                height: Math.min(110, parent.height * 0.45)
                 opacity: (card.lit || card.showTitle) && img.status === Image.Ready ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 120 } }
                 gradient: Gradient {
                     GradientStop { position: 0; color: "transparent" }
-                    GradientStop { position: 1; color: "#e6000000" }
+                    GradientStop { position: 0.55; color: Qt.alpha("black", 0.55) }
+                    GradientStop { position: 1; color: Qt.alpha("black", 0.9) }
                 }
                 Text {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12 }
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12; bottomMargin: 11 }
                     text: card.title
                     color: "white"
-                    font.pixelSize: 13
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -271,7 +283,8 @@ Item {
             x: 10; y: 10
             height: 22; radius: 11
             width: chip.implicitWidth + 31
-            color: "#cc000000"
+            color: Qt.alpha("black", 0.58)
+            border.width: 1; border.color: Qt.alpha("white", 0.14)
             StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: card.store; color: card.storeColor }
             Text { id: chip; x: 23; anchors.verticalCenter: parent.verticalCenter; text: card.storeName + (card.copies > 1 ? "  +" + (card.copies - 1) : ""); color: "white"; font.pixelSize: 11 }
         }
@@ -281,7 +294,8 @@ Item {
             visible: !card.installed && card.job === ""
             anchors { right: parent.right; top: parent.top; margins: 10 }
             width: 22; height: 22; radius: 11
-            color: "#cc000000"
+            color: Qt.alpha("black", 0.58)
+            border.width: 1; border.color: Qt.alpha("white", 0.14)
             Text { anchors.centerIn: parent; text: "↓"; color: "white"; font.pixelSize: 13; font.bold: true }
         }
 
@@ -293,7 +307,8 @@ Item {
             x: 10; y: card.showBadge ? 38 : 10
             height: 22; radius: 11
             width: pdbText.implicitWidth + 31
-            color: "#cc000000"
+            color: Qt.alpha("black", 0.58)
+            border.width: 1; border.color: Qt.alpha("white", 0.14)
             StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: "protondb"; color: ProtonDB.color(card.protondb) }
             Text { id: pdbText; x: 23; anchors.verticalCenter: parent.verticalCenter; text: ProtonDB.label(card.protondb); color: "white"; font.pixelSize: 11 }
         }
@@ -303,7 +318,8 @@ Item {
             visible: card.favourite
             anchors { right: parent.right; top: parent.top; margins: 10; rightMargin: card.installed && card.update && card.job === "" ? 38 : 10 }
             width: 22; height: 22; radius: 11
-            color: "#cc000000"
+            color: Qt.alpha("black", 0.58)
+            border.width: 1; border.color: Qt.alpha("white", 0.14)
             Icon { anchors.centerIn: parent; name: "star-filled"; size: 12; color: "#ffd166" }
         }
 
@@ -321,7 +337,8 @@ Item {
             radius: frame.radius
             color: "transparent"
             border.width: card.lit ? 2 : 1
-            border.color: card.lit ? theme.primary : theme.outlineVariant
+            border.color: card.lit ? theme.primary
+                          : theme.dark === false ? Qt.alpha("black", 0.10) : Qt.alpha("white", 0.09)
         }
     }
 
