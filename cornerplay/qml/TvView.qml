@@ -169,6 +169,17 @@ FocusScope {
         function onAnimatedArtReady(key, d) { if (key === tv.infoKey) tv.anim = d }
     }
 
+    // The screen behind a menu or the keyboard, blurred like frosted glass (art and content).
+    component Frost: Item {
+        anchors.fill: parent
+        readonly property bool gpu: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+        MultiEffect { anchors.fill: parent; visible: parent.gpu && parent.visible; source: visible ? stage : null
+                      autoPaddingEnabled: false; blurEnabled: true; blur: 1.0; blurMax: 48 }
+        MultiEffect { x: tvContent.x; y: tvContent.y; width: tvContent.width; height: tvContent.height
+                      visible: parent.gpu && parent.visible; source: visible ? tvContent : null
+                      blurEnabled: true; blur: 1.0; blurMax: 48 }  // its blur spills past its edges: no seam
+    }
+
     // One of the two full-screen art images that take turns (see stage).
     component ArtLayer: ArtImage {
         property string tag: ""
@@ -338,6 +349,7 @@ FocusScope {
     }
 
     ColumnLayout {
+        id: tvContent
         anchors.fill: parent
         anchors.margins: 48
         anchors.bottomMargin: 28
@@ -773,12 +785,23 @@ FocusScope {
                 else if (event.key === Qt.Key_PageDown) { tv.cycleStore(1); event.accepted = true }
             }
 
-            Text {
+            Column {
                 visible: grid.count === 0
                 anchors.centerIn: parent
-                text: app.refreshing ? "Loading your libraries…" : "No games here"
-                color: theme.onSurfaceVariant
-                font.pixelSize: 26
+                spacing: 18
+                EmptyScene {
+                    visible: !app.refreshing
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 300; height: 200
+                    theme: tv.theme
+                    kind: app.totalCount === 0 ? "library" : tvLibrary.search !== "" ? "search" : "list"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: app.refreshing ? "Loading your libraries…" : tvLibrary.search !== "" ? "Nothing matches" : "No games here"
+                    color: theme.onSurfaceVariant
+                    font.pixelSize: 26
+                }
             }
         }
 
@@ -835,7 +858,10 @@ FocusScope {
                            stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
                            { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
                     // Four at most: the rest are listed on a game's page (More).
-                    return all.filter(h => h && !h.pad && ["Play", "Install", "Options", "More", "Menu", "Back", "Clear search"].indexOf(h.t) !== -1)
+                    // No game in view (an empty shelf, nothing found): nothing to play or open.
+                    const needGame = ["Play", "Install", "Options", "More"]
+                    return all.filter(h => h && !h.pad && ["Play", "Install", "Options", "More", "Menu", "Back", "Clear search"].indexOf(h.t) !== -1
+                                           && (tv.cur.key || needGame.indexOf(h.t) === -1))
                 }
                 Hint { required property var modelData; hint: modelData }
             }
@@ -905,22 +931,30 @@ FocusScope {
     // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),
     // View closes and keeps the results; a real keyboard types straight into it.
     // A soft dim behind the keyboard, so it reads as on top.
+    Frost { visible: tv.searching; z: 4 }
     Rectangle {
         anchors.fill: parent
         visible: tv.searching
         z: 4
-        color: Qt.alpha("black", 0.45)
+        color: Qt.alpha("black", 0.5)
     }
     Rectangle {
         id: searchBox
         visible: tv.searching
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 120 }
         width: Math.min(parent.width - 96, 760)
-        height: searchCol.implicitHeight + 40
-        radius: 24
-        color: Qt.alpha(theme.surfaceContainer, 0.97)
-        border.width: 1; border.color: theme.outlineVariant
+        height: searchCol.implicitHeight + 44
+        radius: 30
+        color: Qt.alpha(theme.surfaceContainer, 0.9)
+        border.width: 1; border.color: Qt.alpha("white", 0.1)
         z: 5
+        RectangularShadow {
+            z: -1
+            anchors.fill: parent
+            visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+            radius: parent.radius; blur: 60; offset.y: 20
+            color: Qt.alpha("black", 0.55)
+        }
         ColumnLayout {
             id: searchCol
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
@@ -958,9 +992,20 @@ FocusScope {
                     required property string modelData
                     required property int index
                     readonly property bool wide: modelData.length > 1
-                    width: keys.cellWidth - 8; height: keys.cellHeight - 8
-                    radius: 12
-                    color: GridView.isCurrentItem && keys.activeFocus ? tv.tint.primary : theme.surfaceContainerHigh
+                    readonly property bool lit: GridView.isCurrentItem && keys.activeFocus
+                    width: keys.cellWidth - 10; height: keys.cellHeight - 10
+                    radius: 16
+                    z: lit ? 1 : 0
+                    scale: lit && !app.light ? 1.1 : 1
+                    Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                    color: lit ? tv.tint.primary : Qt.alpha(theme.surfaceContainerHighest, 0.75)
+                    RectangularShadow {
+                        z: -1
+                        anchors.fill: parent
+                        visible: parent.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                        radius: parent.radius; blur: 22
+                        color: Qt.alpha(tv.tint.primary, 0.55)
+                    }
                     Text {
                         anchors.centerIn: parent
                         text: ({ space: "\u2423", del: "\u232B", done: "\u2713" })[parent.modelData] || parent.modelData.toUpperCase()
@@ -1053,7 +1098,7 @@ FocusScope {
             visible: panel.visible && !app.light
             sources: tv.cur.heroes || []
             sourceSize.width: 1280
-            opacity: status === Image.Ready ? 0.22 : 0
+            opacity: status === Image.Ready ? 0.38 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
         Rectangle {
@@ -1121,7 +1166,7 @@ FocusScope {
                 delegate: RoundedArt {
                     required property var modelData
                     // three across, sized to the column (none cut off at the edge)
-                    width: Math.floor((ListView.view.width - 24) / 3); height: Math.round(width * 9 / 16); radius: 10
+                    width: Math.floor((ListView.view.width - 24) / 3); height: Math.round(width * 9 / 16); radius: 16
                     Image { anchors.fill: parent; source: modelData.thumb || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                 }
             }
@@ -1156,22 +1201,33 @@ FocusScope {
                     required property var modelData
                     required property int index
                     width: list.width
-                    height: 60
-                    radius: 14
-                    color: ListView.isCurrentItem ? theme.primary : theme.surfaceContainerHigh
+                    height: 62
+                    radius: 18
+                    readonly property bool lit: ListView.isCurrentItem
+                    color: lit ? tv.tint.primary : Qt.alpha(theme.surfaceContainerHigh, 0.72)
+                    border.width: lit ? 0 : 1
+                    border.color: Qt.alpha("white", 0.07)
+                    Behavior on color { enabled: !app.light; ColorAnimation { duration: 120 } }
+                    RectangularShadow {
+                        z: -1
+                        anchors.fill: parent
+                        visible: parent.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                        radius: parent.radius; blur: 28; offset.y: 6
+                        color: Qt.alpha(tv.tint.primary, 0.45)
+                    }
                     Icon {
                         anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 22 }
                         size: 22
                         name: ({ play: "play", install: "download", update: "arrow-up", cancel: "x", uninstall: "trash-2",
                                  fav: "star", status: "bookmark", hide: "eye-off", unhide: "eye", close: "x",
                                  quit: "x", kill: "x" })[parent.modelData.act] || "ellipsis"
-                        color: parent.ListView.isCurrentItem ? theme.onPrimary
+                        color: parent.ListView.isCurrentItem ? tv.tint.onPrimary
                                : parent.modelData.act === "uninstall" ? theme.error : theme.onSurfaceVariant
                     }
                     Text {
                         anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; leftMargin: 62; rightMargin: 22 }
                         text: panel.armed === parent.index ? "Press again to uninstall" : parent.modelData.label
-                        color: parent.ListView.isCurrentItem ? theme.onPrimary
+                        color: parent.ListView.isCurrentItem ? tv.tint.onPrimary
                                : parent.modelData.act === "uninstall" ? theme.error : theme.onSurface
                         font.pixelSize: 19
                         font.weight: Font.DemiBold
@@ -1285,6 +1341,7 @@ FocusScope {
         function firstPickable() { const i = rows.findIndex(r => r.act); return Math.max(0, i) }
         readonly property real w: Math.round(Math.min(460, Math.max(320, tv.width * 0.3)))
 
+        Frost { opacity: sheet.open ? 1 : 0; visible: opacity > 0; Behavior on opacity { NumberAnimation { duration: 200 } } }
         Rectangle {  // the dimmed screen behind; a click on it closes the menu
             anchors.fill: parent
             color: "black"
@@ -1298,8 +1355,15 @@ FocusScope {
             height: parent.height
             x: sheet.side === "left" ? (sheet.open ? 0 : -width) : (sheet.open ? parent.width - width : parent.width)
             Behavior on x { enabled: !app.light; NumberAnimation { id: slide; duration: 220; easing.type: Easing.OutCubic } }
-            color: theme.surfaceContainerLow
+            color: Qt.alpha(theme.surfaceContainerLow, 0.88)
             MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: w => w.accepted = true }
+            RectangularShadow {
+                z: -1
+                anchors.fill: parent
+                visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                blur: 50
+                color: Qt.alpha("black", 0.6)
+            }
             Rectangle {  // a thin light edge on the side facing the screen
                 width: 1; height: parent.height
                 x: sheet.side === "left" ? parent.width - 1 : 0
@@ -1345,8 +1409,15 @@ FocusScope {
                         readonly property bool lit: ListView.isCurrentItem && sheetList.activeFocus
                         width: sheetList.width
                         height: 56
-                        radius: 12
+                        radius: 16
                         color: lit ? tv.tint.primary : "transparent"
+                        RectangularShadow {
+                            z: -1
+                            anchors.fill: parent
+                            visible: row.lit && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                            radius: parent.radius; blur: 24
+                            color: Qt.alpha(tv.tint.primary, 0.45)
+                        }
                         Behavior on color { enabled: !app.light; ColorAnimation { duration: 100 } }
                         opacity: modelData.act ? 1 : 0.7
                         Icon {

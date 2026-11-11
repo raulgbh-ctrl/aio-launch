@@ -166,6 +166,7 @@ ApplicationWindow {
     Timer { id: closeGuard; interval: 450; onTriggered: win.justClosed = false }
     readonly property bool cardsLive: !popupOpen && !justClosed
     Loader {
+        id: tvLoader
         anchors.fill: parent
         z: 50
         active: win.tvUsed
@@ -180,7 +181,7 @@ ApplicationWindow {
             onExit: win.tv = false
         }
     }
-    LaunchCard { theme: win.theme; blurSource: win.tv ? null : mainArea }  // the launch moment, over the library and TV mode alike
+    LaunchCard { theme: win.theme; blurSource: win.tv ? tvLoader.item : mainArea }  // the launch moment, over the library and TV mode alike
 
     // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
     // sits in the desktop like a pane of frosted glass (works with or without compositor blur).
