@@ -6,7 +6,7 @@ pkgdesc="Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and B
 arch=('any')
 url="https://github.com/raulgbh-ctrl/cornerplay"
 license=('MIT' 'OFL-1.1')
-depends=('python' 'pyside6' 'python-requests' 'python-yaml' 'umu-launcher' 'sdl2')
+depends=('python' 'pyside6' 'python-requests' 'python-yaml' 'umu-launcher' 'sdl2-compat')
 optdepends=(
   'steam: Steam games'
   'qt6-multimedia: trailers in TV mode and on covers'
@@ -17,7 +17,7 @@ optdepends=(
   'legendary: Epic Games (otherwise Cornerplay downloads its own copy)'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')  # replace with the release tarball's sum: updpkgsums
+sha256sums=('0e80973ce244dc01010e1debbbe79af660381486f2e5c81d42fbfe76f1c4c38a')
 
 package() {
   cd "$pkgname-$pkgver"

@@ -1,0 +1,25 @@
+pkgbase = cornerplay
+	pkgdesc = Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and Battle.net in one library, with a TV mode
+	pkgver = 0.8.0
+	pkgrel = 1
+	url = https://github.com/raulgbh-ctrl/cornerplay
+	arch = any
+	license = MIT
+	license = OFL-1.1
+	depends = python
+	depends = pyside6
+	depends = python-requests
+	depends = python-yaml
+	depends = umu-launcher
+	depends = sdl2-compat
+	optdepends = steam: Steam games
+	optdepends = qt6-multimedia: trailers in TV mode and on covers
+	optdepends = qt6-webengine: the built-in store sign-in window
+	optdepends = mangohud: FPS counter and performance profiles
+	optdepends = gamemode: Feral GameMode for games
+	optdepends = libnotify: a notification when a download finishes
+	optdepends = legendary: Epic Games (otherwise Cornerplay downloads its own copy)
+	source = cornerplay-0.8.0.tar.gz::https://github.com/raulgbh-ctrl/cornerplay/archive/refs/tags/v0.8.0.tar.gz
+	sha256sums = 0e80973ce244dc01010e1debbbe79af660381486f2e5c81d42fbfe76f1c4c38a
+
+pkgname = cornerplay
