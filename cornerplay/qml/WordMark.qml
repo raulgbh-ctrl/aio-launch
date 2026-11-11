@@ -1,27 +1,25 @@
 import QtQuick
 
-// The Cornerplay name: "Corner" in Outfit, "play" bold in the signature colour, after the icon.
+// The Cornerplay name, from the logo artwork: "Corner" in the text colour, "Play" in the
+// accent, both following the theme (and so the wallpaper). The mark sits before it.
 Row {
     id: wm
-    property int size: 22                    // text height in pixels
+    property int size: 22                    // roughly the letters' height in pixels
     property bool showIcon: true
     property color ink: app.theme.onSurface
-    property color accent: app.theme.primary  // amber in the Cornerplay theme
+    // The wallpaper's accent; a colourless one (a grey wallpaper) falls back to the logo's orange.
+    property color accent: app.theme.primary.hslSaturation > 0.18 ? app.theme.primary : "#ff9a3c"
     spacing: Math.round(size * 0.42)
-    Image {
+    BrandMark {
         visible: wm.showIcon
         anchors.verticalCenter: parent.verticalCenter
-        source: "../cornerplay.svg"
-        width: Math.round(wm.size * 1.6); height: width
-        sourceSize: Qt.size(Math.ceil(width * Math.max(2, Screen.devicePixelRatio)), Math.ceil(height * Math.max(2, Screen.devicePixelRatio)))
-        smooth: true
+        size: Math.round(wm.size * 1.6)
     }
-    Row {
+    Item {
         anchors.verticalCenter: parent.verticalCenter
-        // Outfit is a variable font: the weight is set on its "wght" axis (font.weight alone picks its thinnest).
-        Text { text: "Corner"; color: wm.ink; font.family: "Outfit"; font.pixelSize: wm.size; font.weight: Font.Medium
-               font.variableAxes: ({ "wght": 460 }); font.letterSpacing: -0.3 }
-        Text { text: "play"; color: wm.accent; font.family: "Outfit"; font.pixelSize: wm.size; font.weight: Font.Bold
-               font.variableAxes: ({ "wght": 720 }); font.letterSpacing: -0.3 }
+        height: Math.round(wm.size * 1.3)
+        width: Math.round(height * 5.0756)   // the artwork's aspect
+        BrandLayer { anchors.fill: parent; name: "wm-corner"; tint: wm.ink }
+        BrandLayer { anchors.fill: parent; name: "wm-play"; tint: wm.accent }
     }
 }
