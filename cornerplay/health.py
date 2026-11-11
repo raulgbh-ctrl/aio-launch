@@ -5,19 +5,18 @@ fix kinds: {"kind": "command", "command": "sudo pacman -S ..."}  (shown, copied;
            {"kind": "action", "action": "<app slot name>", "arg": "...", "label": "..."}
 """
 import os
-import shutil
 
-from . import runner, storage
+from . import host, runner, storage
 from .config import find_tool, settings
 from .runner import StoreError
 
 
 def _pm_install(pkgs):
-    if shutil.which("pacman"):
+    if host.which("pacman"):
         return f"sudo pacman -S --needed {pkgs}"
-    if shutil.which("apt-get"):
+    if host.which("apt-get"):
         return f"sudo apt-get install {pkgs}"
-    if shutil.which("dnf"):
+    if host.which("dnf"):
         return f"sudo dnf install {pkgs}"
     return pkgs
 
@@ -37,6 +36,17 @@ def checks(stores, gamepad_available=True):
         cmd = vk.split("sudo ", 1)[1] if "sudo " in vk else ""
         add("vulkan", "Graphics (Vulkan)", False, vk.split(". Install")[0] + ".",
             {"kind": "command", "command": "sudo " + cmd} if cmd else {})
+
+    # Flatpak: Proton runs 32-bit code and needs Flatpak's 32-bit runtime and graphics drivers.
+    # Installed from Flathub they come along by themselves; from a .flatpak file they may not.
+    if host.IN_FLATPAK:
+        missing = [ext for ext, probe in (("org.freedesktop.Platform.Compat.i386", "/app/lib/i386-linux-gnu/ld-linux.so.2"),
+                                          ("org.freedesktop.Platform.GL32.default", "/app/lib/i386-linux-gnu/GL/default/lib"))
+                   if not os.path.exists(probe)]
+        add("flatpak32", "32-bit support (Flatpak)", not missing,
+            "Installed" if not missing else "Missing: Windows games and Battle.net will not start",
+            {} if not missing else {"kind": "command", "command": "flatpak install --user flathub "
+                                    + " ".join(f"{e}//{host.FLATPAK_BASE}" for e in missing)})
 
     # Proton runner
     try:

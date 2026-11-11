@@ -32,6 +32,8 @@ finish-args:
   - --filesystem=~/.var/app/com.valvesoftware.Steam
   # Where games install (Settings can point elsewhere: grant that folder with Flatseal).
   - --filesystem=~/Games:create
+  # umu keeps the Steam Linux Runtime here (shared with umu on the host: downloaded once).
+  - --filesystem=xdg-data/umu:create
   # Proton builds and installed games from other launchers, found and imported, never changed.
   - --filesystem=xdg-config/heroic:ro
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl:ro

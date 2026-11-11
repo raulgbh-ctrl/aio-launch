@@ -8,7 +8,8 @@ import subprocess
 APP_ID = "io.github.raulgbh_ctrl.Cornerplay"
 FLATPAK_ID = os.environ.get("FLATPAK_ID", "") if os.path.exists("/.flatpak-info") else ""
 IN_FLATPAK = bool(FLATPAK_ID)
-BUNDLED_BIN = "/app/lib/cornerplay/backends"  # legendary, gogdl, nile and umu-run shipped in the Flatpak
+BUNDLED_BIN = "/app/lib/cornerplay/backends"
+FLATPAK_BASE = "25.08"  # the freedesktop runtime under the Flatpak's KDE runtime (its extensions' branch)  # legendary, gogdl, nile and umu-run shipped in the Flatpak
 
 _which: dict = {}
 

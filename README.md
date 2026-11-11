@@ -51,6 +51,9 @@ themselves, and the old `aiolaunch` command keeps working.*
    `cornerplay.flatpak` from the same release and open it, or:
 
        flatpak install --user cornerplay.flatpak
+       flatpak install --user flathub org.freedesktop.Platform.Compat.i386//25.08 org.freedesktop.Platform.GL32.default//25.08
+
+   (the second line adds the 32-bit support Proton needs; the Health check says so if it is missing)
 
    It brings its own Proton runner and store tools; Steam stays the one on your PC (Flathub
    submission is on the way).
