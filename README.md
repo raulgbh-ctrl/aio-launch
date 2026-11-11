@@ -1,68 +1,134 @@
 <p align="center"><img src="docs/banner.jpg" alt="Cornerplay: your games, in one cozy place"></p>
 
-# Cornerplay
+<p align="center">
+  <b>Steam, Epic Games, GOG, Amazon Games and Battle.net in one cosy library on Linux,<br>
+  with a couch-friendly TV mode for your controller.</b>
+</p>
 
-**Your cosy corner for every game you own.**
+<p align="center">
+  <a href="https://github.com/raulgbh-ctrl/cornerplay/releases/latest"><b>Download</b></a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#setting-up-each-store">Store setup</a> ·
+  <a href="#requirements">Requirements</a> ·
+  <a href="#all-the-features">Features</a>
+</p>
 
-Pull up a chair. Cornerplay gathers your Steam, Epic Games, GOG, Amazon Games and
-Battle.net libraries into one warm, quiet place on Linux, so the game you want is always
-right there: covers that keep up with the stores, the one you played last waiting up
-front, a couch-friendly TV mode for the controller, and Proton sorted out behind the
-scenes. No more hopping between five launchers to find something to play tonight.
+<p align="center"><img src="docs/screenshot-library.jpg" alt="The library: the game you played last up front, Continue playing, and your whole collection"></p>
 
-*Formerly AIO Launch (and before that, Kura): your settings, sign-ins and games come along
-by themselves, and the old `aiolaunch` command keeps working.*
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshot-tv.jpg" alt="TV mode, for the couch and a controller"></td>
+    <td width="50%"><img src="docs/screenshot-game.jpg" alt="A game's page: play, DLC, favourites, status, notes"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>TV mode: big covers, the game's own art, controller first</sub></td>
+    <td align="center"><sub>A game's page: Play, DLC, your notes and rating</sub></td>
+  </tr>
+</table>
 
-PySide6 + QML; follows your desktop wallpaper's colours (the Ryoku palette in
-`~/.cache/ryoku/colors.json`, or the wallpaper itself elsewhere).
+<p align="center"><img src="docs/tv-mode.gif" width="800" alt="TV mode with a controller: moving along a shelf, the main menu, the on-screen keyboard"></p>
 
-## Install
+Pull up a chair. Cornerplay gathers every game you own into one warm, quiet place, so the
+one you want is always right there: covers that keep up with the stores, the game you played
+last waiting up front, a TV mode laid out like SteamOS Game Mode, and Proton sorted out behind
+the scenes. No more hopping between five launchers to find something to play tonight.
 
-Download `cornerplay.run` from the
-[latest release](https://github.com/raulgbh-ctrl/cornerplay/releases/latest), then:
+*Formerly AIO Launch (and before that, Kura): settings, sign-ins and games come along by
+themselves, and the old `aiolaunch` command keeps working.*
 
-    sh cornerplay.run
+## Quick start
 
-Or in one go:
+1. **Install.** Download `cornerplay.run` from the
+   [latest release](https://github.com/raulgbh-ctrl/cornerplay/releases/latest) and run it:
 
-    curl -fLO https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run && sh cornerplay.run
+       curl -fLO https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run && sh cornerplay.run
 
-One file, any Linux PC, no root needed for Cornerplay itself.
+   No root needed for Cornerplay itself. It adds itself to your app menu and fetches what games
+   need (it asks before installing Steam through your package manager or Flathub).
+2. **Connect a store.** Open Cornerplay, click the person icon at the bottom of the sidebar
+   (**Accounts**) and sign in to a store. Steam needs no sign-in: if the Steam client is
+   installed and you are signed in there, your games show up by themselves.
+3. **Play.** Double-click a cover (or select it and press Enter). Not installed yet? Its page has
+   an Install button; Proton is chosen and set up for you. Press **F11** (or the Guide button on
+   a controller) for TV mode.
 
-It installs into `~/.local`, adds Cornerplay to the app menu, and sets up what games need:
-the Epic/GOG/Amazon backends and umu-launcher are downloaded into `~/.local/share/cornerplay/bin`
-(no root), and Steam comes from your package manager or Flathub (asks first). If the system has no PySide6 it sets up
-a private Python environment instead (about 260 MB). From a copy of this folder,
-`./install.sh` does the same; `./install.sh --dev` runs from the folder in place.
+## Setting up each store
+
+| Store | How to connect | Needed? |
+|-------|----------------|---------|
+| **Steam** | Nothing: Cornerplay reads the Steam client on this PC. Games install and start through Steam. | The Steam client (the installer offers it). |
+| **Epic Games** | Accounts > Epic Games > Sign in: a sign-in window opens; Cornerplay keeps the session through [legendary](https://github.com/derrod/legendary). | Nothing else. |
+| **GOG** | Accounts > GOG > Sign in. Installs go through [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl); Linux versions are used when a game has one. | Nothing else. |
+| **Amazon Games** | Accounts > Amazon Games > Sign in, through [nile](https://github.com/imLinguin/nile). | Nothing else. |
+| **Battle.net** | See below. | The Battle.net app, under Proton. |
+
+**Steam Web API key (optional).** Without one, Cornerplay lists the Steam games in your Steam
+client's library. With one it also lists every game you own (even ones Steam has never shown on
+this PC) and shows achievement progress. Get a key at
+[steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (any domain name works, e.g.
+`localhost`) and paste it in **Settings > Library**. If the list or achievements stay empty, set your
+Steam profile's *Game details* to Public.
+
+**SteamGridDB key (optional).** Cornerplay finds covers on its own (store art, Steam's store,
+IGDB). A free [SteamGridDB](https://www.steamgriddb.com) key adds art for games Steam doesn't sell,
+better wide banners and animated covers in TV mode: sign in there, open
+[Preferences > API](https://www.steamgriddb.com/profile/preferences/api), generate a key and paste
+it in **Settings > Library**.
+
+**Battle.net under Proton.** Blizzard has no API for other launchers, so Cornerplay runs
+Blizzard's own app:
+
+1. In the library, the **Battle.net** tile is the app itself. Press Install: Cornerplay downloads
+   Blizzard's installer and runs it in its own Proton prefix.
+2. Press Play on the tile and sign in inside the Battle.net app. Install your games there.
+3. Back in Cornerplay, each installed game appears as its own tile and starts straight into the
+   game. To also see Blizzard games you own but haven't installed, use
+   **Accounts > Battle.net > Link account**.
+
+If the Battle.net app closes as soon as it opens, your GPU has no Vulkan driver: the
+**Health check** in the sidebar says which package to install (for Intel graphics on Arch:
+`vulkan-intel lib32-vulkan-intel`).
+
+## Requirements
+
+- **Linux**, 64-bit. Developed and tested on **CachyOS (Arch)** with Hyprland and KDE Plasma; the
+  installer also knows Debian/Ubuntu (apt), Fedora (dnf) and openSUSE (zypper), which have had
+  less testing. Steam Deck: works in Desktop Mode and from Game Mode (add it to Steam from
+  Settings > Library), lightly tested.
+- **Python 3.10+** and **PySide6 (Qt 6.6 or newer)**. If your system has no PySide6, the installer
+  sets up a private copy (about 260 MB).
+- **A GPU with a Vulkan driver**, for games running through Proton (Epic, GOG, Amazon,
+  Battle.net). Steam games use Steam's own setup.
+- **Disk space**: Cornerplay itself about 6 MB; each Proton version about 1.5 GB; the cover cache
+  grows to a few hundred MB for a large library (about 300 MB for 500 games). Games install to
+  `~/Games/cornerplay` by default (changeable in Settings).
+- **Steam** for Steam games, and **umu-launcher** for the other stores (the installer fetches
+  a copy if your package manager has none). Optional: MangoHud, GameMode.
+
+Files: settings in `~/.config/cornerplay`, the cover cache and logs in `~/.cache/cornerplay`,
+games and Proton prefixes in `~/Games/cornerplay`.
+
+To remove it:
 
     sh ~/.local/lib/cornerplay/install.sh --uninstall   # remove (keeps settings and games)
     sh ~/.local/lib/cornerplay/install.sh --purge       # also remove settings and cache
-    ./make-installer.sh                           # rebuild dist/cornerplay-<version>.run
 
-## Use
+## Command line
 
     cornerplay                  # open the library
-    cornerplay --status         # what each store backend still needs
-    cornerplay --fetch-backends # download legendary, gogdl and nile into ~/.local/share/cornerplay/bin
-    cornerplay --tv             # full screen TV mode (controller or arrow keys); F11 toggles it
-    cornerplay --demo           # sample library, nothing is launched
+    cornerplay --tv             # start in full-screen TV mode (F11 switches)
+    cornerplay --status         # what each store still needs
+    cornerplay --demo           # a sample library; nothing is launched
 
 | Store      | Library from                         | Install / launch through            |
 |------------|--------------------------------------|-------------------------------------|
-| Steam      | the Library tab's games, from Steam's own cache `appinfo.vdf` (or every owned game with a Web API key) | the Steam client (`steam://` URLs)  |
+| Steam      | Steam's own cache `appinfo.vdf` (or every owned game with a Web API key) | the Steam client (`steam://` URLs)  |
 | Epic       | `legendary list`                     | legendary + Proton (umu-run)        |
-| GOG        | GOG web API                          | gogdl + Proton (umu-run)            |
+| GOG        | GOG web API                          | gogdl + Proton (umu-run), or the Linux version |
 | Amazon     | `nile library sync`                  | nile + Proton (umu-run)             |
-| Battle.net | the Battle.net app's `product.db`    | Battle.net app under Proton         |
+| Battle.net | the Battle.net app's `product.db`    | the Battle.net app under Proton     |
 
-Needs: `steam`, `umu-launcher` (pacman), and the three CLIs above (or Heroic, whose
-bundled copies are detected). Optional: `mangohud`, `gamemode`.
-
-Files: settings `~/.config/cornerplay`, logs and cover cache `~/.cache/cornerplay`,
-games and Proton prefixes `~/Games/cornerplay` (changeable in Settings).
-Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the Qt glue; `cornerplay/qml` the UI.
-
-## Features
+## All the features
 
 - **Game updates**: Epic, GOG and Amazon games are checked for updates on every refresh. A game with one gets an ↑ badge and an Update button (TV mode: in its actions), and a toast says when a new update is found. Epic compares the installed version with legendary's latest build, GOG compares gogdl's installed build with GOG's newest public build, Amazon asks `nile list-updates`.
 - **Playtime**: Epic, GOG and Amazon games are timed while they run (also when started from Steam through `--play`); Steam's own playtime is read from Steam. A game's panel shows hours played and when you last played. "Continue playing" above the library lists your most recent games, and the sort menu orders the library by name, recently played or most played. Battle.net games are not timed (its app stays open after a game closes). Stored in `~/.local/share/cornerplay/playtime.json`.
@@ -76,7 +142,7 @@ Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the
 - **Look**: games show their own logo (Steam, Epic or GOG logo art, or the title when there is none); the banner, the game panel and TV mode take on the focused game's colour, picked from its cover (`gamecolour.py`, cached); covers shimmer while they load; tiles fade in; installs show a progress strip along the bottom of the cover.
 - **Screenshots and trailers**: the game panel shows the game's screenshots (click one to see it full size; arrow keys to browse). In TV mode the focused game's art slowly pans, and after a couple of seconds its trailer plays muted behind the text (Settings > Appearance; needs Qt Multimedia, otherwise it is simply left out; never plays while a game has the focus). Optional soft navigation sounds in TV mode (off by default; synthesised, `cornerplay/sounds/`).
 - **Fonts**: [Nunito](https://github.com/googlefonts/nunito), rounded like the logo, for the interface (fixed weights made from the variable font), with [Inter](https://rsms.me/inter/) as the fallback, all SIL Open Font Licence (`cornerplay/fonts/OFL-Nunito.txt`, `OFL.txt`, `OFL-Outfit.txt`), bundled so the app looks the same on every desktop.
-- **The look**: the C-and-play-button icon, and a logo that takes its colours from your theme (your wallpaper's colours; `cornerplay/art/brand/`), warm amber as the signature colour (the default "Cornerplay" theme; Follow wallpaper and the other presets are still in Settings > Appearance), store logos on coloured tiles, little scenes for empty screens (drawn in the theme's colours, `qml/EmptyScene.qml`), frosted pop-ups and notifications, a launch card when a game starts (its cover lifts and glows while it gets ready), a short splash while the library loads, and in TV mode a shelf reflection under the covers and an optional start-up animation with a chime. Cover shadows: none, soft or deep. With Follow wallpaper the wallpaper itself sits blurred behind the window, like frosted glass (Settings > Appearance; no compositor blur needed). Covers tilt toward the pointer with a soft light following it; a cover flies into the game page when opened and back when closed; pointing at a cover for a moment plays its trailer inside it (Settings > Appearance); Steam covers show a thin bar of achievements earned (gold when complete); in the evening the surfaces turn a little warmer (Settings > Appearance); store and shelf changes slide in. Downloads show their speed and time left (game page, TV mode, Quick Access), and a desktop notification says when one finishes while Cornerplay is in the background. and the logo animates in on the splash and the TV intro (the C swings round, the play button pops, the sparks flick on).
+- **The look**: the C-and-play-button icon, and a logo that takes its colours from your theme (your wallpaper's colours; `cornerplay/art/brand/`), warm amber as the signature colour (the default "Cornerplay" theme; Follow wallpaper and the other presets are still in Settings > Appearance), store logos on coloured tiles, little scenes for empty screens (drawn in the theme's colours, `qml/EmptyScene.qml`), frosted pop-ups and notifications, a launch card when a game starts (its cover lifts and glows while it gets ready), a short splash while the library loads, and in TV mode a shelf reflection under the covers and an optional start-up animation with a chime. Cover shadows: none, soft or deep. With Follow wallpaper the wallpaper itself sits blurred behind the window, like frosted glass (Settings > Appearance; no compositor blur needed). Covers tilt toward the pointer with a soft light following it; a cover flies into the game page when opened and back when closed; pointing at a cover for a moment plays its trailer inside it (Settings > Appearance); Steam covers show a thin bar of achievements earned (gold when complete); in the evening the surfaces turn a little warmer (Settings > Appearance); store and shelf changes slide in. Downloads show their speed and time left (game page, TV mode, Quick Access), and a desktop notification says when one finishes while Cornerplay is in the background. The logo animates in on the splash and the TV intro (the C swings round, the play button pops, the sparks flick on).
 - **Button icons**: from [Lucide](https://lucide.dev) (ISC licence), in `cornerplay/icons/ui/`.
 - **Store and ProtonDB logos**: from [Simple Icons](https://simpleicons.org) (CC0), in `cornerplay/icons/`. The logos are trademarks of their owners and are only used to show which store a game belongs to.
 - **Themes**: follow the Ryoku desktop palette, presets, or your own accent + background; cover size, corner radius, badges (Settings > Appearance).
@@ -112,6 +178,21 @@ Code: `cornerplay/stores/*.py` is one file per store; `cornerplay/app.py` is the
 - **Battle.net owned games**: Accounts > Battle.net > Link account signs in to your Blizzard account (kept in its own browser profile); every refresh then lists the Blizzard games you own but have not installed. Install opens the Battle.net app on that game.
 - **ProtonDB**: each game matched to Steam shows its [ProtonDB](https://www.protondb.com) rating (Platinum, Gold, Silver, Bronze, Borked), from players' reports of how it runs on Linux: a badge on the cover while it is pointed at or selected (Settings > Appearance to turn it off), a label in the game panel that opens the game's ProtonDB page (with the trending tier when it differs), and in TV mode. Fetched in the background after a refresh, cached for a week (`protondb.py`).
 - **About each game**: description, genres, developer and release year in the game panel and in TV mode, from GOG for GOG games, from Steam's store for any game matched to Steam, or the store's own text (`details.py`, cached for a month).
+
+
+## For developers
+
+PySide6 + QML. `cornerplay/stores/*.py` has one file per store, `cornerplay/app.py` is the Qt
+glue, `cornerplay/qml` is the interface.
+
+    git clone https://github.com/raulgbh-ctrl/cornerplay && cd cornerplay
+    ./install.sh --dev           # install a launcher that runs this folder in place
+    python3 -m cornerplay --demo # run from the folder with the sample library
+    python3 -m cornerplay --check  # compile every QML file and report errors (run before a commit)
+    cornerplay --fetch-backends  # download legendary, gogdl and nile into ~/.local/share/cornerplay/bin
+    ./make-installer.sh          # build dist/cornerplay-<version>.run (the one-file installer)
+
+An Arch package recipe is in `packaging/aur/PKGBUILD`.
 
 ## Status and licence
 

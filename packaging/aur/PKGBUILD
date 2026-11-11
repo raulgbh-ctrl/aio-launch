@@ -1,0 +1,57 @@
+# Maintainer: raulgbh-ctrl <https://github.com/raulgbh-ctrl>
+pkgname=cornerplay
+pkgver=0.8.0
+pkgrel=1
+pkgdesc="Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and Battle.net in one library, with a TV mode"
+arch=('any')
+url="https://github.com/raulgbh-ctrl/cornerplay"
+license=('MIT' 'OFL-1.1')
+depends=('python' 'pyside6' 'python-requests' 'python-yaml' 'umu-launcher' 'sdl2')
+optdepends=(
+  'steam: Steam games'
+  'qt6-multimedia: trailers in TV mode and on covers'
+  'qt6-webengine: the built-in store sign-in window'
+  'mangohud: FPS counter and performance profiles'
+  'gamemode: Feral GameMode for games'
+  'libnotify: a notification when a download finishes'
+  'legendary: Epic Games (otherwise Cornerplay downloads its own copy)'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')  # replace with the release tarball's sum: updpkgsums
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -d "$pkgdir/usr/lib/$pkgname"
+  cp -r cornerplay "$pkgdir/usr/lib/$pkgname/"
+  find "$pkgdir/usr/lib/$pkgname" -name '__pycache__' -prune -exec rm -rf {} +
+
+  install -Dm755 /dev/stdin "$pkgdir/usr/bin/cornerplay" <<SH
+#!/bin/sh
+PYTHONPATH="/usr/lib/$pkgname\${PYTHONPATH:+:\$PYTHONPATH}" exec python3 -m cornerplay "\$@"
+SH
+
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/cornerplay.desktop" <<DESK
+[Desktop Entry]
+Type=Application
+Name=Cornerplay
+GenericName=Game Library
+Comment=Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and Battle.net in one place
+Exec=cornerplay
+Icon=cornerplay
+Categories=Game;
+Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
+StartupWMClass=cornerplay
+Actions=tv;
+
+[Desktop Action tv]
+Name=TV mode
+Exec=cornerplay --tv
+DESK
+
+  install -Dm644 cornerplay/cornerplay.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/cornerplay.svg"
+  for png in cornerplay/icons/app/cornerplay-*.png; do
+    size=${png##*-}; size=${size%.png}
+    install -Dm644 "$png" "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/cornerplay.png"
+  done
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
