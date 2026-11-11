@@ -202,8 +202,21 @@ def sync_root():
     return Path(os.path.expanduser(folder)) / "Cornerplay" if folder else None
 
 
+def _clean(d):
+    """A personal doc with the expected shape. The sync folder is shared with other PCs (and
+    whatever else can write there): anything malformed is dropped, never trusted."""
+    d = d if isinstance(d, dict) else {}
+    games = d.get("games") if isinstance(d.get("games"), dict) else {}
+    deleted = d.get("deleted") if isinstance(d.get("deleted"), dict) else {}
+    cols = d.get("collections") if isinstance(d.get("collections"), list) else []
+    return {"games": {str(k): v for k, v in games.items() if isinstance(v, dict) and isinstance(v.get("t", 0), (int, float))},
+            "collections": [c for c in cols if isinstance(c, str) and c.strip()][:500],
+            "deleted": {str(k): v for k, v in deleted.items() if isinstance(v, (int, float))}}
+
+
 def _merge(a, b):
     """Two personal docs into one: per game the newer entry, collections by their last change."""
+    a, b = _clean(a), _clean(b)
     out = _empty()
     keys = set(a["games"]) | set(b["games"])
     for k in keys:
@@ -232,9 +245,7 @@ def sync():
         for name in profiles():
             remote_dir = root / slug(name)
             remote_dir.mkdir(parents=True, exist_ok=True)
-            remote = read_json(remote_dir / "personal.json") or _empty()
-            for k, v in _empty().items():
-                remote.setdefault(k, v)
+            remote = _clean(read_json(remote_dir / "personal.json"))
             with _lock:
                 merged = _merge(doc(name), remote)
                 _docs[slug(name)] = merged
@@ -256,7 +267,7 @@ def sync():
             if d.is_dir() and d.name not in known and (d / "personal.json").exists():
                 settings.set("profiles", profiles() + [d.name.replace("-", " ").title()])
         _last_sync.update(t=time.time(), error="")
-    except OSError as e:
+    except (OSError, ValueError, TypeError, AttributeError) as e:
         _last_sync.update(t=time.time(), error=str(e))
     return _last_sync["error"]
 

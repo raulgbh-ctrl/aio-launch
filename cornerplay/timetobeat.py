@@ -5,9 +5,10 @@ IGDB needs a free Twitch developer app (client id + secret, Settings > Library);
 nothing is fetched. The access token is kept in ~/.cache/cornerplay/igdb_token.json until it
 expires. Results ride along with a game's details (details.py), so they are cached with them.
 """
+import json
 import time
 
-from .config import CACHE_DIR, read_json, settings, write_json
+from .config import CACHE_DIR, read_json, settings, write_private
 from .covers import norm
 from .net import requests
 
@@ -28,7 +29,8 @@ def _token(cid, secret):
                       params={"client_id": cid, "client_secret": secret, "grant_type": "client_credentials"})
     r.raise_for_status()
     d = r.json()
-    write_json(TOKEN_FILE, {"id": cid, "token": d["access_token"], "expires": time.time() + int(d.get("expires_in", 0))})
+    write_private(TOKEN_FILE, json.dumps({"id": cid, "token": d["access_token"],
+                                          "expires": time.time() + int(d.get("expires_in", 0))}))
     return d["access_token"]
 
 

@@ -577,7 +577,7 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.maximumWidth: Math.min(680, tv.width * 0.42)
                     visible: text !== "" && infoArea.roomForText
-                    text: tv.info.description || ""
+                    text: tv.info.description || ""; textFormat: Text.PlainText
                     style: Text.Raised; styleColor: Qt.alpha("black", 0.55)  // stays readable over bright art
                     color: theme.onSurface
                     opacity: 0.82
@@ -1266,7 +1266,7 @@ FocusScope {
                 clip: true
                 contentHeight: pgAbout.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
-                Text { id: pgAbout; width: parent.width; text: tv.info.description || ""; color: theme.onSurface; opacity: 0.85
+                Text { id: pgAbout; width: parent.width; text: tv.info.description || ""; textFormat: Text.PlainText; color: theme.onSurface; opacity: 0.85
                        font.pixelSize: 18; lineHeight: 1.3; wrapMode: Text.WordWrap }
             }
             ListView {

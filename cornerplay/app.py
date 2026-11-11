@@ -18,6 +18,7 @@ import sys
 
 from . import achievements, backup, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
+from .net import redact
 from .runner import StoreError
 from .stores.amazon import Amazon
 from .stores.base import Command, Game, PartialResult, run as store_run
@@ -1201,7 +1202,7 @@ class AioLaunch(QObject):
     _updating = False
 
     def _check_update(self):
-        if self.demo or updates.from_source() or not settings.get("update_check"):
+        if self.demo or updates.from_source() or updates.managed() or not settings.get("update_check"):
             return
 
         def work():
@@ -1221,7 +1222,14 @@ class AioLaunch(QObject):
         self.updateChanged.emit()
 
         def work():
-            path = updates.download(info["asset"])
+            try:
+                path = updates.download(info["asset"], info.get("sha256", ""))
+            except Exception as e:
+                def failed(msg=redact(e)):
+                    self._updating = False
+                    self.updateChanged.emit()
+                    self.toast.emit(f"The update was not installed: {msg}")
+                return failed
 
             def run():
                 p = QProcess(self)
@@ -1523,11 +1531,12 @@ class AioLaunch(QObject):
             error = f"{store.name}: {e}"
         except Exception as e:
             error = f"{store.name}: {type(e).__name__}: {e}"
+        error = redact(error)
         if games:
             try:
                 error = error or covers.fill(games)
             except Exception as e:  # cover art is never worth failing a refresh
-                error = error or f"Cover lookup: {type(e).__name__}: {e}"
+                error = error or redact(f"Cover lookup: {type(e).__name__}: {e}")
         self._fetched.emit(store.id, games, error)
         # The library is on screen now. Backup covers, banners and logos can take a while the
         # first time (each game is matched to Steam once), so they fill in afterwards.
@@ -2793,9 +2802,15 @@ class AioLaunch(QObject):
                 self.model.set_games(self.model.games)
                 self.storesChanged.emit()
 
+    SAFE_SCHEMES = ("https", "http", "steam")
+
     @Slot(str)
     def openUrl(self, url):
-        QDesktopServices.openUrl(QUrl(url))
+        """Open a link in the browser (or the Steam client). Links come from store data and web
+        pages, so only web and steam:// links are opened: never file://, never other apps' schemes."""
+        u = QUrl(url)
+        if u.isValid() and u.scheme().lower() in self.SAFE_SCHEMES:
+            QDesktopServices.openUrl(u)
 
     @Slot(str)
     def openFolder(self, path):

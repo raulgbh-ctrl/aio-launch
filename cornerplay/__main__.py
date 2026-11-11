@@ -86,26 +86,25 @@ def check_qml():
 
 
 def fetch_backends():
-    """Download the legendary / gogdl / nile release binaries into Cornerplay's data dir."""
-    import requests
-    from .config import BACKEND_URLS, BIN_DIR, find_tool
-    for name, url in BACKEND_URLS.items():
+    """Download the legendary / gogdl / nile release binaries into Cornerplay's data dir,
+    each checked against the SHA-256 GitHub lists for it."""
+    from .config import BACKEND_REPOS, BIN_DIR, find_tool
+    from .host import BUNDLED_BIN
+    from .net import download_checked, github_asset
+    failed = 0
+    for name, repo in BACKEND_REPOS.items():
         existing = find_tool(name)
-        if existing and not existing.startswith(str(BIN_DIR)):
+        if existing and not existing.startswith((str(BIN_DIR), BUNDLED_BIN)):
             print(f"{name}: already available at {existing}")
             continue
-        dest = BIN_DIR / name
-        print(f"{name}: downloading {url}")
-        with requests.get(url, stream=True, timeout=60) as r:
-            r.raise_for_status()
-            tmp = dest.with_suffix(".part")
-            with open(tmp, "wb") as f:
-                for chunk in r.iter_content(1 << 20):
-                    f.write(chunk)
-        os.chmod(tmp, 0o755)
-        tmp.replace(dest)
-        print(f"{name}: installed to {dest}")
-    return 0
+        try:
+            tag, url, sha = github_asset(repo, lambda n, name=name: n == f"{name}_linux_x86_64")
+            print(f"{name} {tag}: downloading {url}" + ("" if sha else " (no checksum published)"))
+            print(f"{name}: installed to {download_checked(url, BIN_DIR / name, sha, mode=0o755)}")
+        except Exception as e:
+            print(f"{name}: not downloaded: {e}")
+            failed += 1
+    return 1 if failed else 0
 
 
 def status():

@@ -1801,7 +1801,7 @@ ApplicationWindow {
                     id: detailAbout
                     Layout.fillWidth: true
                     visible: text !== ""
-                    text: detail.info.description || ""
+                    text: detail.info.description || ""; textFormat: Text.PlainText
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
                     lineHeight: 1.25

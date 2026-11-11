@@ -125,6 +125,23 @@ To remove it:
     sh ~/.local/lib/cornerplay/install.sh --uninstall   # remove (keeps settings and games)
     sh ~/.local/lib/cornerplay/install.sh --purge       # also remove settings and cache
 
+## Privacy and security
+
+- **Your keys and sign-ins stay private**: Cornerplay's settings folder (API keys, the GOG
+  sign-in) and the Epic and Amazon sign-ins it makes through legendary and nile are readable
+  only by your user account; Cornerplay tightens folders left open by older versions (or by those
+  tools) every time it starts. API keys never show in error messages.
+- **Backups leave secrets out**: settings backups contain no sign-in tokens and no API keys,
+  are readable only by you, and restoring one only ever writes inside Cornerplay's own folders.
+- **Downloads are checked**: updates of Cornerplay itself, legendary, gogdl, nile, umu-launcher
+  and Proton builds are checked against the checksums their publishers list before they are
+  used. Cornerplay updates itself only from this project's own GitHub releases, and never when
+  pacman or Flatpak installed it (they update it instead).
+- **Links and store text**: only web and `steam://` links are opened; store descriptions are
+  shown as plain text.
+- **Sync folder**: data from other PCs is checked before it is merged; anything malformed is
+  left out.
+
 ## Command line
 
     cornerplay                  # open the library

@@ -1,4 +1,5 @@
 """GOG: library through GOG's own web API, downloads through gogdl."""
+import json
 import glob
 import os
 import shlex
@@ -11,7 +12,7 @@ from ..net import requests
 
 from pathlib import Path
 
-from ..config import CACHE_DIR, CONFIG_DIR, XDG_CONFIG, find_tool, read_json, settings, write_json
+from ..config import CACHE_DIR, CONFIG_DIR, XDG_CONFIG, find_tool, read_json, settings, write_json, write_private
 from ..runner import StoreError, extras, wine_env, wrapper_argv
 from .base import Command, Game, PartialResult, Store
 
@@ -46,8 +47,7 @@ class Gog(Store):
         data["loginTime"] = time.time()
         allc = read_json(AUTH_FILE) or {}
         allc[CLIENT_ID] = data
-        write_json(AUTH_FILE, allc)
-        os.chmod(AUTH_FILE, 0o600)
+        write_private(AUTH_FILE, json.dumps(allc))
 
     def _token(self):
         c = self._creds()

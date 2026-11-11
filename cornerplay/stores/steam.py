@@ -2,7 +2,7 @@
 import glob
 import os
 
-from ..net import requests
+from ..net import redact, requests
 
 from .. import host
 from .. import vdf
@@ -166,7 +166,7 @@ class Steam(Store):
             except (requests.RequestException, ValueError) as e:
                 self._add_playtime(games)
                 self._mark_hidden(games, steamid)
-                raise PartialResult(list(games.values()), f"Steam Web API: {e}")
+                raise PartialResult(list(games.values()), f"Steam Web API: {redact(e)}") from None
         self._add_playtime(games)
         self._mark_hidden(games, steamid)
         return list(games.values())

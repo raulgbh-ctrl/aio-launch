@@ -20,10 +20,15 @@ def load() -> dict:
     own, others = personal.playtime_files("playtime")
     total = {}
     for path in [own] + others:
-        for key, e in (read_json(path) or {}).items():
+        data = read_json(path)
+        for key, e in (data.items() if isinstance(data, dict) else ()):
+            try:  # other PCs' files arrive through the sync folder: skip anything malformed
+                seconds, last = int(e.get("seconds", 0)), int(e.get("last", 0))
+            except (AttributeError, TypeError, ValueError):
+                continue
             t = total.setdefault(key, {"seconds": 0, "last": 0})
-            t["seconds"] += int(e.get("seconds", 0))
-            t["last"] = max(t["last"], int(e.get("last", 0)))
+            t["seconds"] += max(0, seconds)
+            t["last"] = max(t["last"], last)
     return total
 
 
@@ -58,5 +63,8 @@ def sessions() -> list:
     own, others = personal.playtime_files("sessions")
     out = []
     for path in [own] + others:
-        out += [s for s in (read_json(path) or []) if isinstance(s, list) and len(s) == 3]
+        data = read_json(path)
+        out += [s for s in (data if isinstance(data, list) else [])
+                if isinstance(s, list) and len(s) == 3 and isinstance(s[0], str)
+                and all(isinstance(x, (int, float)) for x in s[1:])]
     return out

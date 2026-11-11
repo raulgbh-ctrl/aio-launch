@@ -253,6 +253,11 @@ req = urllib.request.Request(api, headers={"User-Agent": "cornerplay-installer"}
 release = json.load(urllib.request.urlopen(req, timeout=30))
 asset = next(a for a in release["assets"] if a["name"].endswith("-zipapp.tar"))
 data = urllib.request.urlopen(asset["browser_download_url"], timeout=120).read()
+digest = asset.get("digest") or ""
+if digest.startswith("sha256:"):  # GitHub's checksum of the published file
+    import hashlib
+    if hashlib.sha256(data).hexdigest() != digest.split(":", 1)[1]:
+        sys.exit("umu-launcher download was damaged or changed (checksum mismatch)")
 with tarfile.open(fileobj=io.BytesIO(data)) as tar:
     member = next(m for m in tar.getmembers() if m.isfile() and os.path.basename(m.name) == "umu-run")
     payload = tar.extractfile(member).read()

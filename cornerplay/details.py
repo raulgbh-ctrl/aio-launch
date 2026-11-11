@@ -43,6 +43,9 @@ def clean(text):
     """Plain text from store HTML, cut at a sentence end near MAX_TEXT characters."""
     text = re.sub(r"<br\s*/?>|</p>", "\n", text or "", flags=re.I)
     text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    # Decoding can bring tags back ("&lt;img src=...&gt;"); store text is shown as plain text,
+    # but leave no markup in it either way.
+    text = re.sub(r"<[^>]*>?", "", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n\s*\n+", "\n\n", text).strip()
     if len(text) > MAX_TEXT:

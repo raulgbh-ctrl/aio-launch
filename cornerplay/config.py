@@ -103,11 +103,8 @@ _HEROIC_BIN_DIRS = [
     "/usr/lib/heroic/resources/app.asar.unpacked/build/bin/x64/linux",
 ]
 
-BACKEND_URLS = {
-    "legendary": "https://github.com/Heroic-Games-Launcher/legendary/releases/latest/download/legendary_linux_x86_64",
-    "gogdl": "https://github.com/Heroic-Games-Launcher/heroic-gogdl/releases/latest/download/gogdl_linux_x86_64",
-    "nile": "https://github.com/imLinguin/nile/releases/latest/download/nile_linux_x86_64",
-}
+BACKEND_REPOS = {"legendary": "Heroic-Games-Launcher/legendary", "gogdl": "Heroic-Games-Launcher/heroic-gogdl",
+                 "nile": "imLinguin/nile"}
 
 
 class Settings:
@@ -124,7 +121,7 @@ class Settings:
 
     def set(self, key, value):
         self.data[key] = value
-        self.path.write_text(json.dumps(self.data, indent=2))
+        write_private(self.path, json.dumps(self.data, indent=2))
 
     @property
     def games_dir(self) -> Path:
@@ -162,6 +159,43 @@ def write_json(path, data):
     tmp.replace(path)
 
 
+def write_private(path, text: str):
+    """Write a file only this user can read (settings with API keys, sign-in tokens), atomically."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(tmp, 0o600)  # an older .tmp may have been made with wider rights
+    tmp.replace(path)
+
+
+def _lock_down():
+    """Cornerplay's settings folder holds API keys and store sign-in tokens: only this user
+    may open it (folders made by earlier versions were readable by everyone on the PC). The
+    same for the sign-ins Cornerplay makes through legendary (Epic) and nile (Amazon): both
+    leave their tokens readable by every account on the PC."""
+    for f in (XDG_CONFIG / "legendary" / "user.json",):
+        try:
+            if f.stat().st_mode & 0o077:
+                f.chmod(0o600)
+        except OSError:
+            pass
+    for d in (CONFIG_DIR, DATA_DIR, XDG_CONFIG / "legendary", XDG_CONFIG / "nile"):
+        try:
+            if d.stat().st_mode & 0o077:
+                d.chmod(0o700)
+        except OSError:
+            pass
+    for f in CONFIG_DIR.glob("*.json"):
+        try:
+            if f.stat().st_mode & 0o077:
+                f.chmod(0o600)
+        except OSError:
+            pass
+
+
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
     KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden", "collections",
@@ -190,7 +224,7 @@ class GameOptions:
             entry[name] = value
         if not entry:
             self.data.pop(key, None)
-        write_json(self.path, self.data)
+        write_private(self.path, json.dumps(self.data))
 
 
 
@@ -198,5 +232,6 @@ class GameOptions:
 _migrate_from_kura()
 for _d in (CONFIG_DIR, DATA_DIR, CACHE_DIR, BIN_DIR, LOG_DIR):
     _d.mkdir(parents=True, exist_ok=True)
+_lock_down()
 settings = Settings()
 game_options = GameOptions()

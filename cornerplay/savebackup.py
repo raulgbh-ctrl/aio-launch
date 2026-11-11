@@ -217,6 +217,8 @@ def backups(game):
 
 def restore(game, name, appid=None):
     """Put a backup's files back where they came from (after backing up what is there now)."""
+    if not name or "/" in name or name.startswith(".") or not name.endswith(".zip"):
+        raise ValueError("Not a save backup")
     path = _folder(game) / name
     with zipfile.ZipFile(path) as z:
         meta = json.loads(z.read("cornerplay-saves.json"))
