@@ -41,7 +41,13 @@ say()  { printf "${AMBER}${BOLD}==>${OFF} %s\n" "$*"; }
 banner() { printf "\n  ${BOLD}Corner${OFF}${AMBER}${BOLD}play${OFF}  your cosy corner for every game you own\n\n"; }
 note() { printf '    %s\n' "$*"; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
-have() { command -v "$1" >/dev/null 2>&1; }
+# CORNERPLAY_PRETEND_MISSING="steam umu-run sdl ...": treat those as not installed (for testing).
+have() { case " ${CORNERPLAY_PRETEND_MISSING:-} " in *" $1 "*) return 1 ;; esac; command -v "$1" >/dev/null 2>&1; }
+missing_sdl() {
+    case " ${CORNERPLAY_PRETEND_MISSING:-} " in *" sdl "*) return 0 ;; esac
+    ! python3 -c 'import ctypes.util, sys; sys.exit(0 if ctypes.util.find_library("SDL2") else 1)' 2>/dev/null \
+        && [ ! -e /usr/lib/libSDL2-2.0.so.0 ] && [ ! -e /usr/lib64/libSDL2-2.0.so.0 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 ]
+}
 ask() {  # ask "question" -> 0 for yes
     [ "$YES" = 1 ] && return 0
     [ -t 0 ] || return 1
@@ -90,31 +96,36 @@ for candidate in pacman apt-get dnf zypper; do
     if have "$candidate"; then PM=$candidate; break; fi
 done
 
-sys_install() {  # sys_install "what it is for" pkg...
-    what=$1; shift
-    case $PM in
-        pacman)  cmd="sudo pacman -S --needed $([ "$YES" = 1 ] && echo --noconfirm) $*" ;;
-        apt-get) cmd="sudo apt-get install -y $*" ;;
-        dnf)     cmd="sudo dnf install -y $*" ;;
-        zypper)  cmd="sudo zypper install -y $*" ;;
-        *)       note "$what: install it with your package manager ($*)."; return 1 ;;
+pkg_for() {  # pkg_for <thing>: this distribution's package for it ("" when unknown)
+    case "$1:$PM" in
+        pyside:pacman) echo "pyside6 python-requests" ;;
+        yaml:pacman) echo python-yaml ;;      yaml:apt-get) echo python3-yaml ;;
+        yaml:dnf) echo python3-pyyaml ;;      yaml:zypper) echo python3-PyYAML ;;
+        steam:pacman) echo steam ;;           steam:apt-get) echo steam-installer ;;
+        umu:pacman) echo umu-launcher ;;
+        sdl:pacman) echo sdl2-compat ;;       sdl:apt-get) echo libsdl2-2.0-0 ;;
+        sdl:dnf) echo SDL2 ;;                 sdl:zypper) echo libSDL2-2_0-0 ;;
+        xcb:pacman) echo xcb-util-cursor ;;   xcb:apt-get) echo libxcb-cursor0 ;;
+        xcb:dnf) echo xcb-util-cursor ;;      xcb:zypper) echo libxcb-cursor0 ;;
+        web:pacman) echo qt6-webengine ;;     web:apt-get) echo python3-pyside6.qtwebenginequick ;;
+        web:dnf) echo "python3-pyside6 qt6-qtwebengine" ;;  web:zypper) echo "python3-pyside6 qt6-webengine" ;;
+        *) echo "" ;;
     esac
-    if [ "${IMMUTABLE:-0}" = 1 ]; then
-        note "$what: not installable on this read-only system; skipped."
-        return 1
-    fi
-    if [ "$SYSTEM" = 1 ] && have sudo && ask "Install $what now? ($cmd)"; then
-        $cmd && return 0
-        note "That did not work; you can run it yourself later: $cmd"
-        return 1
-    fi
-    note "$what is missing. To add it later: $cmd"
-    return 1
+}
+pm_cmd() {  # the install command for these packages
+    case $PM in
+        pacman)  echo "sudo pacman -S --needed --noconfirm $*" ;;
+        apt-get) echo "sudo apt-get install -y $*" ;;
+        dnf)     echo "sudo dnf install -y $*" ;;
+        zypper)  echo "sudo zypper install -y $*" ;;
+    esac
 }
 
-# ---------------------------------------------------------------- Python side
+# ---------------------------------------------------------------- what is needed
+# Everything is worked out first and asked about once (Enter = all of it); system packages go
+# in one package-manager call, so there is one password prompt.
 banner
-say "Checking Python libraries"
+say "Looking at this PC"
 uses_system_python() {
     probe=$(mktemp "${TMPDIR:-/tmp}/cornerplay-probe.XXXXXX.qml") || return 1
     printf 'import QtQuick\nimport QtQuick.Controls.Basic\nimport QtQuick.Layouts\nimport QtQuick.Dialogs\nimport QtQuick.Effects\nItem {}\n' > "$probe"
@@ -138,42 +149,127 @@ EOF
     return $result
 }
 
+CAN_SUDO=0
+[ "$SYSTEM" = 1 ] && [ -n "$PM" ] && have sudo && CAN_SUDO=1
+PKGS=""; PKG_WHAT=""
+want_pkg() {  # want_pkg <thing> "what it is for": queue the system package, if there is one
+    p=$(pkg_for "$1")
+    [ -n "$p" ] || return 1
+    [ "$CAN_SUDO" = 1 ] || return 1
+    PKGS="$PKGS $p"; PKG_WHAT="${PKG_WHAT:+$PKG_WHAT, }$2"
+    return 0
+}
+
+SYSTEM_PY=0
+[ "$FORCE_VENV" = 0 ] && uses_system_python && SYSTEM_PY=1
+if [ "$SYSTEM_PY" = 0 ] && [ "$FORCE_VENV" = 0 ] && [ "$PM" = pacman ]; then
+    want_pkg pyside "Qt for Python" && SYSTEM_PY=2   # 2: the system's, once installed
+fi
+if [ "$SYSTEM_PY" != 0 ] && ! python3 -c "import yaml" >/dev/null 2>&1; then
+    want_pkg yaml "save backups" || true
+fi
+
+STEAM_FLATPAK=0
+if ! have steam && [ ! -d "$HOME/.var/app/com.valvesoftware.Steam" ]; then
+    want_pkg steam "Steam" || { have flatpak && STEAM_FLATPAK=1; }
+fi
+
+UMU_PORTABLE=0
+if ! have umu-run && [ ! -x "$DATA/bin/umu-run" ]; then
+    want_pkg umu "Proton for non-Steam games" || UMU_PORTABLE=1
+fi
+
+# Controller support is never optional: the system's SDL2 when it has one (or can get one),
+# otherwise a private copy (`cornerplay --fetch-sdl`, no root).
+if missing_sdl; then
+    want_pkg sdl "controllers" || true
+fi
+
+if [ "$SYSTEM_PY" = 0 ] && [ "${XDG_SESSION_TYPE:-}" != wayland ] \
+   && ! ls /usr/lib/libxcb-cursor.so.0 /usr/lib64/libxcb-cursor.so.0 /usr/lib/*/libxcb-cursor.so.0 >/dev/null 2>&1; then
+    want_pkg xcb "Qt on X11" || true
+fi
+
+WEB_PIP=0
+if [ "$SYSTEM_PY" = 1 ] && ! python3 -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
+    want_pkg web "the built-in sign-in window" || true
+elif [ "$SYSTEM_PY" = 2 ]; then
+    want_pkg web "the built-in sign-in window" || true
+elif [ "$SYSTEM_PY" = 0 ]; then
+    WEB_PIP=1   # checked again once the private environment exists
+fi
+
+BACKENDS=0
+[ "$(uname -m)" = x86_64 ] && BACKENDS=1
+TO_STEAM=0
+ls "$HOME"/.local/share/Steam/userdata/[0-9]* "$HOME"/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata/[0-9]* >/dev/null 2>&1 && TO_STEAM=1
+
+# ---------------------------------------------------------------- one question
+PKGS=$(echo $PKGS)  # tidy spaces
+say "Cornerplay will set up"
+[ "$SYSTEM_PY" = 0 ] && note "* Qt for Python in a private environment (about 200 MB)"
+[ -n "$PKGS" ] && note "* System packages for $PKG_WHAT: $PKGS  (one password prompt)"
+[ "$STEAM_FLATPAK" = 1 ] && note "* Steam from Flathub, for your user"
+[ "$UMU_PORTABLE" = 1 ] && note "* umu-launcher (Proton for non-Steam games), portable, in $DATA/bin"
+note "* Controller support (SDL2)"
+[ "$WEB_PIP" = 1 ] && note "* The built-in sign-in window (about 150 MB)"
+[ "$BACKENDS" = 1 ] && note "* Store tools for Epic, GOG and Amazon (legendary, gogdl, nile)"
+[ "$TO_STEAM" = 1 ] && note "* Cornerplay in Steam, for Game Mode (Steam restarts if it is open)"
+echo
+
+ALL=0; ONE_BY_ONE=0
+if ask "Go ahead with all of this?"; then
+    ALL=1
+elif ask "Choose one by one instead?"; then
+    ONE_BY_ONE=1
+else
+    note "Only Cornerplay itself is installed; the rest can be added later (Health check in the app)."
+fi
+want() {  # want "question": yes when the answer above was "all", else ask (one by one) or no
+    [ "$ALL" = 1 ] && return 0
+    [ "$ONE_BY_ONE" = 1 ] && ask "$1" && return 0
+    return 1
+}
+
+# ---------------------------------------------------------------- system packages
+if [ -n "$PKGS" ] && want "Install the system packages ($PKGS)?"; then
+    say "Installing system packages"
+    cmd=$(pm_cmd $PKGS)
+    if ! $cmd; then
+        # One package can fail (on Arch, Steam needs the multilib repository): the others still go in.
+        note "Some did not install; trying them one at a time."
+        for p in $PKGS; do $(pm_cmd "$p") >/dev/null 2>&1 || note "Not installed: $p"; done
+        if [ "$PM" = pacman ] && echo " $PKGS " | grep -q " steam " && ! pacman -Si steam >/dev/null 2>&1; then
+            note "pacman cannot find 'steam': enable [multilib] in /etc/pacman.conf, run 'sudo pacman -Syu', then this installer again."
+        fi
+    fi
+elif [ -n "$PKGS" ]; then
+    note "Skipped. To add them later: $(pm_cmd $PKGS)"
+fi
+
+# ---------------------------------------------------------------- Python
 PYTHON=python3
 if [ "$FORCE_VENV" = 0 ] && uses_system_python; then
     note "Using the system's PySide6 (Qt 6) and requests."
     rm -rf "$LIB/venv"
 else
-    if [ "$FORCE_VENV" = 0 ] && [ "$PM" = pacman ] && [ "$SYSTEM" = 1 ]; then
-        sys_install "Qt for Python" pyside6 python-requests || true
-    fi
-    if [ "$FORCE_VENV" = 0 ] && uses_system_python; then
-        note "Using the system's PySide6 (Qt 6) and requests."
-    else
-        say "Setting up a private Python environment (downloads Qt, roughly 200 MB)"
-        mkdir -p "$LIB"
-        if ! python3 -m venv "$LIB/venv" 2>/dev/null; then
-            [ "$PM" = apt-get ] && sys_install "Python's venv module" python3-venv && python3 -m venv "$LIB/venv" \
-                || die "Could not create a Python environment (python3 -m venv failed)."
+    say "Setting up a private Python environment (downloads Qt, roughly 200 MB)"
+    mkdir -p "$LIB"
+    if ! python3 -m venv "$LIB/venv" 2>/dev/null; then
+        if [ "$PM" = apt-get ] && [ "$CAN_SUDO" = 1 ]; then
+            $(pm_cmd python3-venv) && python3 -m venv "$LIB/venv" || die "Could not create a Python environment (python3 -m venv failed)."
+        else
+            die "Could not create a Python environment (python3 -m venv failed)."
         fi
-        "$LIB/venv/bin/python" -m pip install --quiet --upgrade pip
-        "$LIB/venv/bin/python" -m pip install --quiet "PySide6-Essentials>=6.6" requests pyyaml \
-            || die "Could not download PySide6. Check your internet connection and run this again."
-        PYTHON=$LIB/venv/bin/python
     fi
+    "$LIB/venv/bin/python" -m pip install --quiet --upgrade pip
+    "$LIB/venv/bin/python" -m pip install --quiet "PySide6-Essentials>=6.6" requests pyyaml \
+        || die "Could not download PySide6. Check your internet connection and run this again."
+    PYTHON=$LIB/venv/bin/python
+    WEB_PIP=1   # the system's Qt did not come in after all: offer the sign-in window here
 fi
 
 # ---------------------------------------------------------------- files
-# Save backups read where games keep their saves from a YAML list (the private environment has it).
-if [ "$PYTHON" = python3 ] && ! python3 -c "import yaml" >/dev/null 2>&1; then
-    case $PM in
-        pacman)  sys_install "PyYAML (for save backups)" python-yaml || true ;;
-        apt-get) sys_install "PyYAML (for save backups)" python3-yaml || true ;;
-        dnf)     sys_install "PyYAML (for save backups)" python3-pyyaml || true ;;
-        zypper)  sys_install "PyYAML (for save backups)" python3-PyYAML || true ;;
-        *) note "Optional: install PyYAML so save backups work." ;;
-    esac
-fi
-
 say "Installing Cornerplay into $PREFIX"
 mkdir -p "$LIB" "$BIN" "$APPS" "$ICONS"
 if [ "$DEV" = 1 ]; then
@@ -241,8 +337,7 @@ have gtk-update-icon-cache && gtk-update-icon-cache -q -t "$PREFIX/share/icons/h
 # KDE (the Steam Deck's desktop) keeps its own menu and icon cache.
 have kbuildsycoca6 && kbuildsycoca6 >/dev/null 2>&1 || { have kbuildsycoca5 && kbuildsycoca5 >/dev/null 2>&1; } || true
 
-# ---------------------------------------------------------------- optional pieces
-say "Checking the things games need"
+# ---------------------------------------------------------------- the rest
 fetch_umu() {  # portable umu-launcher (one Python zipapp) into Cornerplay's own bin folder
     mkdir -p "$DATA/bin"
     python3 - "$DATA/bin/umu-run" <<'EOF'
@@ -269,115 +364,43 @@ print(release["tag_name"])
 EOF
 }
 
-flatpak_steam() {
-    have flatpak || return 1
-    cmd="flatpak install --user -y flathub com.valvesoftware.Steam"
-    ask "Install Steam from Flathub for your user? ($cmd)" || { note "Skipped. To add Steam later: $cmd"; return 0; }
+
+if [ "$STEAM_FLATPAK" = 1 ] && want "Install Steam from Flathub for your user?"; then
     flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
-        && $cmd && return 0
-    note "That did not work; you can run it yourself later: $cmd"
-}
-
-if have steam || [ -d "$HOME/.var/app/com.valvesoftware.Steam" ]; then
-    note "Steam: found"
-else
-    case $PM in
-        pacman)  sys_install "Steam" steam || {
-                     pacman -Si steam >/dev/null 2>&1 || note "pacman cannot find 'steam': enable the [multilib] repository in /etc/pacman.conf, run 'sudo pacman -Syu', then run this installer again."
-                 } ;;
-        apt-get) sys_install "Steam" steam-installer || flatpak_steam || true ;;
-        *) flatpak_steam || note "Steam is not installed. Get it from your distribution, or install Flatpak and run this again." ;;
-    esac
-fi
-if have umu-run || [ -x "$DATA/bin/umu-run" ]; then
-    note "umu-launcher (Proton for non-Steam games): found"
-else
-    got=1
-    [ "$PM" = pacman ] && [ "$SYSTEM" = 1 ] && sys_install "umu-launcher (runs Windows games through Proton)" umu-launcher && got=0
-    if [ "$got" != 0 ]; then
-        if ask "Download a portable umu-launcher into $DATA/bin instead (no root needed)?"; then
-            if version=$(fetch_umu 2>/dev/null); then
-                note "umu-launcher $version installed to $DATA/bin/umu-run"
-            else
-                note "Download failed. Epic, GOG, Amazon and Battle.net games need umu-launcher:"
-                note "https://github.com/Open-Wine-Components/umu-launcher/releases"
-            fi
-        else
-            note "Skipped. Epic, GOG, Amazon and Battle.net games will not start without umu-launcher."
-        fi
-    fi
-fi
-if python3 -c 'import ctypes, ctypes.util, sys; sys.exit(0 if ctypes.util.find_library("SDL2") else 1)' 2>/dev/null \
-   || [ -e /usr/lib/libSDL2-2.0.so.0 ] || [ -e /usr/lib64/libSDL2-2.0.so.0 ] || [ -e /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 ]; then
-    note "SDL2 (controller support): found"
-else
-    case $PM in
-        pacman)  sys_install "SDL2 (controller support)" sdl2-compat || true ;;
-        apt-get) sys_install "SDL2 (controller support)" libsdl2-2.0-0 || true ;;
-        dnf)     sys_install "SDL2 (controller support)" SDL2 || true ;;
-        zypper)  sys_install "SDL2 (controller support)" libSDL2-2_0-0 || true ;;
-        *) note "SDL2 is not installed; controllers will not work until it is." ;;
-    esac
+        && flatpak install --user -y flathub com.valvesoftware.Steam \
+        || note "Steam did not install; try later: flatpak install --user flathub com.valvesoftware.Steam"
 fi
 
-# Qt from pip (the private environment) needs this small library on X11 sessions; desktops
-# that ship their own Qt 6 have it, minimal Debian/Fedora installs sometimes do not.
-if [ "$PYTHON" != python3 ] && [ "${XDG_SESSION_TYPE:-}" != wayland ] \
-   && ! ls /usr/lib/libxcb-cursor.so.0 /usr/lib64/libxcb-cursor.so.0 /usr/lib/*/libxcb-cursor.so.0 >/dev/null 2>&1; then
-    case $PM in
-        pacman)  sys_install "the X11 cursor library Qt needs" xcb-util-cursor || true ;;
-        apt-get) sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
-        dnf)     sys_install "the X11 cursor library Qt needs" xcb-util-cursor || true ;;
-        zypper)  sys_install "the X11 cursor library Qt needs" libxcb-cursor0 || true ;;
-        *) note "If Cornerplay does not open on X11, install your distribution's libxcb-cursor package." ;;
-    esac
-fi
-
-# Built-in sign-in window (Qt's web engine). Optional: without it, sign-in opens the normal browser.
-if ! "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
-    if [ "$PYTHON" = python3 ]; then
-        case $PM in
-            pacman)  sys_install "the built-in sign-in window (Qt web engine)" qt6-webengine || true ;;
-            apt-get) sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6.qtwebenginequick || true ;;
-            dnf)     sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6 qt6-qtwebengine || true ;;
-            zypper)  sys_install "the built-in sign-in window (Qt web engine)" python3-pyside6 qt6-webengine || true ;;
-            *) note "Optional: install Qt's web engine for the built-in sign-in window." ;;
-        esac
-    elif ask "Add the built-in sign-in window? It also links a Blizzard account to list your Battle.net games (downloads about 150 MB more)"; then
-        # PySide6 6.12+ ships the web engine as its own package; older ones keep it in Addons.
-        v=$("$PYTHON" -c 'import PySide6; print(PySide6.__version__)')
-        "$PYTHON" -m pip install --quiet "PySide6-Addons==$v" >/dev/null 2>&1
-        "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1 \
-            || "$PYTHON" -m pip install --quiet "PySide6-WebEngine==$v.*" >/dev/null 2>&1
-        if "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1; then
-            note "Built-in sign-in window: added"
-        else
-            note "Could not add it; sign-in will use your browser instead."
-        fi
+if [ "$UMU_PORTABLE" = 1 ] && ! have umu-run && want "Download a portable umu-launcher into $DATA/bin?"; then
+    if version=$(fetch_umu 2>/dev/null); then
+        note "umu-launcher $version installed to $DATA/bin/umu-run"
     else
-        note "Skipped. Sign-in will open your normal browser and ask you to paste a code; Blizzard account linking needs it."
+        note "umu-launcher did not download; Epic, GOG, Amazon and Battle.net games need it:"
+        note "https://github.com/Open-Wine-Components/umu-launcher/releases"
     fi
-else
-    note "Built-in sign-in window: available"
 fi
 
-say "Store backends for Epic, GOG and Amazon"
-if [ "$(uname -m)" != x86_64 ]; then
-    note "Skipped: prebuilt backends are only fetched for x86_64 here."
-elif ask "Download legendary, gogdl and nile from their GitHub releases into $DATA/bin?"; then
+# Controller support: always, no question (the system's SDL2, else a private copy).
+"$BIN/cornerplay" --fetch-sdl | sed 's/^/    /' || note "Controllers: SDL2 could not be set up; the app tries again when it starts."
+
+if [ "$WEB_PIP" = 1 ] && ! "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1 \
+   && want "Add the built-in sign-in window (about 150 MB)?"; then
+    # PySide6 6.12+ ships the web engine as its own package; older ones keep it in Addons.
+    v=$("$PYTHON" -c 'import PySide6; print(PySide6.__version__)')
+    "$PYTHON" -m pip install --quiet "PySide6-Addons==$v" >/dev/null 2>&1
+    "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1 \
+        || "$PYTHON" -m pip install --quiet "PySide6-WebEngine==$v.*" >/dev/null 2>&1
+    "$PYTHON" -c 'import PySide6.QtWebEngineQuick' >/dev/null 2>&1 \
+        && note "Built-in sign-in window: added" || note "Could not add it; sign-in will use your browser instead."
+fi
+
+if [ "$BACKENDS" = 1 ] && want "Download legendary, gogdl and nile (Epic, GOG and Amazon) into $DATA/bin?"; then
+    say "Store tools for Epic, GOG and Amazon"
     "$BIN/cornerplay" --fetch-backends | sed 's/^/    /' || note "Download failed; run 'cornerplay --fetch-backends' later."
-else
-    note "Skipped. Run 'cornerplay --fetch-backends' whenever you want them."
 fi
 
-# ---------------------------------------------------------------- Steam / Game Mode
-if ls "$HOME"/.local/share/Steam/userdata/[0-9]* "$HOME"/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata/[0-9]* >/dev/null 2>&1; then
-    say "Steam library"
-    if ask "Add Cornerplay itself to Steam so it shows in Game Mode? (Steam closes and reopens if it is open)"; then
-        "$BIN/cornerplay" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
-    else
-        note "Skipped. You can do it later in Settings > Library."
-    fi
+if [ "$TO_STEAM" = 1 ] && want "Add Cornerplay to Steam for Game Mode? (Steam closes and reopens if it is open)"; then
+    "$BIN/cornerplay" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
     note "To put your installed games into Steam with their artwork: Settings > Library > Add games to Steam."
 fi
 

@@ -124,7 +124,9 @@ def checks(stores, gamepad_available=True):
     add("webengine", "Built-in sign-in window", web if web else None,
         "Available" if web else "Missing: sign-ins open your browser instead",
         {} if web else {"kind": "command", "command": _pm_install("qt6-webengine")})
+    from . import sdl
     add("sdl", "Controller support (SDL2)", True if gamepad_available else False,
-        "Ready" if gamepad_available else "SDL2 missing: controllers do nothing",
-        {} if gamepad_available else {"kind": "command", "command": _pm_install("sdl2-compat")})
+        "Ready" if gamepad_available else
+        ("Being set up (downloading a private SDL2)" if sdl.can_fetch() else "SDL2 missing: controllers do nothing"),
+        {} if gamepad_available or sdl.can_fetch() else {"kind": "command", "command": _pm_install("sdl2-compat")})
     return rows

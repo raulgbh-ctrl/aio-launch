@@ -78,6 +78,7 @@ class Gamepad(QObject):
             self._load()
         except (OSError, AttributeError):
             self._sdl = None
+            self._fetch_sdl()
             return
         self.availableChanged.emit()
         self._timer = QTimer(self)
@@ -93,11 +94,37 @@ class Gamepad(QObject):
         if self._timer.interval() != interval:
             self._timer.setInterval(interval)
 
+    _fetching = False
+
+    def _fetch_sdl(self):
+        """No SDL2 anywhere: get the private copy in the background (sdl.py), then start."""
+        from . import sdl as sdl_lib
+        if Gamepad._fetching or not sdl_lib.can_fetch() or sdl_lib.PRIVATE.is_file():
+            return
+        Gamepad._fetching = True
+        import threading
+
+        def work():
+            try:
+                sdl_lib.fetch()
+            except Exception:
+                return
+            finally:
+                Gamepad._fetching = False
+            QTimer.singleShot(0, self, self._start)  # back on the main thread
+        threading.Thread(target=work, daemon=True, name="fetch-sdl").start()
+
     def _load(self):
-        try:
-            sdl = ctypes.CDLL("libSDL2-2.0.so.0")  # direct load; find_library runs ldconfig (~25 ms)
-        except OSError:
-            sdl = ctypes.CDLL(ctypes.util.find_library("SDL2") or "libSDL2.so")
+        from . import sdl as sdl_lib
+        sdl = None
+        for path in sdl_lib.candidates():
+            try:
+                sdl = ctypes.CDLL(path)
+                break
+            except OSError:
+                continue
+        if sdl is None:
+            raise OSError("SDL2 not found")
         sdl.SDL_SetHint.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
         sdl.SDL_Init.argtypes = [ctypes.c_uint32]
         sdl.SDL_PollEvent.argtypes = [ctypes.c_void_p]

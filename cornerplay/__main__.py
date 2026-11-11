@@ -186,6 +186,8 @@ def main():
     ap = argparse.ArgumentParser(prog="cornerplay", description=__doc__)
     ap.add_argument("--fetch-backends", action="store_true",
                     help="download the legendary, gogdl and nile CLIs into ~/.local/share/cornerplay/bin")
+    ap.add_argument("--fetch-sdl", action="store_true",
+                    help="make sure controller support (SDL2) is there: a private copy when the system has none")
     ap.add_argument("--status", action="store_true", help="print what each store backend needs and exit")
     ap.add_argument("--tv", action="store_true", help="start full screen in TV mode (controller friendly)")
     ap.add_argument("--play", metavar="GAME",
@@ -197,6 +199,17 @@ def main():
     args = ap.parse_args()
     if args.fetch_backends:
         return fetch_backends()
+    if args.fetch_sdl:
+        from . import sdl
+        if sdl.system_has_it():
+            print("SDL2 (controller support): the system's")
+            return 0
+        try:
+            print(f"SDL2 (controller support): private copy at {sdl.fetch()}")
+            return 0
+        except Exception as e:
+            print(f"SDL2 (controller support): not downloaded: {e}")
+            return 1
     if args.check:
         return check_qml()
     if args.status:
