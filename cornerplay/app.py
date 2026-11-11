@@ -145,7 +145,8 @@ _FIELDS = {
     "installPath": lambda m, g: g.install_path,
     "copies": lambda m, g: 1,
     "update": lambda m, g: bool(g.installed and g.extra.get("update")),
-    "achieved": lambda m, g: achievements.progress(g.id) if g.store == "steam" else -1.0,
+    "achieved": lambda m, g: achievements.progress(g.id) if g.store == "steam"
+                             else achievements.progress("gog:" + g.id) if g.store == "gog" else -1.0,
     "playtime": lambda m, g: playtime.of(g, m.played)[0],
     "lastPlayed": lambda m, g: playtime.of(g, m.played)[1],
     "covers": lambda m, g: _covers(g),
@@ -1413,8 +1414,21 @@ class AioLaunch(QObject):
     # --- achievements (Steam) --------------------------------------------------
     @Slot(str, result="QVariantMap")
     def achievements(self, key):
-        """Steam achievement progress for a game; {} until known (achievementsReady follows)."""
+        """Steam or GOG achievement progress for a game; {} until known (achievementsReady follows)."""
         g = self.model.find(key)
+        if g and g.store == "gog":
+            hit = achievements.cached("gog:" + g.id)
+            if hit is not None:
+                return hit
+            pend = "ach:" + key
+            if pend not in self._details_pending and self.stores["gog"].logged_in():
+                self._details_pending.add(pend)
+
+                def gog_work():
+                    d = achievements.gog_fetch(self.stores["gog"], g.id) or {}
+                    return lambda: (self._details_pending.discard(pend), self.achievementsReady.emit(key, d))
+                self._bg(gog_work)
+            return {}
         key_, steamid = settings.get("steam_api_key").strip(), settings.get("steam_id").strip()
         if not g or g.store != "steam" or not key_:
             return {}
