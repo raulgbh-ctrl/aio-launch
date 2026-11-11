@@ -249,7 +249,8 @@ def main():
     _note_screen_size(app)
     app.setApplicationName("cornerplay")
     app.setApplicationDisplayName("Cornerplay")
-    app.setDesktopFileName("cornerplay")  # the Wayland app id
+    from .host import FLATPAK_ID
+    app.setDesktopFileName(FLATPAK_ID or "cornerplay")  # the Wayland app id: matches the .desktop file
     load_fonts(app)
     here = Path(__file__).parent
     icon = QIcon(str(here / "cornerplay.svg"))

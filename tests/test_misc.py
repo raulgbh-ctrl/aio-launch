@@ -30,3 +30,17 @@ def test_game_options_drop_defaults(tmp_path, monkeypatch):
     assert read_json(opts.path) == {"epic:a": {"proton": "/x"}}
     opts.set("epic:a", "proton", "default")
     assert read_json(opts.path) == {}
+
+
+def test_steam_shortcut_keys_from_either_install():
+    from cornerplay.steamshortcut import play_key
+    assert play_key({"LaunchOptions": '--play "epic:Fortnite"'}) == "epic:Fortnite"
+    assert play_key({"LaunchOptions": 'run io.github.raulgbh_ctrl.Cornerplay --play "gog:123"'}) == "gog:123"
+    assert play_key({"LaunchOptions": "--tv"}) == ""
+    assert play_key({"LaunchOptions": "run org.other.App --play x"}) == ""
+
+
+def test_host_outside_flatpak():
+    from cornerplay import host
+    assert not host.IN_FLATPAK
+    assert host.argv(["steam"]) == ["steam"]

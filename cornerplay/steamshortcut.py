@@ -13,6 +13,7 @@ import time
 import zlib
 from pathlib import Path
 
+from . import host
 from .config import HOME
 
 NAME = "Cornerplay"
@@ -92,7 +93,7 @@ def accounts():
 
 def steam_running():
     try:
-        return subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0
+        return subprocess.run(host.argv(["pgrep", "-x", "steam"]), capture_output=True).returncode == 0
     except OSError:
         return False
 
@@ -107,11 +108,31 @@ def shortcut_id(exe: str, name: str) -> int:
 
 
 def launcher_path():
-    """The installed `cornerplay` command (falls back to running the module)."""
+    """The installed `cornerplay` command (falls back to running the module). In the Flatpak,
+    Steam starts `flatpak run <id>` instead (launch_prefix() holds the rest)."""
+    if host.IN_FLATPAK:
+        return "/usr/bin/flatpak"
     local = HOME / ".local/bin/cornerplay"
     if local.exists():
         return str(local)
     return shutil.which("cornerplay")
+
+
+def launch_prefix() -> str:
+    """What goes before Cornerplay's own options in a Steam shortcut's launch options."""
+    return f"run {host.FLATPAK_ID} " if host.IN_FLATPAK else ""
+
+
+PLAY = "--play "
+_FLATPAK_RUN = f"run {host.APP_ID} "
+
+
+def play_key(sc) -> str:
+    """The game key of a shortcut Cornerplay made for one game ("" for anything else), whether
+    it was made by the Flatpak or by an installed copy."""
+    opts = str(sc.get("LaunchOptions", sc.get("launchoptions", "")))
+    opts = opts[len(_FLATPAK_RUN):] if opts.startswith(_FLATPAK_RUN) else opts
+    return opts[len(PLAY):].strip().strip('"') if opts.startswith(PLAY) else ""
 
 
 OLD_NAMES = ("AIO Launch", "Kura")  # the app's earlier names: an old entry is updated, not doubled
@@ -122,8 +143,8 @@ def _find(shortcuts: dict, exe: str):
     for idx, sc in shortcuts.items():
         name = sc.get("AppName", sc.get("appname"))
         target = sc.get("Exe", sc.get("exe", "")).strip('"')
-        launch = str(sc.get("LaunchOptions", ""))
-        if (name == NAME or target == exe or name in OLD_NAMES or target in old_exes) and not launch.startswith("--play "):
+        same_exe = target == exe and not host.IN_FLATPAK  # every Flatpak shortcut runs /usr/bin/flatpak
+        if (name == NAME or same_exe or name in OLD_NAMES or target in old_exes) and not play_key(sc):
             return idx
     return None
 
@@ -278,7 +299,7 @@ def add(theme: dict, launch_options="--tv"):
             "StartDir": f'"{os.path.dirname(exe)}"',
             "icon": str(art["icon"]),
             "ShortcutPath": "",
-            "LaunchOptions": launch_options,
+            "LaunchOptions": launch_prefix() + launch_options,
             "IsHidden": 0,
             "AllowDesktopConfig": 1,
             "AllowOverlay": 1,
@@ -287,7 +308,7 @@ def add(theme: dict, launch_options="--tv"):
             "DevkitGameID": "",
             "DevkitOverrideAppID": 0,
             "LastPlayTime": old.get("LastPlayTime", 0),
-            "FlatpakAppID": "",
+            "FlatpakAppID": host.FLATPAK_ID,
             "tags": {"0": "Launchers"},
         }
         if f.exists():

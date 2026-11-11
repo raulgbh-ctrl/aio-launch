@@ -31,6 +31,9 @@ def _ver(tag):
 
 def latest(force=False):
     """{"version", "url", "notes", "asset"} of the newest release when it is newer than this one, else {}."""
+    from .host import IN_FLATPAK
+    if IN_FLATPAK:
+        return {}  # the Flatpak is updated by Flatpak (Discover, GNOME Software, `flatpak update`)
     cached = read_json(FILE) or {}
     if force or time.time() - cached.get("t", 0) > TTL:
         try:

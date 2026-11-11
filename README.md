@@ -47,6 +47,14 @@ themselves, and the old `aiolaunch` command keeps working.*
 
        git clone https://github.com/raulgbh-ctrl/cornerplay && cd cornerplay/packaging/aur && makepkg -si
 
+   **Flatpak** (Steam Deck, Fedora Silverblue, Bazzite, any distribution): download
+   `cornerplay.flatpak` from the same release and open it, or:
+
+       flatpak install --user cornerplay.flatpak
+
+   It brings its own Proton runner and store tools; Steam stays the one on your PC (Flathub
+   submission is on the way).
+
    No root needed for Cornerplay itself. It adds itself to your app menu and fetches what games
    need (it asks before installing Steam through your package manager or Flathub).
 2. **Connect a store.** Open Cornerplay, click the person icon at the bottom of the sidebar
@@ -157,6 +165,7 @@ To remove it:
 - **Backlog, ratings and notes**: mark a game Playing, Want to play, Finished or Dropped, give it 1-5 stars and a note ("stuck on boss 3") in its panel. Statuses show in the sidebar and as TV shelves; sort the library by your rating.
 - **Stats**: sidebar > Stats: hours played in total and per store, games played vs never started, your most played, and the last two weeks (Cornerplay logs each play session from 0.4.0 on; Steam only shares totals).
 - **Storage**: sidebar > Storage: every installed game by size, how full each drive is, Free up space (games over 2 GB not played for three months), Uninstall, and Move to another folder or drive (Epic, GOG and Amazon, with progress; Steam games move in Steam's Settings > Storage; Battle.net in its app).
+- **Gamescope**: run Epic, GOG, Amazon and added games inside Valve's [gamescope](https://github.com/ValveSoftware/gamescope): full screen at your screen's resolution (for games that pick the wrong size or fight the desktop over full screen), or drawn at two thirds of it and upscaled with AMD FSR for more frames; optional HDR. With MangoHud on, gamescope's own overlay is used. Default in Settings > Compatibility, per game under Options. Never nested inside Steam's Game Mode (already gamescope) and never around the Battle.net app.
 - **Performance profiles**: Battery saver (30 fps), Balanced (60 fps), both with FSR upscaling, or Max quality; an FPS counter (MangoHud). Default in Settings > Compatibility, per game under Options (Epic, GOG, Amazon). Each game keeps its own shader cache (`~/.cache/cornerplay/shaders`) so only the first run stutters.
 - **Fix it** (a game's Options): Repair files (Epic, GOG, Amazon), Reset Proton prefix (the old one is renamed, not deleted), Open log.
 - **Controller support**: from Steam's store data, in the game panel and TV mode; Steam games that are not fully supported link to Steam's controller layout.
@@ -181,6 +190,7 @@ To remove it:
 - **Steam achievements**: progress (12 / 50) in a Steam game's panel and in TV mode, when a Steam Web API key is set.
 - **Battle.net owned games**: Accounts > Battle.net > Link account signs in to your Blizzard account (kept in its own browser profile); every refresh then lists the Blizzard games you own but have not installed. Install opens the Battle.net app on that game.
 - **ProtonDB**: each game matched to Steam shows its [ProtonDB](https://www.protondb.com) rating (Platinum, Gold, Silver, Bronze, Borked), from players' reports of how it runs on Linux: a badge on the cover while it is pointed at or selected (Settings > Appearance to turn it off), a label in the game panel that opens the game's ProtonDB page (with the trending tier when it differs), and in TV mode. Fetched in the background after a refresh, cached for a week (`protondb.py`).
+- **Time to beat** (optional): how long a game takes, main story, with extras and 100%, on its page, from [IGDB](https://www.igdb.com)'s players' reports. Needs a free Twitch developer app (Settings > Library has the steps); matched through Steam's app id, otherwise only by exact title, so a sequel's hours are never shown. Cached with the game's details (`timetobeat.py`).
 - **About each game**: description, genres, developer and release year in the game panel and in TV mode, from GOG for GOG games, from Steam's store for any game matched to Steam, or the store's own text (`details.py`, cached for a month).
 
 
@@ -197,6 +207,15 @@ glue, `cornerplay/qml` is the interface.
     ./make-installer.sh          # build dist/cornerplay-<version>.run (the one-file installer)
 
 An Arch package recipe is in `packaging/aur/PKGBUILD` (`makepkg -si` there builds and installs it).
+The Flatpak manifest is in `packaging/flatpak/` (`packaging/flatpak/build.sh --bundle` builds,
+installs and writes `dist/cornerplay.flatpak`; needs `flatpak install flathub org.flatpak.Builder`).
+In the Flatpak, Steam is reached on the host through `flatpak-spawn --host` (`cornerplay/host.py`).
+
+Tests and the lint check (CI runs both, plus the QML check, on every push):
+
+    pip install pytest ruff
+    ruff check cornerplay tests
+    QT_QPA_PLATFORM=offscreen pytest -q
 
 ## Status and licence
 

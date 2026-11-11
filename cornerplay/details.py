@@ -9,6 +9,7 @@ import re
 import threading
 import time
 
+from . import timetobeat
 from .config import CACHE_DIR, read_json, write_json
 from .net import requests
 
@@ -31,7 +32,11 @@ def cached(key):
     """The details dict, or None if not fetched (or too old)."""
     with _lock:
         d = _cache().get(key)
-    return d if d and d.get("v") == VERSION and time.time() - d.get("t", 0) < TTL else None
+    if not d or d.get("v") != VERSION or time.time() - d.get("t", 0) >= TTL:
+        return None
+    if "ttb" not in d and timetobeat.configured():
+        return None  # an IGDB key was added since: fetch again to get how long it takes
+    return d
 
 
 def clean(text):
@@ -107,6 +112,10 @@ def fetch(game, appid):
         if own:
             found = dict(found or {"genres": [], "developer": "", "year": ""}, description=own)
     result = dict(found or {}, t=time.time(), v=VERSION)
+    ttb = timetobeat.fetch(game.title, appid)
+    if ttb is not None:  # None: not asked (no key, offline), so it is tried again next time
+        result["ttb"] = ttb
+        result["ttbLabel"] = timetobeat.label(ttb)
     with _lock:
         _cache()[game.key] = result
         write_json(FILE, _cache())

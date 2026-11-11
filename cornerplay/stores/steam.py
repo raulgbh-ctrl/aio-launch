@@ -1,10 +1,10 @@
 """Steam: reads the local client's libraries; installs and launches via steam:// URLs."""
 import glob
 import os
-import shutil
 
 from ..net import requests
 
+from .. import host
 from .. import vdf
 import json
 
@@ -44,11 +44,11 @@ class Steam(Store):
         return None
 
     def client(self):
-        exe = shutil.which("steam")
+        exe = host.which("steam")
         if exe:
-            return [exe]
-        if shutil.which("flatpak") and (HOME / f".var/app/{FLATPAK_ID}").is_dir():
-            return ["flatpak", "run", FLATPAK_ID]
+            return host.argv([exe])
+        if host.which("flatpak") and (HOME / f".var/app/{FLATPAK_ID}").is_dir():
+            return host.argv(["flatpak", "run", FLATPAK_ID])
         return None
 
     def problem(self):

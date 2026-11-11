@@ -74,6 +74,8 @@ DEFAULTS = {
     "steam_api_key": "",
     "steam_id": "",
     "steamgriddb_key": "",
+    "igdb_client_id": "",      # a Twitch developer app, for IGDB's time-to-beat (timetobeat.py)
+    "igdb_client_secret": "",
     "env": "",                 # extra environment for every game: KEY=VALUE KEY2=VALUE2
     "theme_mode": "Cornerplay",  # "Cornerplay" (amber, the signature look), "ryoku" (wallpaper), a preset, or "custom"
     "theme_bg": "#141218",
@@ -136,7 +138,8 @@ def find_tool(name: str) -> str | None:
     found = shutil.which(name)
     if found:
         return found
-    for d in [str(BIN_DIR), *_HEROIC_BIN_DIRS]:
+    from .host import BUNDLED_BIN
+    for d in [str(BIN_DIR), BUNDLED_BIN, *_HEROIC_BIN_DIRS]:
         p = os.path.join(d, name)
         if os.path.isfile(p) and os.access(p, os.X_OK):
             return p

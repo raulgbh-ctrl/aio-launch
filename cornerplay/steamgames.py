@@ -15,7 +15,8 @@ from .net import requests
 
 from . import covers
 from .config import CACHE_DIR, settings
-from .steamshortcut import accounts, dumps, launcher_path, loads, shortcut_id
+from . import host
+from .steamshortcut import accounts, dumps, launch_prefix, launcher_path, loads, play_key, shortcut_id
 
 TAG = "Cornerplay"
 ART_CACHE = CACHE_DIR / "steam-art"
@@ -23,12 +24,11 @@ SGDB = "https://www.steamgriddb.com/api/v2"
 
 
 def _is_ours(sc):
-    return str(sc.get("LaunchOptions", "")).startswith("--play ")
+    return bool(play_key(sc))
 
 
 def _key_of(sc):
-    opts = str(sc.get("LaunchOptions", ""))
-    return opts[len("--play "):].strip().strip('"') if opts.startswith("--play ") else ""
+    return play_key(sc)
 
 
 def eligible(game):
@@ -233,10 +233,10 @@ def sync_games(games, remove_missing=True, progress=None):
                 shortcuts[idx] = {
                     "appid": sid - 2**32, "AppName": g.title, "Exe": f'"{exe}"',
                     "StartDir": f'"{os.path.dirname(exe)}"', "icon": str(art.get("icon", "")),
-                    "ShortcutPath": "", "LaunchOptions": f'--play "{g.key}"', "IsHidden": 0,
+                    "ShortcutPath": "", "LaunchOptions": f'{launch_prefix()}--play "{g.key}"', "IsHidden": 0,
                     "AllowDesktopConfig": 1, "AllowOverlay": 1, "OpenVR": 0, "Devkit": 0,
                     "DevkitGameID": "", "DevkitOverrideAppID": 0,
-                    "LastPlayTime": old.get("LastPlayTime", 0), "FlatpakAppID": "",
+                    "LastPlayTime": old.get("LastPlayTime", 0), "FlatpakAppID": host.FLATPAK_ID,
                     "tags": {"0": TAG, "1": {"epic": "Epic Games", "gog": "GOG", "amazon": "Amazon Games",
                                              "battlenet": "Battle.net"}.get(g.store, g.store)},
                 }

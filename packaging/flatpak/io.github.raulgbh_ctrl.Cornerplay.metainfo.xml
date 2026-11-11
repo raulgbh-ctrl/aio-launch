@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.raulgbh_ctrl.Cornerplay</id>
+  <name>Cornerplay</name>
+  <summary>Every game you own in one cosy library</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.raulgbh_ctrl">
+    <name>raulgbh-ctrl</name>
+  </developer>
+  <description>
+    <p>
+      Cornerplay gathers your games from Steam, Epic Games, GOG, Amazon Games and Battle.net into
+      one warm, quiet library, with a TV mode for the couch and a controller.
+    </p>
+    <ul>
+      <li>Covers that keep up with the stores, the game you played last up front</li>
+      <li>A TV mode laid out like SteamOS Game Mode</li>
+      <li>Proton chosen and set up for you, with ProtonDB ratings, gamescope and performance profiles</li>
+      <li>Playtime, favourites, collections, a backlog, notes and ratings, synced between PCs</li>
+      <li>Save backups, DLC, game updates and Steam shortcuts for Game Mode</li>
+    </ul>
+    <p>
+      Cornerplay is not affiliated with Valve, Epic Games, GOG, Amazon or Blizzard.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.raulgbh_ctrl.Cornerplay.desktop</launchable>
+  <url type="homepage">https://github.com/raulgbh-ctrl/cornerplay</url>
+  <url type="bugtracker">https://github.com/raulgbh-ctrl/cornerplay/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The library</caption>
+      <image>https://raw.githubusercontent.com/raulgbh-ctrl/cornerplay/main/docs/screenshot-library.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>TV mode, for the couch and a controller</caption>
+      <image>https://raw.githubusercontent.com/raulgbh-ctrl/cornerplay/main/docs/screenshot-tv.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>A game's page</caption>
+      <image>https://raw.githubusercontent.com/raulgbh-ctrl/cornerplay/main/docs/screenshot-game.jpg</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>gamepad</control>
+  </supports>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <releases>
+    <release version="0.8.0" date="2026-11-11"/>
+  </releases>
+</component>

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Cornerplay
+GenericName=Game Library
+Comment=Your cosy corner for every game you own: Steam, Epic, GOG, Amazon and Battle.net in one place
+Exec=cornerplay
+Icon=io.github.raulgbh_ctrl.Cornerplay
+Categories=Game;
+Keywords=games;steam;epic;gog;amazon;battle.net;launcher;
+StartupWMClass=io.github.raulgbh_ctrl.Cornerplay
+Actions=tv;
+
+[Desktop Action tv]
+Name=TV mode
+Exec=cornerplay --tv

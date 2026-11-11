@@ -1783,6 +1783,20 @@ ApplicationWindow {
                     color: theme.outline
                     font.pixelSize: 12
                 }
+                // How long to beat (IGDB, when a key is set in Settings > Library)
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !!detail.info.ttbLabel
+                    spacing: 6
+                    Icon { name: "clock"; size: 13; color: theme.outline }
+                    Text {
+                        Layout.fillWidth: true
+                        text: detail.info.ttbLabel || ""
+                        color: theme.outline
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                }
                 Text {
                     id: detailAbout
                     Layout.fillWidth: true
@@ -3985,6 +3999,27 @@ ApplicationWindow {
                                     echoMode: TextInput.PasswordEchoOnEdit
                                     text: app.settingsMap.steamgriddb_key
                                     onEditingFinished: { app.setSetting("steamgriddb_key", text.trim()); app.refresh() }
+                                }
+                            }
+                            Row2 {
+                                label: "IGDB time to beat (optional)"
+                                hint: "Shows how long a game takes (main story, with extras, 100%) on its page. Make a free app at <a href='https://dev.twitch.tv/console/apps'>dev.twitch.tv/console/apps</a> (OAuth redirect: http://localhost, category: Application Integration, client type: Confidential) and paste its Client ID and a new secret."
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    KField {
+                                        theme: win.theme; Layout.fillWidth: true
+                                        placeholderText: "Client ID"
+                                        text: app.settingsMap.igdb_client_id
+                                        onEditingFinished: app.setSetting("igdb_client_id", text.trim())
+                                    }
+                                    KField {
+                                        theme: win.theme; Layout.fillWidth: true
+                                        placeholderText: "Client secret"
+                                        echoMode: TextInput.PasswordEchoOnEdit
+                                        text: app.settingsMap.igdb_client_secret
+                                        onEditingFinished: app.setSetting("igdb_client_secret", text.trim())
+                                    }
                                 }
                             }
                         }
