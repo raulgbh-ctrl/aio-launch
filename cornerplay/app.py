@@ -565,16 +565,34 @@ class AioLaunch(QObject):
     wallpaperChanged = Signal()
     _wallpaper = ""
 
+    _wallpaper_src = ""
+
     def _find_wallpaper(self):
+        """The wallpaper behind the window: blurred once, in the background, into a small cached
+        picture (wallpaper.backdrop), so showing it costs no GPU effect."""
         path = ""
-        if settings.get("theme_mode") == "ryoku":
+        if settings.get("theme_mode") == "ryoku" and settings.get("wallpaper_backdrop") is not False:
             from . import wallpaper
             path = self._theme.get("wallpaper") or wallpaper.find()[1]
+        if path == self._wallpaper_src:
+            return
+        self._wallpaper_src = path
+        if not path:
+            self._set_backdrop("")
+            return
+
+        def work():
+            from . import wallpaper
+            blurred = wallpaper.backdrop(path)
+            return lambda: self._wallpaper_src == path and self._set_backdrop(blurred)
+        self._bg(work)
+
+    def _set_backdrop(self, path):
         if path != self._wallpaper:
             self._wallpaper = path
             self.wallpaperChanged.emit()
 
-    wallpaperPath = Property(str, lambda s: s._wallpaper, notify=wallpaperChanged)
+    wallpaperPath = Property(str, lambda s: s._wallpaper, notify=wallpaperChanged)  # the blurred copy
 
     POLLED_WALLPAPERS = ("swww", "awww", "swaybg")
 
@@ -2694,6 +2712,8 @@ class AioLaunch(QObject):
             self.settingsChanged.emit()
             if key.startswith("theme_"):
                 self._load_theme()
+            if key == "wallpaper_backdrop":
+                self._find_wallpaper()
             if key == "steam_games" and value:
                 self._auto_steam()
             if key == "merge_duplicates":

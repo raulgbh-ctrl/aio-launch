@@ -6,7 +6,6 @@ KeyValues) and their pictures in userdata/<account>/config/grid/. Steam rewrites
 shortcuts.vdf when it exits, so changes are only safe while Steam is closed.
 """
 import os
-import shlex
 import shutil
 import struct
 import subprocess

@@ -38,7 +38,9 @@ FocusScope {
     // Animated art plays only when it costs nothing that matters: plugged in (or a desktop),
     // full effects, someone is using the screen, and Cornerplay is in front.
     readonly property bool plugged: topStatus.batt.level === undefined || !!topStatus.batt.charging
-    readonly property bool animOk: !!app.settingsMap.tv_animated && !app.light && !tv.calm && tv.plugged
+    // A menu or the keyboard covers the screen: what moves behind it can rest.
+    readonly property bool frosted: searching || (typeof mainMenu !== "undefined" && (mainMenu.open || quickMenu.open)) || panel.visible
+    readonly property bool animOk: !!app.settingsMap.tv_animated && !app.light && !tv.calm && tv.plugged && !tv.frosted
                                    && tv.visible && Qt.application.state === Qt.ApplicationActive
     onCurChanged: {
         if ((cur.key || "") === infoKey) return  // same game, just refreshed
@@ -170,13 +172,24 @@ FocusScope {
     }
 
     // The screen behind a menu or the keyboard, blurred like frosted glass (art and content).
+    // It blurs a snapshot taken as it appears (the screen behind is paused meanwhile, see
+    // frosted), not the live screen: one blur, instead of one every frame.
     component Frost: Item {
+        id: fr
         anchors.fill: parent
         readonly property bool gpu: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
-        MultiEffect { anchors.fill: parent; visible: parent.gpu && parent.visible; source: visible ? stage : null
+        readonly property bool on: gpu && visible
+        onOnChanged: if (on) { snapStage.scheduleUpdate(); snapContent.scheduleUpdate() }
+        // Typing a search changes the shelf behind the keyboard: take a fresh picture of it.
+        Connections { target: tvLibrary; function onFilterChanged() { if (fr.on) Qt.callLater(snapContent.scheduleUpdate) } }
+        ShaderEffectSource { id: snapStage; sourceItem: fr.on ? stage : null; live: false; hideSource: false
+                             anchors.fill: parent; visible: false }
+        ShaderEffectSource { id: snapContent; sourceItem: fr.on ? tvContent : null; live: false; hideSource: false
+                             x: tvContent.x; y: tvContent.y; width: tvContent.width; height: tvContent.height; visible: false }
+        MultiEffect { anchors.fill: parent; visible: fr.on; source: snapStage
                       autoPaddingEnabled: false; blurEnabled: true; blur: 1.0; blurMax: 48 }
         MultiEffect { x: tvContent.x; y: tvContent.y; width: tvContent.width; height: tvContent.height
-                      visible: parent.gpu && parent.visible; source: visible ? tvContent : null
+                      visible: fr.on; source: snapContent
                       blurEnabled: true; blur: 1.0; blurMax: 48 }  // its blur spills past its edges: no seam
     }
 
@@ -190,7 +203,7 @@ FocusScope {
         // Slow pan and zoom while the art is showing (off in Light mode).
         transformOrigin: Item.Right
         transform: Translate { id: drift }
-        readonly property bool drifting: opacity > 0 && status === Image.Ready && !app.light && tv.visible
+        readonly property bool drifting: opacity > 0 && status === Image.Ready && !app.light && tv.visible && !tv.frosted
                                          && !tv.calm && Qt.application.state === Qt.ApplicationActive
         SequentialAnimation on scale {
             running: drifting
@@ -264,7 +277,7 @@ FocusScope {
         Loader {
             anchors.fill: parent
             active: typeof canPlayVideo !== "undefined" && canPlayVideo && app.settingsMap.tv_trailers
-                    && !app.light && tv.visible && tv.trailerUrl !== ""
+                    && !app.light && tv.visible && tv.trailerUrl !== "" && !tv.frosted
                     && Qt.application.state === Qt.ApplicationActive  // never behind a running game
                     && !tv.calm
             source: "TvTrailer.qml"
@@ -969,13 +982,9 @@ FocusScope {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 2; height: 26; radius: 1
                     color: tv.tint.primary
-                    visible: keys.activeFocus
-                    SequentialAnimation on opacity {
-                        running: keys.activeFocus && !app.light
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0; duration: 500; easing.type: Easing.InOutQuad }
-                        NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutQuad }
-                    }
+                    visible: keys.activeFocus && blinkOn
+                    property bool blinkOn: true
+                    Timer { interval: 530; repeat: true; running: keys.activeFocus; onTriggered: parent.blinkOn = !parent.blinkOn }
                 }
                 Text {
                     id: searchText

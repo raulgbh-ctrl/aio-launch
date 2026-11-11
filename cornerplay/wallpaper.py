@@ -240,3 +240,50 @@ def colours(path):
     bg_hue = hue if buckets else max(avg.hsvHue(), 0)
     background = QColor.fromHsl(bg_hue, min(60, sat // 3), 22)
     return background.name(), accent.name()
+
+
+def backdrop(path, width=480):
+    """A small, soft, muted copy of the wallpaper for behind the window, made once and cached.
+    Blurring it ahead of time costs a few milliseconds here instead of a full-window GPU blur
+    (and its buffers, ~65 MB) for as long as the window is open."""
+    from PySide6.QtCore import QSize, Qt
+    from PySide6.QtGui import QColor, QImage, QImageReader
+    from .config import CACHE_DIR
+    try:
+        st = os.stat(path)
+    except OSError:
+        return ""
+    import hashlib
+    tag = hashlib.sha1(f"{path}|{st.st_mtime_ns}|{st.st_size}|{width}".encode()).hexdigest()[:16]
+    out = CACHE_DIR / f"backdrop-{tag}.jpg"
+    if out.exists():
+        return str(out)
+    reader = QImageReader(path)
+    size = reader.size()
+    if size.isValid() and size.width() > 0:  # JPEG decodes straight at a small size: fast
+        reader.setScaledSize(QSize(256, max(1, round(256 * size.height() / size.width()))))
+    img = reader.read()
+    if img.isNull():
+        return ""
+    h = max(1, round(width * img.height() / img.width()))
+    # Shrinking hard then growing back smoothly, twice, is a cheap, even blur. The colours are
+    # muted while it is tiny (the window's own palette carries the colour), so it stays quick.
+    img = img.scaled(24, max(1, round(24 * h / width)), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    img = img.scaled(width, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    img = img.scaled(48, max(1, round(48 * h / width)), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    img = img.convertToFormat(QImage.Format_RGB32)
+    for y in range(img.height()):
+        for x in range(img.width()):
+            c = QColor(img.pixel(x, y))
+            g = (c.red() * 30 + c.green() * 59 + c.blue() * 11) // 100
+            img.setPixel(x, y, QColor((c.red() + 3 * g) // 4, (c.green() + 3 * g) // 4, (c.blue() + 3 * g) // 4).rgb())
+    img = img.scaled(width, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    for old in CACHE_DIR.glob("backdrop-*.jpg"):  # one at a time is enough
+        try:
+            old.unlink()
+        except OSError:
+            pass
+    img.save(str(out), "JPG", 88)
+    return str(out)
+

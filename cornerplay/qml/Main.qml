@@ -184,32 +184,23 @@ ApplicationWindow {
     LaunchCard { theme: win.theme; blurSource: win.tv ? tvLoader.item : mainArea }  // the launch moment, over the library and TV mode alike
 
     // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
-    // sits in the desktop like a pane of frosted glass (works with or without compositor blur).
+    // sits in the desktop like a pane of frosted glass. app.wallpaperPath is already a small,
+    // blurred copy (made once, in the background), so this is a plain picture: no GPU effect.
     readonly property bool backdropOn: app.settingsMap.theme_mode === "ryoku" && app.settingsMap.wallpaper_backdrop !== false
-                                       && app.wallpaperPath !== "" && GraphicsInfo.api !== GraphicsInfo.Software
+                                       && app.wallpaperPath !== ""
     Item {
         id: backdrop
         anchors.fill: parent
         visible: win.backdropOn && !win.tv
         opacity: wallImage.status === Image.Ready ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 400 } }
-        layer.enabled: visible  // drawn once, then reused: the blur does not cost a frame each time
         Image {
             id: wallImage
             anchors.fill: parent
-            // Each part of the path escaped, so names with # % ? or spaces still load.
             source: win.backdropOn ? "file://" + app.wallpaperPath.split("/").map(encodeURIComponent).join("/") : ""
-            sourceSize.width: 720
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            visible: false
-        }
-        MultiEffect {
-            anchors.fill: parent
-            source: wallImage
-            autoPaddingEnabled: false
-            blurEnabled: true; blur: 1.0; blurMax: 64
-            saturation: 0.15
+            smooth: true
         }
         Rectangle { anchors.fill: parent; color: Qt.alpha(theme.background, 0.78) }
     }
@@ -2699,7 +2690,7 @@ ApplicationWindow {
                     readonly property bool on: collPick.inList.indexOf(modelData) !== -1
                     Layout.fillWidth: true
                     height: 44; radius: 10
-                    color: rowHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    color: collRowHover.hovered ? theme.surfaceContainerHigh : "transparent"
                     Rectangle {
                         x: 12; anchors.verticalCenter: parent.verticalCenter
                         width: 20; height: 20; radius: 6
@@ -2708,7 +2699,7 @@ ApplicationWindow {
                         Icon { anchors.centerIn: parent; visible: parent.parent.on; name: "check"; size: 14; color: theme.onPrimary }
                     }
                     Text { x: 44; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData; color: theme.onSurface; font.pixelSize: 14 }
-                    HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                    HoverHandler { id: collRowHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: app.setInCollection(collPick.key, parent.modelData, !parent.on) }
                 }
             }

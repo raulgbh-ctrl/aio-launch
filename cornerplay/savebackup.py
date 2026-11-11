@@ -15,7 +15,6 @@ import os
 import re
 import time
 import zipfile
-from pathlib import Path
 
 from .config import CACHE_DIR, DATA_DIR, HOME, read_json, settings, write_json
 from .net import requests

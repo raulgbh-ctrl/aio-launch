@@ -6,7 +6,7 @@ import shutil
 
 from contextlib import contextmanager
 
-from .config import CACHE_DIR, HOME, find_tool, settings
+from .config import CACHE_DIR, find_tool, settings
 
 _overrides: dict = {}
 

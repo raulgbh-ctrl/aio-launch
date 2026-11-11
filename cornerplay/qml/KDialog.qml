@@ -20,11 +20,23 @@ Popup {
     // Behind the pop-up the app goes soft and dim, like frosted glass (the main window names
     // what to blur as blurTarget; without it, or without a GPU, it just dims).
     readonly property Item blurTarget: ApplicationWindow.window ? ApplicationWindow.window.blurTarget || null : null
+    // A snapshot of the app, taken as the pop-up opens and blurred once (not a live blur).
+    readonly property bool frost: !!blurTarget && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+    onAboutToShow: if (frost) Qt.callLater(() => { if (d.snap) d.snap.scheduleUpdate() })
+    property var snap: null
     Overlay.modal: Item {
+        ShaderEffectSource {
+            id: snapApp
+            anchors.fill: parent
+            visible: false
+            sourceItem: d.frost && d.visible ? d.blurTarget : null
+            live: false; hideSource: false
+            Component.onCompleted: { d.snap = snapApp; scheduleUpdate() }
+        }
         MultiEffect {
             anchors.fill: parent
-            visible: !!d.blurTarget && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
-            source: visible ? d.blurTarget : null
+            visible: d.frost
+            source: snapApp
             autoPaddingEnabled: false
             blurEnabled: true; blur: 0.8; blurMax: 48
         }

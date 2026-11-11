@@ -44,10 +44,19 @@ Item {
     Timer { id: fade; onTriggered: lc.done() }
     Timer { id: giveUp; interval: 20000; onTriggered: lc.done() }
 
+    readonly property bool frost: !!blurSource && visible && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+    ShaderEffectSource {  // a snapshot of the room, taken as the card appears (see show())
+        id: snapRoom
+        anchors.fill: parent
+        visible: false
+        sourceItem: lc.frost ? lc.blurSource : null
+        live: false; hideSource: false
+    }
+    onFrostChanged: if (frost) snapRoom.scheduleUpdate()
     MultiEffect {  // the room goes soft...
         anchors.fill: parent
-        visible: !!lc.blurSource && lc.visible && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
-        source: visible ? lc.blurSource : null
+        visible: lc.frost
+        source: snapRoom
         autoPaddingEnabled: false
         blurEnabled: true; blur: 1.0; blurMax: 56
     }
