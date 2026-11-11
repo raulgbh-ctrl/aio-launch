@@ -37,3 +37,29 @@ def test_perf_profiles():
 def test_prefix_path_is_safe():
     p = runner.prefix_path("gog", "../../etc/passwd x")
     assert "/prefixes/gog-.._.._etc_passwd_x" in p
+
+
+def test_gamescope(monkeypatch):
+    monkeypatch.setattr(runner.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.delenv("GAMESCOPE_WAYLAND_DISPLAY", raising=False)
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "Hyprland")
+    monkeypatch.setitem(settings.data, "screen_size", [2560, 1440])
+    with runner.using({"gamescope": "fsr", "gamescope_hdr": True, "show_fps": True}):
+        argv = runner.extras()
+    assert argv[:argv.index("--") + 1] == ["/usr/bin/gamescope", "-f", "-W", "2560", "-H", "1440", "-w", "1706", "-h", "960",
+                                           "-F", "fsr", "--hdr-enabled", "--mangoapp", "--"]
+    assert "mangohud" not in argv  # gamescope's own overlay instead
+    with runner.using({"gamescope": "fullscreen"}):
+        assert runner.gamescope_argv()[2:8] == ["-W", "2560", "-H", "1440", "-w", "2560"]
+        assert runner.extras(gamescope=False) == []  # the Battle.net app
+    with runner.using({"gamescope": "off"}):
+        assert runner.gamescope_argv() == []
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "gamescope")  # Steam Deck Game Mode: never nested
+    with runner.using({"gamescope": "fsr"}):
+        assert runner.gamescope_argv() == []
+
+
+def test_gamescope_missing(monkeypatch):
+    monkeypatch.setattr(runner.shutil, "which", lambda name: None)
+    with runner.using({"gamescope": "fullscreen"}):
+        assert runner.gamescope_argv() == []

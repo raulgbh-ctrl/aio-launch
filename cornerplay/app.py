@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -1672,6 +1673,7 @@ class AioLaunch(QObject):
         return result[0] if isinstance(result, tuple) else bool(result)
 
     cloudSaveStores = Property("QVariantList", lambda s: list(saves.SUPPORTED), constant=True)
+    hasGamescope = Property(bool, lambda s: bool(shutil.which("gamescope")), constant=True)
 
     def _light(self):
         """Light mode skips per-cover GPU effects, blur and animations, for older PCs."""

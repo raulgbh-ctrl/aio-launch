@@ -67,6 +67,9 @@ DEFAULTS = {
     "games_dir": str(HOME / "Games" / APP),
     "proton": "GE-Proton",  # umu PROTONPATH: "GE-Proton", a path, or "" for UMU-Proton
     "mangohud": False,
+    "gamescope": "",           # run games inside gamescope: "", "fullscreen" (at the screen's resolution) or "fsr" (upscaled)
+    "gamescope_hdr": False,    # gamescope's HDR output (needs an HDR screen and a compositor that passes it on)
+    "screen_size": [],         # the main screen in pixels, noted at start-up (gamescope's output size)
     "gamemode": False,
     "steam_api_key": "",
     "steam_id": "",
@@ -159,7 +162,7 @@ def write_json(path, data):
 class GameOptions:
     """Per-game overrides, keyed "store:id". A missing key means "use the default"."""
     KEYS = ("proton", "mangohud", "gamemode", "env", "args", "cover", "prefer", "cloud_saves", "hidden", "collections",
-            "status", "rating", "note", "perf", "show_fps", "platform")
+            "status", "rating", "note", "perf", "show_fps", "platform", "gamescope", "gamescope_hdr")
 
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"

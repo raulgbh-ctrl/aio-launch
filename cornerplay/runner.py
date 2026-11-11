@@ -201,21 +201,64 @@ def forget_vulkan_check():
     _vulkan_cache = None
 
 
-def extras() -> list:
-    """Optional wrappers the user switched on in Settings."""
-    out = []
+GAMESCOPE_MODES = ("fullscreen", "fsr")
+FSR_SCALE = 2 / 3  # FSR "Quality": the game draws at two thirds of the screen's size
+
+
+def _in_gamescope() -> bool:
+    """Already inside gamescope (Steam Deck Game Mode, a gamescope session): no need to nest it."""
+    return os.environ.get("XDG_CURRENT_DESKTOP", "").lower() == "gamescope" or bool(os.environ.get("GAMESCOPE_WAYLAND_DISPLAY"))
+
+
+def gamescope_argv(mangoapp: bool = False) -> list:
+    """`gamescope ... --` for the current game, or [] when it is off, missing, or already around us.
+    fullscreen: the game gets a full-screen window at the screen's resolution (fixes games that
+    pick the wrong size or fight the desktop over full screen); fsr: it draws at two thirds of
+    that and gamescope upscales with AMD FSR."""
+    mode = opt("gamescope") or ""
+    if mode not in GAMESCOPE_MODES or _in_gamescope():
+        return []
+    exe = shutil.which("gamescope")
+    if not exe:
+        return []
+    argv = [exe, "-f"]
+    size = settings.get("screen_size") or []
+    if len(size) == 2 and all(isinstance(v, int) and v > 0 for v in size):
+        w, h = size
+        argv += ["-W", str(w), "-H", str(h)]
+        if mode == "fsr":
+            argv += ["-w", str(int(w * FSR_SCALE) // 2 * 2), "-h", str(int(h * FSR_SCALE) // 2 * 2)]
+        else:
+            argv += ["-w", str(w), "-h", str(h)]
+    if mode == "fsr":
+        argv += ["-F", "fsr"]
+    if opt("gamescope_hdr"):
+        argv.append("--hdr-enabled")
+    if mangoapp:
+        argv.append("--mangoapp")
+    return [*argv, "--"]
+
+
+def _wants_hud() -> bool:
+    return bool(opt("mangohud") or opt("show_fps") or (PROFILES.get(opt("perf") or "") or {}).get("fps"))
+
+
+def extras(gamescope: bool = True) -> list:
+    """Optional wrappers the user switched on in Settings, outermost first. Under gamescope the
+    overlay is gamescope's own --mangoapp (MangoHud inside gamescope draws in the wrong place).
+    gamescope=False for launchers that stay open (the Battle.net app)."""
+    out = gamescope_argv(mangoapp=_wants_hud() and bool(shutil.which("mangoapp"))) if gamescope else []
     if opt("gamemode") and shutil.which("gamemoderun"):
         out.append("gamemoderun")
-    if (opt("mangohud") or opt("show_fps") or (PROFILES.get(opt("perf") or "") or {}).get("fps")) \
-            and shutil.which("mangohud"):
+    if _wants_hud() and "--mangoapp" not in out and shutil.which("mangohud"):
         out.append("mangohud")
     return out
 
 
-def wrapper_argv() -> list:
+def wrapper_argv(gamescope: bool = True) -> list:
     """argv prefix that runs a Windows executable."""
     _, path = compat()
-    return [*extras(), path]
+    return [*extras(gamescope), path]
 
 
 def wrapper_string() -> str:

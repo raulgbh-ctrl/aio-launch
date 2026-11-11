@@ -3749,6 +3749,20 @@ ApplicationWindow {
                             Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
                             Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
                             Toggle { label: "FPS counter in games"; settingKey: "show_fps" }
+                            Row2 {
+                                label: "Gamescope for every game"
+                                hint: app.hasGamescope
+                                      ? "Runs Epic, GOG, Amazon and added games inside Valve's gamescope: a clean full-screen window at your screen's resolution, or drawn smaller and upscaled with FSR for more frames. Each game can choose its own under Options. Steam games: use Steam's launch options."
+                                      : "gamescope is not installed (on Arch: sudo pacman -S gamescope). Until it is, games start without it."
+                                KCombo {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: "Off", value: "" }, { label: "Full screen at screen resolution", value: "fullscreen" },
+                                            { label: "FSR upscaling (draws at 2/3 size)", value: "fsr" }]
+                                    Component.onCompleted: select(app.settingsMap.gamescope || "")
+                                    onActivated: app.setSetting("gamescope", currentValue)
+                                }
+                            }
+                            Toggle { label: "HDR in gamescope (HDR screen and compositor needed)"; settingKey: "gamescope_hdr"; visible: app.hasGamescope }
                             Toggle { label: "GOG: install the Linux version when a game has one (no Proton needed)"; settingKey: "gog_native" }
                             Row2 {
                                 label: "Performance profile for every game"
@@ -4051,6 +4065,8 @@ ApplicationWindow {
             optPerf.select(opts.perf === undefined ? "default" : opts.perf)
             optPlatform.select(opts.platform === undefined ? "default" : opts.platform)
             optFps.select(opts.show_fps === undefined ? "default" : opts.show_fps)
+            optScope.select(opts.gamescope === undefined ? "default" : opts.gamescope)
+            optHdr.select(opts.gamescope_hdr === undefined ? "default" : opts.gamescope_hdr)
             resetArmed = false
             optMode.select(opts.gamemode === undefined ? "default" : opts.gamemode)
             optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
@@ -4140,6 +4156,25 @@ ApplicationWindow {
                     label: "FPS counter"
                     KCombo { id: optFps; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "show_fps", currentValue) }
+                }
+            }
+            // Gamescope (not for the Battle.net app, which stays open after its games close).
+            RowLayout {
+                visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
+                spacing: 14
+                Row2 {
+                    label: "Gamescope"
+                    hint: app.hasGamescope ? "Full screen at your screen's resolution, or drawn at 2/3 size and upscaled with FSR."
+                                           : "gamescope is not installed, so this has no effect yet."
+                    KCombo { id: optScope; theme: win.theme; Layout.fillWidth: true
+                             model: [{ label: "Use default", value: "default" }, { label: "Off", value: "off" },
+                                     { label: "Full screen", value: "fullscreen" }, { label: "FSR upscaling", value: "fsr" }]
+                             onActivated: app.setGameOption(gameOpts.key, "gamescope", currentValue) }
+                }
+                Row2 {
+                    label: "HDR"
+                    KCombo { id: optHdr; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
+                             onActivated: app.setGameOption(gameOpts.key, "gamescope_hdr", currentValue) }
                 }
             }
             Row2 {

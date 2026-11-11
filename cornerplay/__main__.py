@@ -44,6 +44,19 @@ def auto_scale():
     return min(2.5, round(width / 1920 * 4) / 4)  # 3840 wide -> 2x
 
 
+def _note_screen_size(app):
+    """Remember the main screen's size in pixels: gamescope draws games at it, also when a game
+    starts from Steam through --play (no window to ask then)."""
+    from .config import settings
+    screen = app.primaryScreen()
+    if not screen or app.platformName() == "offscreen":  # tests and headless runs have no real screen
+        return
+    size = screen.size() * screen.devicePixelRatio()
+    wh = [int(size.width()), int(size.height())]
+    if wh[0] > 0 and wh[1] > 0 and settings.get("screen_size") != wh:
+        settings.set("screen_size", wh)
+
+
 def check_qml():
     """Compile every QML file (catches syntax and reserved-word mistakes before a restart)."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -233,6 +246,7 @@ def main():
     # match the window to cornerplay.desktop and show its icon. Qt builds the class from
     # argv[0] and the application name; started as "python3 -m cornerplay" both were wrong.
     app = QGuiApplication(["cornerplay"])
+    _note_screen_size(app)
     app.setApplicationName("cornerplay")
     app.setApplicationDisplayName("Cornerplay")
     app.setDesktopFileName("cornerplay")  # the Wayland app id

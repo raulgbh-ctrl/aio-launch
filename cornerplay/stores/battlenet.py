@@ -163,7 +163,7 @@ class BattleNet(Store):
         exe = self.launcher_exe()
         if not exe:
             raise StoreError("Install the Battle.net app first (its tile is in the library)")
-        return {"command": [*wrapper_argv(), exe], "env": self.env()}
+        return {"command": [*wrapper_argv(gamescope=False), exe], "env": self.env()}
 
     def fetch(self):
         exe = self.launcher_exe()
@@ -202,13 +202,13 @@ class BattleNet(Store):
                 raise StoreError("Install the Battle.net app first (its tile is in the library), then install "
                                  + game.title + " from there")
             # Opens the Battle.net app on this game's page, where its Install button is.
-            argv = [*wrapper_argv(), exe]
+            argv = [*wrapper_argv(gamescope=False), exe]
             if game.extra.get("launch"):
                 argv.append("--game=" + game.extra["launch"].lower())
             return Command(argv, env=self.env(), cwd=os.path.dirname(exe))
         setup = str(CACHE_DIR / "Battle.net-Setup.exe")
         script = 'curl -fL --retry 3 -o "$1" "$2" && shift 2 && exec "$@"'
-        return Command(["sh", "-c", script, "cornerplay", setup, SETUP_URL, *wrapper_argv(), setup],
+        return Command(["sh", "-c", script, "cornerplay", setup, SETUP_URL, *wrapper_argv(gamescope=False), setup],
                        env=self.env())
 
     def uninstall(self, game):
@@ -218,7 +218,7 @@ class BattleNet(Store):
         exe = self.launcher_exe()
         if not exe:
             raise StoreError("The Battle.net app is not installed yet")
-        argv = [*wrapper_argv(), exe]
+        argv = [*wrapper_argv(gamescope=False), exe]
         if game.id != LAUNCHER_ID:
             argv.append("--exec=launch " + game.extra.get("launch", game.id))
         return Command(argv, env=self.env(), cwd=os.path.dirname(exe))
