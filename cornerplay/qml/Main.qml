@@ -4033,6 +4033,18 @@ ApplicationWindow {
                                 color: theme.onSurfaceVariant; font.pixelSize: 13
                                 text: "Things most people never need to change."
                             }
+                            Toggle { label: "Show what I play on Discord (Epic, GOG, Amazon and added games)"; settingKey: "discord_presence" }
+                            Row2 {
+                                visible: !!app.settingsMap.discord_presence
+                                label: "Discord application ID"
+                                hint: "Discord shows Steam games by itself. For the others, make a free application named Cornerplay at <a href='https://discord.com/developers/applications'>discord.com/developers/applications</a> and paste its Application ID. The desktop Discord app must be open; nothing is sent anywhere else."
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: "e.g. 1234567890123456789"
+                                    text: app.settingsMap.discord_app_id
+                                    onEditingFinished: app.setSetting("discord_app_id", text.trim())
+                                }
+                            }
                             Row2 {
                                 label: "Performance"
                                 hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."

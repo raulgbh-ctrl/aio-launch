@@ -37,6 +37,12 @@ def run(game, argv, env_extra, cwd, log_path, sync):
     if cwd and not os.path.isdir(cwd):
         cwd = None
     started = time.time()
+    presence = None
+    try:
+        from . import discord
+        presence = discord.start(game, started)
+    except Exception:
+        presence = None  # Discord is a nicety; never in the way of playing
     with open(log_path, "w", encoding="utf-8") as log:
         try:
             # Its own process group, so Quit / Force close in Cornerplay reach Wine's helpers too.
@@ -48,6 +54,8 @@ def run(game, argv, env_extra, cwd, log_path, sync):
         except OSError as e:
             log.write(f"Could not start: {e}\n")
             code = -1
+    if presence:
+        presence.clear()
     if game.store in playtime.TIMED:
         try:
             playtime.record(game.key, started)

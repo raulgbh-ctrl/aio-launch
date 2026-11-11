@@ -39,6 +39,10 @@ finish-args:
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl:ro
   - --filesystem=xdg-data/lutris:ro
   - --filesystem=xdg-config/MangoHud:ro
+  # Discord Rich Presence: the desktop Discord app's local socket (native, Flatpak Discord, Vesktop).
+  - --filesystem=xdg-run/discord-ipc-0
+  - --filesystem=xdg-run/app/com.discordapp.Discord:create
+  - --filesystem=xdg-run/app/dev.vencord.Vesktop:create
   - --env=PATH=/app/bin:/app/utils/bin:/usr/bin:/usr/lib/extensions/vulkan/gamescope/bin:/usr/lib/extensions/vulkan/MangoHud/bin
 
 add-extensions:

@@ -74,6 +74,8 @@ DEFAULTS = {
     "steam_api_key": "",
     "steam_id": "",
     "steamgriddb_key": "",
+    "discord_presence": False,  # "Playing <game>" on Discord for Epic / GOG / Amazon games (discord.py)
+    "discord_app_id": "",       # the Application ID of a Discord application named "Cornerplay"
     "igdb_client_id": "",      # a Twitch developer app, for IGDB's time-to-beat (timetobeat.py)
     "igdb_client_secret": "",
     "env": "",                 # extra environment for every game: KEY=VALUE KEY2=VALUE2
