@@ -57,6 +57,7 @@ START_DELAY_MS = 300  # SDL_Init scans every input device (~150 ms); do it after
 class Gamepad(QObject):
     connectedChanged = Signal()
     availableChanged = Signal()
+    _sdlFetched = Signal()  # from the download thread; queued to the main thread
     styleChanged = Signal()
 
     def __init__(self, parent=None):
@@ -71,6 +72,7 @@ class Gamepad(QObject):
         self._timer = None
         self._style = "xbox"
         self._deck = self._is_deck()
+        self._sdlFetched.connect(self._start)
         QTimer.singleShot(START_DELAY_MS, self._start)
 
     def _start(self):
@@ -111,7 +113,7 @@ class Gamepad(QObject):
                 return
             finally:
                 Gamepad._fetching = False
-            QTimer.singleShot(0, self, self._start)  # back on the main thread
+            self._sdlFetched.emit()  # Qt queues it to the main thread, where _start runs
         threading.Thread(target=work, daemon=True, name="fetch-sdl").start()
 
     def _load(self):

@@ -1107,7 +1107,8 @@ class AioLaunch(QObject):
     @Slot()
     def checkHealth(self):
         runner.forget_vulkan_check()
-        pad = getattr(self, "gamepad_available", True)
+        gp = getattr(self, "gamepad", None)
+        pad = gp.property("available") if gp is not None else True
 
         def work():
             rows = health.checks(self.stores, pad)

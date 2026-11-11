@@ -29,3 +29,18 @@ def test_scan_systems_titles_and_launch(tmp_path, monkeypatch):
         raise AssertionError("no gba core: should say so")
     except retro.StoreError as e:
         assert "Game Boy Advance" in str(e)
+
+
+def test_rom_size_counts_discs_not_the_folder(tmp_path):
+    d = tmp_path / "PlayStation" / "Game (USA)"
+    d.mkdir(parents=True)
+    (d / "Game (Disc 1).bin").write_bytes(b"x" * 1000)
+    (d / "Game (Disc 1).cue").write_text('FILE "Game (Disc 1).bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n')
+    (d / "Game (Disc 2).bin").write_bytes(b"x" * 500)
+    (d / "Game (Disc 2).cue").write_text('FILE "Game (Disc 2).bin" BINARY\n')
+    (d / "Game.m3u").write_text("Game (Disc 1).cue\nGame (Disc 2).cue\n")
+    (d / "unrelated.bin").write_bytes(b"x" * 9999)
+    total = retro.rom_size(d / "Game.m3u")
+    m3u = (d / "Game.m3u").stat().st_size
+    cues = (d / "Game (Disc 1).cue").stat().st_size + (d / "Game (Disc 2).cue").stat().st_size
+    assert total == m3u + cues + 1500

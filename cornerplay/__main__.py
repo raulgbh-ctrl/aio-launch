@@ -303,7 +303,7 @@ def main():
     ctx.setContextProperty("tvNextLibrary", cornerplay.tvNextProxy)
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
-    cornerplay.gamepad_available = gamepad.available
+    cornerplay.gamepad = gamepad  # asked at check time: SDL only loads a moment after start-up
     ctx.setContextProperty("startTv", args.tv)
     ctx.setContextProperty("webLogin", web_login)
     # TV-mode trailers need Qt Multimedia's QML module; without it they are simply left out.

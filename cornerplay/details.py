@@ -34,8 +34,8 @@ def cached(key):
         d = _cache().get(key)
     if not d or d.get("v") != VERSION or time.time() - d.get("t", 0) >= TTL:
         return None
-    if "ttb" not in d and timetobeat.configured():
-        return None  # an IGDB key was added since: fetch again to get how long it takes
+    if "ttb" not in d and timetobeat.configured() and time.time() - d.get("ttb_tried", 0) > 86400:
+        return None  # an IGDB key was added since (or IGDB could not be asked a day ago): fetch again
     return d
 
 
@@ -116,9 +116,11 @@ def fetch(game, appid):
             found = dict(found or {"genres": [], "developer": "", "year": ""}, description=own)
     result = dict(found or {}, t=time.time(), v=VERSION)
     ttb = timetobeat.fetch(game.title, appid)
-    if ttb is not None:  # None: not asked (no key, offline), so it is tried again next time
+    if ttb is not None:
         result["ttb"] = ttb
         result["ttbLabel"] = timetobeat.label(ttb)
+    elif timetobeat.configured():
+        result["ttb_tried"] = time.time()  # IGDB could not be asked: again in a day, not on every look
     with _lock:
         _cache()[game.key] = result
         write_json(FILE, _cache())

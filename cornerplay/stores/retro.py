@@ -82,6 +82,24 @@ def thumbnail(sid, stem):
     return f"https://thumbnails.libretro.com/{quote(folder)}/Named_Boxarts/{quote(name)}.png"
 
 
+def rom_size(path):
+    """Bytes a ROM takes: the file, or for a multi-disc .m3u (and a .cue) the files it lists too.
+    Storage would otherwise count the whole ROM folder for every game in it."""
+    try:
+        size = os.path.getsize(path)
+        if path.suffix.lower() in (".m3u", ".cue"):
+            for line in path.read_text(errors="replace").splitlines():
+                line = line.strip()
+                name = line.split('"')[1] if line.upper().startswith("FILE") and '"' in line else line
+                if name and not name.startswith("#") and not line.upper().startswith(("TRACK", "INDEX", "REM")):
+                    part = path.parent / name
+                    if part.is_file() and part != path:
+                        size += rom_size(part) if part.suffix.lower() == ".cue" else part.stat().st_size
+        return size
+    except OSError:
+        return 0
+
+
 def scan():
     """[(system, path)] for every ROM in the ROM folders; multi-disc games once (their .m3u)."""
     out = []
@@ -160,7 +178,7 @@ class Retro(Store):
             gid = sid + "-" + hashlib.sha1(str(path).encode()).hexdigest()[:12]
             g = Game(store=self.id, id=gid, title=display_title(path.stem), cover=thumbnail(sid, path.stem),
                      installed=True, install_path=str(path.parent))
-            g.extra.update(rom=str(path), system=sid, systemName=SYSTEM_NAMES[sid], platform="linux")
+            g.extra.update(rom=str(path), system=sid, systemName=SYSTEM_NAMES[sid], platform="linux", size=rom_size(path))
             games.append(g)
         return games
 

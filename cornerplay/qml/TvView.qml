@@ -49,7 +49,9 @@ FocusScope {
         info = ({}); ach = ({}); anim = ({})
         infoTimer.restart()
     }
-    readonly property var storeIds: [""].concat(app.storesInfo.filter(s => s.id !== "custom" || s.count > 0).map(s => s.id))
+    // The stores you use (games there, or signed in), like the sidebar: no empty itch.io or Retro
+    // games tab for someone who uses neither, and LB / RB skip them.
+    readonly property var storeIds: [""].concat(app.storesInfo.filter(s => s.count > 0 || (s.inAccounts && s.loggedIn)).map(s => s.id))
 
     // Shelves: Continue playing, Favourites, collections, Recently added, Library. Up / down.
     property var shelfList: []

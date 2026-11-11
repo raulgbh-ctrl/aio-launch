@@ -38,3 +38,15 @@ def test_no_exact_title_match_shows_nothing(monkeypatch):
     monkeypatch.setitem(settings.data, "igdb_client_secret", "secret")
     monkeypatch.setattr(timetobeat, "_query", lambda e, b: [{"id": 2, "name": "Hades II"}] if e == "games" else [])
     assert timetobeat.fetch("Hades") == {}
+
+
+def test_failed_igdb_is_not_asked_again_on_every_look(monkeypatch):
+    from cornerplay import details
+    from cornerplay.stores.base import Game
+    monkeypatch.setitem(settings.data, "igdb_client_id", "id")
+    monkeypatch.setitem(settings.data, "igdb_client_secret", "secret")
+    monkeypatch.setattr(timetobeat, "fetch", lambda title, appid=None: None)  # IGDB unreachable
+    monkeypatch.setattr(details, "_steam", lambda appid: None)
+    g = Game("custom", "x1", "Some Game", extra={"description": "A game."})
+    details.fetch(g, None)
+    assert details.cached(g.key) is not None  # remembered: no new fetch on the next look
