@@ -43,6 +43,10 @@ themselves, and the old `aiolaunch` command keeps working.*
 
        curl -fLO https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run && sh cornerplay.run
 
+   **Arch / CachyOS / Manjaro** can install it as a package instead (an AUR upload is coming):
+
+       git clone https://github.com/raulgbh-ctrl/cornerplay && cd cornerplay/packaging/aur && makepkg -si
+
    No root needed for Cornerplay itself. It adds itself to your app menu and fetches what games
    need (it asks before installing Steam through your package manager or Flathub).
 2. **Connect a store.** Open Cornerplay, click the person icon at the bottom of the sidebar
@@ -192,7 +196,7 @@ glue, `cornerplay/qml` is the interface.
     cornerplay --fetch-backends  # download legendary, gogdl and nile into ~/.local/share/cornerplay/bin
     ./make-installer.sh          # build dist/cornerplay-<version>.run (the one-file installer)
 
-An Arch package recipe is in `packaging/aur/PKGBUILD`.
+An Arch package recipe is in `packaging/aur/PKGBUILD` (`makepkg -si` there builds and installs it).
 
 ## Status and licence
 
