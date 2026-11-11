@@ -74,6 +74,8 @@ DEFAULTS = {
     "steam_api_key": "",
     "steam_id": "",
     "steamgriddb_key": "",
+    "wishlist_sales": True,
+    "store_country": "",        # two letters for store prices (AU, RO, ...); empty: your GOG account's, else the system's     # "On sale from your wishlist" on the home page (Steam and GOG wishlists)
     "discord_presence": False,  # "Playing <game>" on Discord for Epic / GOG / Amazon games (discord.py)
     "discord_app_id": "",       # the Application ID of a Discord application named "Cornerplay"
     "igdb_client_id": "",      # a Twitch developer app, for IGDB's time-to-beat (timetobeat.py)

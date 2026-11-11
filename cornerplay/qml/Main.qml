@@ -1235,6 +1235,82 @@ ApplicationWindow {
                             }
                         }
 
+                        // Games on your Steam / GOG wishlist that are on sale right now.
+                        Column {
+                            visible: app.wishlistSales.length > 0 && !library.search
+                            x: 8
+                            width: parent.width - 16
+                            spacing: 10
+                            bottomPadding: 18
+                            SectionHead {
+                                sid: "sales"; icon: "tag"
+                                title: "On sale from your wishlist  \u00B7  " + app.wishlistSales.length
+                            }
+                            ListView {
+                                visible: !win.homeFolded("sales")
+                                width: parent.width
+                                height: 132
+                                orientation: ListView.Horizontal
+                                spacing: 12
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: app.wishlistSales
+                                delegate: Rectangle {
+                                    id: saleTile
+                                    required property var modelData
+                                    width: 300; height: 132
+                                    radius: 12
+                                    color: theme.surfaceContainerHigh
+                                    RoundedArt {
+                                        anchors.fill: parent
+                                        radius: saleTile.radius
+                                        ArtImage {
+                                            width: 94; height: parent.height
+                                            sources: [saleTile.modelData.tall, saleTile.modelData.wide].filter(u => !!u)
+                                            sourceSize.width: 188
+                                        }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent; radius: saleTile.radius; color: "transparent"; z: 1
+                                        border.width: saleHover.hovered ? 2 : 0
+                                        border.color: theme.primary
+                                    }
+                                    Column {
+                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                        spacing: 6
+                                        Text {
+                                            width: parent.width
+                                            text: saleTile.modelData.title
+                                            textFormat: Text.PlainText
+                                            color: theme.onSurface
+                                            font.pixelSize: 14; font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                        }
+                                        Row {
+                                            spacing: 8
+                                            Rectangle {
+                                                width: pct.implicitWidth + 12; height: 20; radius: 6
+                                                color: theme.primary
+                                                Text { id: pct; anchors.centerIn: parent; text: "-" + saleTile.modelData.discount + "%"
+                                                       color: theme.onPrimary; font.pixelSize: 11; font.weight: Font.Bold }
+                                            }
+                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.modelData.price
+                                                   textFormat: Text.PlainText; color: theme.onSurface; font.pixelSize: 13 }
+                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.modelData.was
+                                                   textFormat: Text.PlainText; color: theme.outline; font.pixelSize: 11; font.strikeout: true }
+                                        }
+                                        KButton {
+                                            theme: win.theme
+                                            text: saleTile.modelData.store === "gog" ? "Open on GOG" : "Open on Steam"
+                                            iconName: "external-link"
+                                            onClicked: app.openUrl(saleTile.modelData.url)
+                                        }
+                                    }
+                                    HoverHandler { id: saleHover; cursorShape: Qt.PointingHandCursor }
+                                }
+                            }
+                        }
+
                         Text {
                             x: 8
                             textFormat: Text.StyledText
@@ -3337,6 +3413,7 @@ ApplicationWindow {
         Row {
             spacing: 2
             opacity: shHover.hovered ? 1 : 0
+            visible: sh.sid !== "sales"  // the two movable sections only
             Behavior on opacity { NumberAnimation { duration: 120 } }
             Repeater {
                 model: [{ i: "chevron-up", d: -1 }, { i: "chevron-down", d: 1 }]
@@ -3641,6 +3718,19 @@ ApplicationWindow {
                         Toggle { label: "TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"; settingKey: "tv_animated" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
                         Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
+                        Toggle { label: "Show games from my Steam and GOG wishlists that are on sale"; settingKey: "wishlist_sales" }
+                        Row2 {
+                            visible: !!app.settingsMap.wishlist_sales
+                            label: "Country for store prices"
+                            hint: "Two letters, like AU or RO. Empty: your GOG account's country, else your system's."
+                            KField {
+                                theme: win.theme; Layout.preferredWidth: 90
+                                placeholderText: "Auto"
+                                maximumLength: 2
+                                text: app.settingsMap.store_country
+                                onEditingFinished: { app.setSetting("store_country", text.trim().toUpperCase()); app.refresh() }
+                            }
+                        }
                         }
 
                         // ---- Games & Proton

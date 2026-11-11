@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -883,6 +883,7 @@ class AioLaunch(QObject):
         """force (the Refresh button): skip the stores' own caches so new purchases show at once."""
         if not store_id:
             self._load_epic_free(force)
+            self._load_wishlist(force)
             self._check_update()
             self.syncPersonal()
         if self.demo:
@@ -1379,6 +1380,36 @@ class AioLaunch(QObject):
         return out
 
     epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
+
+    # --- wishlist sales ---------------------------------------------------------
+    _wishlist = []
+    wishlistChanged = Signal()
+
+    def _load_wishlist(self, force=False):
+        if self.demo or not settings.get("wishlist_sales"):
+            return
+        steamid = settings.get("steam_id").strip() or self.stores["steam"]._recent_user()[0] or ""
+        gog = self.stores["gog"]
+        token_fn = gog._token if gog.logged_in() else None
+
+        def work():
+            res = wishlist.get(steamid, token_fn, force)
+
+            def done():
+                self._wishlist = res["items"]
+                self.wishlistChanged.emit()
+                if res["new_sales"]:
+                    names = res["new_sales"]
+                    self.toast.emit(f"On sale from your wishlist: {names[0]}"
+                                    + (f" and {len(names) - 1} more" if len(names) > 1 else ""))
+            return done
+        self._bg(work)
+
+    def _wishlist_sales(self):
+        owned = {covers.norm(g.title) for g in self.model.games}
+        return [w for w in self._wishlist if w.get("discount") and covers.norm(w["title"]) not in owned]
+
+    wishlistSales = Property("QVariantList", _wishlist_sales, notify=wishlistChanged)
 
     @Slot()
     def hideEpicFreeForNow(self):
