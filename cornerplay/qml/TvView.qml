@@ -492,6 +492,9 @@ FocusScope {
                 anchors { left: parent.left; bottom: parent.bottom; bottomMargin: 6 }
                 width: Math.min(parent.width * 0.62, 980)
                 spacing: 12
+                // A very short window (TV mode not full screen): shrink rather than run into the tabs.
+                transformOrigin: Item.BottomLeft
+                scale: implicitHeight > 0 ? Math.min(1, (infoArea.height - 6) / implicitHeight) : 1
                 LogoTitle {
                     id: titleBlock
                     Layout.fillWidth: true
@@ -921,14 +924,43 @@ FocusScope {
     // The TV intro (Settings > Appearance, off by default): the corner lights up, the name
     // appears, a soft chime; then the home screen.
     property bool introDone: false
-    function maybeIntro() { if (!introDone && app.settingsMap.tv_intro && !app.light) { introDone = true; intro.play() } }
+    // The window has drawn its first frame. The intro's Animators start their clock on the first
+    // frame by themselves (they run on the render thread), so the intro starts right away; only
+    // the chime waits for the window to be on screen, so it never comes before the picture.
+    property bool shown: true
+    property bool chimeOwed: false
+    onShownChanged: if (shown && chimeOwed) { chimeOwed = false; app.uiSound("intro") }
+    function maybeIntro() {
+        if (introDone || !app.settingsMap.tv_intro || app.light) return
+        introDone = true
+        intro.play()
+    }
+    function skipIntro() {
+        app.startupAnimationDone()
+        introGone.stop()
+        introAnim.stop()
+        introIcon.opacity = 0; introIcon.scale = 0.8; introName.opacity = 0
+        const had = intro.activeFocus
+        intro.visible = false
+        if (had) grid.forceActiveFocus()  // back to the shelf it took the keys from
+    }
     Rectangle {
         id: intro
+        objectName: "tvIntro"
         anchors.fill: parent
         z: 100
         color: theme.background
         visible: false
-        function play() { visible = true; opacity = 1; app.uiSound("intro"); introAnim.restart(); introIcon.play() }
+        function play() {
+            visible = true; opacity = 1
+            forceActiveFocus()  // every key and pad button comes here while it plays: any of them skips it
+            if (tv.shown) app.uiSound("intro"); else tv.chimeOwed = true
+            introAnim.restart(); introIcon.play()
+            introGone.restart()
+        }
+        // The same safety as the splash: never left over TV mode if the animation cannot run.
+        Timer { id: introGone; interval: 4500; onTriggered: if (intro.visible) tv.skipIntro() }
+        // Animators (Qt's render thread): smooth even while the library is still loading.
         BrandMark {
             id: introIcon
             anchors.centerIn: parent
@@ -947,16 +979,16 @@ FocusScope {
         SequentialAnimation {
             id: introAnim
             ParallelAnimation {
-                NumberAnimation { target: introIcon; property: "opacity"; to: 1; duration: 600; easing.type: Easing.OutCubic }
-                NumberAnimation { target: introIcon; property: "scale"; to: 1; duration: 900; easing.type: Easing.OutBack }
+                OpacityAnimator { target: introIcon; from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                ScaleAnimator { target: introIcon; from: 0.8; to: 1; duration: 900; easing.type: Easing.OutBack }
             }
-            NumberAnimation { target: introName; property: "opacity"; to: 1; duration: 450 }
+            OpacityAnimator { target: introName; from: 0; to: 1; duration: 450 }
             PauseAnimation { duration: 700 }
-            NumberAnimation { target: intro; property: "opacity"; to: 0; duration: 450; easing.type: Easing.InCubic }
-            ScriptAction { script: { intro.visible = false; introIcon.opacity = 0; introIcon.scale = 0.8; introName.opacity = 0 } }
+            OpacityAnimator { target: intro; from: 1; to: 0; duration: 450; easing.type: Easing.InCubic }
+            ScriptAction { script: tv.skipIntro() }
         }
-        TapHandler { onTapped: { introAnim.stop(); intro.visible = false } }
-        Keys.onPressed: event => { introAnim.stop(); intro.visible = false }
+        TapHandler { onTapped: tv.skipIntro() }
+        Keys.onPressed: event => { event.accepted = true; tv.skipIntro() }
     }
 
     // Search keyboard: d-pad to a key, A types it, B deletes (or closes when empty),

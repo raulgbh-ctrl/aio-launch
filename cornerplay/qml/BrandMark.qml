@@ -2,7 +2,8 @@ import QtQuick
 
 // The Cornerplay mark: the C with a play button in a rounded square, in the theme's colours.
 // play() animates it in (splash, TV intro): the C swings round, the play button pops, the
-// sparks flick on.
+// sparks flick on. Animators, which run on Qt's render thread: the start-up animation stays
+// smooth while the app is still busy loading the library on the main thread.
 Item {
     id: bm
     property int size: 36
@@ -10,11 +11,12 @@ Item {
     readonly property color accent: theme.primary  // the wallpaper's accent, grey included
     width: size; height: size
 
+    readonly property alias playing: intro.running
     function play() {
         if (app.light) return
         intro.stop()
         cLayer.rotation = -70; cLayer.opacity = 0
-        tri.scale = 0; spark.opacity = 0; spark.pop = 0.6
+        tri.scale = 0; spark.opacity = 0; sparkPivot.scale = 0.6
         intro.start()
     }
 
@@ -36,6 +38,7 @@ Item {
         width: bm.size * 0.9; height: width
         BrandLayer {
             id: cLayer
+            objectName: "markC"
             anchors.fill: parent
             name: "mark-c"
             tint: bm.theme.dark === false ? "#f4ede4" : bm.theme.onSurface
@@ -47,34 +50,37 @@ Item {
             tint: bm.accent
             transformOrigin: Item.Center
         }
-        BrandLayer {
-            id: spark
-            anchors.fill: parent
-            name: "mark-spark"
-            tint: bm.accent
-            // grow out from the C's top right, where the sparks start
-            transform: Scale { id: sparkScale; origin.x: spark.width * 0.7; origin.y: spark.height * 0.32; xScale: spark.pop; yScale: spark.pop }
-            property real pop: 1
+        // The sparks grow out from the C's top right (70 %, 32 %): this item is centred there,
+        // so scaling it (a ScaleAnimator scales about the centre) scales the sparks from there.
+        Item {
+            id: sparkPivot
+            width: parent.width * 1.4; height: parent.height * 0.64
+            BrandLayer {
+                id: spark
+                width: sparkPivot.width / 1.4; height: sparkPivot.height / 0.64
+                name: "mark-spark"
+                tint: bm.accent
+            }
         }
     }
 
     SequentialAnimation {
         id: intro
         ParallelAnimation {
-            NumberAnimation { target: cLayer; property: "rotation"; to: 0; duration: 620; easing.type: Easing.OutBack; easing.overshoot: 1.4 }
-            NumberAnimation { target: cLayer; property: "opacity"; to: 1; duration: 300 }
+            RotationAnimator { target: cLayer; from: -70; to: 0; duration: 620; easing.type: Easing.OutBack; easing.overshoot: 1.4 }
+            OpacityAnimator { target: cLayer; from: 0; to: 1; duration: 300 }
             SequentialAnimation {
                 PauseAnimation { duration: 260 }
-                NumberAnimation { target: tri; property: "scale"; to: 1; duration: 420; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
+                ScaleAnimator { target: tri; from: 0; to: 1; duration: 420; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
             }
         }
         // The sparks: on, a flicker, on for good.
         ParallelAnimation {
-            NumberAnimation { target: spark; property: "pop"; to: 1; duration: 260; easing.type: Easing.OutBack }
+            ScaleAnimator { target: sparkPivot; from: 0.6; to: 1; duration: 260; easing.type: Easing.OutBack }
             SequentialAnimation {
-                NumberAnimation { target: spark; property: "opacity"; to: 1; duration: 90 }
-                NumberAnimation { target: spark; property: "opacity"; to: 0.25; duration: 70 }
-                NumberAnimation { target: spark; property: "opacity"; to: 1; duration: 110 }
+                OpacityAnimator { target: spark; from: 0; to: 1; duration: 90 }
+                OpacityAnimator { target: spark; from: 1; to: 0.25; duration: 70 }
+                OpacityAnimator { target: spark; from: 0.25; to: 1; duration: 110 }
             }
         }
     }

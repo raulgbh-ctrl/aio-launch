@@ -86,6 +86,8 @@ class Itch(Store):
 
     # --- library ---------------------------------------------------------
     def fetch(self):
+        if not self.logged_in():
+            return []  # not signed in is not an error: nothing to list, no toast on every start
         games, seen, page = [], set(), 1
         while page < 100:
             data = self._get("/profile/owned-keys", page=page)

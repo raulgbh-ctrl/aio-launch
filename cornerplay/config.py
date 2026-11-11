@@ -126,9 +126,13 @@ class Settings:
     def get(self, key):
         return self.data.get(key, DEFAULTS.get(key))
 
+    listeners: list = []  # called after every change (the app drops what it worked out from settings)
+
     def set(self, key, value):
         self.data[key] = value
         write_private(self.path, json.dumps(self.data, indent=2))
+        for fn in list(self.listeners):
+            fn()
 
     @property
     def games_dir(self) -> Path:

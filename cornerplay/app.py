@@ -320,7 +320,16 @@ class LibraryModel(QAbstractListModel):
         self.endResetModel()
 
     def replace_store(self, store_id, games):
-        self.set_games([g for g in self.games if g.store != store_id] + list(games))
+        """Put a store's fresh list in. Returns False (and changes nothing) when it is the same
+        as what is shown: at start-up the library comes from the cache and most stores send
+        back exactly that, and each full reset re-sorts and re-filters the whole library on the
+        main thread (it froze the start-up animation)."""
+        games = list(games)
+        old = [g.to_dict() for g in self.games if g.store == store_id]
+        if old == [g.to_dict() for g in games]:
+            return False
+        self.set_games([g for g in self.games if g.store != store_id] + games)
+        return True
 
     def touch(self, key=None):
         self.generation += 1
@@ -511,6 +520,15 @@ class AioLaunch(QObject):
         self.procs: dict[str, QProcess] = {}
         self.logs: dict[str, list] = {}
         self._pending = set()
+        # storesInfo is read by many bindings (sidebar, cards, TV mode) and each read used to
+        # ask every store for its sign-in again: worked out once per storesChanged instead.
+        # Connected before QML exists, so it runs before any binding re-reads the property.
+        self._stores_cache = None
+        self._per_change = {}  # other values that only change with storesChanged (recentGames, updateCount)
+        self.storesChanged.connect(self._forget_stores_info)
+        self._per_settings = {}  # settingsMap and light: hundreds of reads at start-up, one value per change
+        self.settingsChanged.connect(self._per_settings.clear)
+        settings.listeners.append(self._per_settings.clear)  # also changes made without the signal
         self._updates_seen = set()
         self._colour_pending = set()
         self._details_pending = set()
@@ -574,7 +592,23 @@ class AioLaunch(QObject):
         else:
             cached = read_json(LIBRARY_CACHE) or []
             self.model.set_games(Game.from_dict(d) for d in cached if d.get("store") in self.stores)
-            QTimer.singleShot(0, self.refresh)
+            # With the library already on screen from the cache, the first refresh waits for the
+            # start-up animation (startupAnimationDone): each store's answer makes the whole
+            # interface re-count, and coming in during the first second it held up the animation.
+            # The fallback covers a window that never shows. Nothing cached: refresh at once.
+            self._first_refresh_done = False
+            QTimer.singleShot(2500 if cached else 0, self._first_refresh)
+
+    def _first_refresh(self):
+        if not self._first_refresh_done:
+            self._first_refresh_done = True
+            self.refresh()
+
+    @Slot()
+    def startupAnimationDone(self):
+        """The splash (or TV mode's intro) has played: time for the first refresh."""
+        if hasattr(self, "_first_refresh_done"):
+            QTimer.singleShot(0, self._first_refresh)
 
     # --- theme -----------------------------------------------------------
     @staticmethod
@@ -684,7 +718,21 @@ class AioLaunch(QObject):
         self._load_theme()
 
     # --- stores ----------------------------------------------------------
+    def _forget_stores_info(self):
+        self._stores_cache = None
+        self._per_change.clear()
+
+    def _once_per_change(self, name, work):
+        if name not in self._per_change:
+            self._per_change[name] = work()
+        return self._per_change[name]
+
     def _stores_info(self):
+        if self._stores_cache is None:
+            self._stores_cache = self._work_out_stores_info()
+        return self._stores_cache
+
+    def _work_out_stores_info(self):
         out = []
         for s in self.stores.values():
             mine = [g for g in self.model.games if g.store == s.id
@@ -860,9 +908,9 @@ class AioLaunch(QObject):
                         "lastPlayed": last})
         return out
 
-    recentGames = Property("QVariantList", _recent_games, notify=storesChanged)
-    updateCount = Property(int, lambda s: sum(1 for g in s.model.games if g.installed and g.extra.get("update")),
-                           notify=storesChanged)
+    recentGames = Property("QVariantList", lambda s: s._once_per_change("recent", s._recent_games), notify=storesChanged)
+    updateCount = Property(int, lambda s: s._once_per_change(
+        "updates", lambda: sum(1 for g in s.model.games if g.installed and g.extra.get("update"))), notify=storesChanged)
 
     @Slot("QVariant", "QVariant", result=str)
     def playedText(self, seconds, last):
@@ -887,7 +935,8 @@ class AioLaunch(QObject):
         self.model.touch()
         self.storesChanged.emit()
     refreshing = Property(bool, lambda s: bool(s._pending), notify=refreshingChanged)
-    totalCount = Property(int, lambda s: len(s.model.groups) - s._hidden_count(), notify=storesChanged)
+    totalCount = Property(int, lambda s: len(s.model.groups) - s._once_per_change("hidden", s._hidden_count),
+                          notify=storesChanged)
 
     @Slot()
     @Slot(str)
@@ -1622,8 +1671,7 @@ class AioLaunch(QObject):
             shelves.note(store_id, [g.key for g in games])
         if store_id == "epic":
             self.epicFreeChanged.emit()  # "In your library" marks
-        if games is not None:
-            self.model.replace_store(store_id, games)
+        if games is not None and self.model.replace_store(store_id, games):
             write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
         if error:
             self.toast.emit(error)
@@ -1769,7 +1817,8 @@ class AioLaunch(QObject):
         software = QQuickWindow.graphicsApi() == QSGRendererInterface.GraphicsApi.Software
         return software or (os.cpu_count() or 2) <= 2 or ram_gb < 6
 
-    light = Property(bool, _light, notify=settingsChanged)
+    light = Property(bool, lambda s: s._per_settings["light"] if "light" in s._per_settings
+                     else s._per_settings.setdefault("light", s._light()), notify=settingsChanged)
 
     def _guard(self, key):
         g = self.model.find(key)
@@ -1932,6 +1981,7 @@ class AioLaunch(QObject):
         made = shelves.create(name)
         if made:
             self.collectionsChanged.emit()
+            self.storesChanged.emit()  # the sidebar lists collections (it showed a new, empty one only later)
         return made
 
     @Slot(str)
@@ -1982,7 +2032,7 @@ class AioLaunch(QObject):
                 counts[st] = counts.get(st, 0) + 1
         return [{"id": "s:" + sid, "name": _t(name), "count": counts[sid]} for sid, name in shelves.STATUSES if counts.get(sid)]
 
-    sidebarStatuses = Property("QVariantList", _sidebar_statuses, notify=storesChanged)
+    sidebarStatuses = Property("QVariantList", lambda s: s._once_per_change("statuses", s._sidebar_statuses), notify=storesChanged)
 
     @Slot(str, str)
     def setStatus(self, key, status):
@@ -2048,7 +2098,7 @@ class AioLaunch(QObject):
             "statuses": [{"name": n, "count": c} for n, c in statuses.items()],
         }
 
-    sidebarShelves = Property("QVariantList", _sidebar_shelves, notify=storesChanged)
+    sidebarShelves = Property("QVariantList", lambda s: s._once_per_change("shelves", s._sidebar_shelves), notify=storesChanged)
 
     @Slot(str, bool, str, result="QVariantMap")
     def pickGame(self, length, installed_only, avoid):
@@ -2097,7 +2147,7 @@ class AioLaunch(QObject):
     def _hidden_count(self):
         return sum(1 for grp in self.model.groups if self.model.is_hidden(grp))
 
-    hiddenCount = Property(int, _hidden_count, notify=storesChanged)
+    hiddenCount = Property(int, lambda s: s._once_per_change("hidden", s._hidden_count), notify=storesChanged)
 
     @Slot(str)
     def preferCopy(self, key):
@@ -2848,7 +2898,8 @@ class AioLaunch(QObject):
             QProcess.startDetached("notify-send", ["--app-name=Cornerplay", "--icon=cornerplay", title, body])
 
     # --- settings and helpers --------------------------------------------
-    settingsMap = Property("QVariantMap", lambda s: {k: settings.get(k) for k in DEFAULTS}, notify=settingsChanged)
+    settingsMap = Property("QVariantMap", lambda s: s._per_settings.setdefault("map", {k: settings.get(k) for k in DEFAULTS})
+                           if "map" not in s._per_settings else s._per_settings["map"], notify=settingsChanged)
 
     @Slot(str, "QVariant")
     def setSetting(self, key, value):

@@ -37,11 +37,16 @@ class Steam(Store):
     external_installs = True
     login_kind = "external"
 
+    _root = (0.0, None)  # (when, path): asked hundreds of times at start-up, the disk once a minute
+
     def root(self):
-        for r in ROOTS:
-            if (r / "steamapps").is_dir() or (r / "config").is_dir():
-                return r.resolve()
-        return None
+        import time
+        when, path = Steam._root
+        if time.time() - when < 60:
+            return path
+        path = next((r.resolve() for r in ROOTS if (r / "steamapps").is_dir() or (r / "config").is_dir()), None)
+        Steam._root = (time.time(), path)
+        return path
 
     def client(self):
         exe = host.which("steam")

@@ -181,6 +181,7 @@ ApplicationWindow {
         sourceComponent: TvView {
             focus: true
             theme: win.theme
+            shown: win.shown
             onExit: win.tv = false
         }
     }
@@ -215,7 +216,7 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
         opacity: win.tv ? 0 : 1
-        visible: opacity > 0
+        visible: opacity > 0 && win.contentShown
         Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 280; easing.type: Easing.InOutQuad } }
         enabled: !win.tv
 
@@ -4418,39 +4419,88 @@ ApplicationWindow {
     // -------------------------------------------------------------------- splash
     // While the library loads: the icon's corner lights up and the name appears. Short, and it
     // goes as soon as there is something to show.
+    //
+    // It starts on the window's first frame: started while the window was still being built, it
+    // was over before anything was on screen. Until the mark has come in, the library behind it
+    // is not drawn at all (contentShown): the first frames then only have the splash to draw,
+    // so they come at once and the main thread is free to start the animation on time. Its
+    // animations are Animators (Qt's render thread), so a busy main thread cannot stutter them.
+    property bool shown: false  // the window has drawn its first frame (TV mode's intro waits for it)
+    readonly property bool contentShown: !splash.visible || splash.ready || win.tv
+    Connections {
+        target: win
+        enabled: !win.shown
+        function onFrameSwapped() { win.shown = true; splash.begin() }
+    }
     Rectangle {
         id: splash
+        objectName: "splash"
         anchors.fill: parent
         z: 1000
         color: theme.background
         // Started in TV mode with its intro on: the intro is the welcome, not this.
-        opacity: win.tv && app.settingsMap.tv_intro && !app.light ? 0 : 1
-        visible: opacity > 0
+        visible: !(win.tv && app.settingsMap.tv_intro && !app.light)
+        property bool started: false
         property bool ready: false
-        Timer { interval: app.light ? 300 : 900; running: true; onTriggered: splash.ready = true }
-        Timer { interval: 2600; running: true; onTriggered: splash.opacity = 0 }   // never longer than this
+        property bool leaving: false
         readonly property bool loaded: app.totalCount > 0 || !app.refreshing
-        onReadyChanged: if (ready && loaded) opacity = 0
-        onLoadedChanged: if (ready && loaded) opacity = 0
-        Behavior on opacity { NumberAnimation { duration: app.light ? 0 : 350; easing.type: Easing.InCubic } }
+        function begin() {
+            if (started || !visible) return
+            started = true
+            if (app.light) { readyTimer.interval = 300; return }
+            splashIcon.play()
+            splashIn.start()
+        }
+        function leave() {
+            if (leaving) return
+            leaving = true
+            if (app.light) { visible = false; return }
+            splashOut.start()
+            goneTimer.start()
+        }
+        // Animators only move when the compositor asks for frames; a window it does not draw
+        // (minimised, on another output) gets none. The splash never stays over the library
+        // because of that: shortly after its fade should have ended, it goes regardless.
+        Timer { id: goneTimer; interval: 700; onTriggered: splash.visible = false }
+        // Ready once the mark has come in (its animation ends on the render thread and says so);
+        // the timer only covers an animation that never reports back. Never longer than the cap.
+        Connections {
+            target: splashIcon
+            function onPlayingChanged() { if (!splashIcon.playing && splash.started) splash.ready = true }
+        }
+        Timer { id: readyTimer; interval: 1500; running: splash.started; onTriggered: splash.ready = true }
+        Timer { interval: 2600; running: splash.started; onTriggered: splash.leave() }
+        // No frame at all (started minimised, a compositor that never shows the window): never
+        // let a late first frame put the splash over a library that is long there.
+        Timer { interval: 5000; running: true; onTriggered: if (!splash.started) { splash.started = true; splash.leave() } }
+        onReadyChanged: { if (ready) app.startupAnimationDone(); if (ready && loaded) leave() }
+        onLoadedChanged: if (ready && loaded) leave()
+        SequentialAnimation {
+            id: splashOut
+            OpacityAnimator { target: splash; from: 1; to: 0; duration: 350; easing.type: Easing.InCubic }
+            ScriptAction { script: splash.visible = false }
+        }
+        ParallelAnimation {
+            id: splashIn
+            ScaleAnimator { target: splashIcon; from: 0.85; to: 1.0; duration: 520; easing.type: Easing.OutBack }
+            OpacityAnimator { target: splashIcon; from: 0; to: 1; duration: 360 }
+            OpacityAnimator { target: splashName; from: 0; to: 1; duration: 600 }
+        }
         Column {
             anchors.centerIn: parent
             spacing: 22
             BrandMark {
                 id: splashIcon
+                objectName: "splashIcon"
                 anchors.horizontalCenter: parent.horizontalCenter
                 size: 108
-                Component.onCompleted: if (splash.visible) play()
-                SequentialAnimation on scale {
-                    running: splash.visible && !app.light
-                    NumberAnimation { from: 0.85; to: 1.0; duration: 520; easing.type: Easing.OutBack }
-                }
-                NumberAnimation on opacity { running: splash.visible; from: 0; to: 1; duration: 360 }
+                opacity: app.light ? 1 : 0  // faded in by splashIn
             }
             WordMark {
+                id: splashName
                 anchors.horizontalCenter: parent.horizontalCenter
                 showIcon: false; size: 30
-                NumberAnimation on opacity { running: splash.visible; from: 0; to: 1; duration: 600 }
+                opacity: app.light ? 1 : 0
             }
         }
     }

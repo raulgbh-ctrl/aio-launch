@@ -93,3 +93,8 @@ def test_library_install_and_launch(tmp_path, monkeypatch):
     store.uninstall(g)
     assert not store.fetch()[0].installed
     itch.AUTH_FILE.unlink()
+
+
+def test_not_signed_in_is_quiet():
+    itch.AUTH_FILE.unlink(missing_ok=True)
+    assert itch.Itch().fetch() == []
