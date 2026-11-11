@@ -1,0 +1,12 @@
+# Tooling only: Cornerplay is installed by install.sh, the AUR PKGBUILD or the Flatpak, not by pip.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 130
+
+[tool.ruff.lint]
+# Real mistakes only (syntax errors, undefined names, unused imports, late-binding closures);
+# style is left to the author.
+select = ["E9", "F", "B023"]

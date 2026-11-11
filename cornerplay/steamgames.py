@@ -219,9 +219,9 @@ def sync_games(games, remove_missing=True, progress=None):
                     removed += 1
         work = list(wanted.values())
 
-        def one(g):
+        def one(g, grid=cfg / "grid"):
             sid = shortcut_id(f'"{exe}"', g.title)
-            art = gather_art(g, cfg / "grid", sid)
+            art = gather_art(g, grid, sid)
             return g, sid, art
 
         with ThreadPoolExecutor(4) as pool:

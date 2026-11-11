@@ -1,0 +1,32 @@
+from cornerplay import covers, updates
+from cornerplay.config import GameOptions, read_json
+from cornerplay.stores.base import Game
+
+
+def test_norm_matches_editions_across_stores():
+    assert covers.norm("The Witcher® 3: Wild Hunt – Game of the Year Edition") == covers.norm("The Witcher 3: Wild Hunt")
+    assert covers.norm("Mount & Blade") == covers.norm("Mount and Blade")
+    assert covers.norm("Portal 2") != covers.norm("Portal")
+
+
+def test_version_compare():
+    assert updates._ver("v0.10.0") > updates._ver("0.9.9")
+    assert updates._ver("1.0") == (1, 0, 0)
+    assert updates._ver("0.8.0-rc1") == (0, 8, 1)
+
+
+def test_game_roundtrip():
+    g = Game("gog", "123", "Gwent", installed=True, extra={"dlc": 2})
+    assert Game.from_dict(dict(g.to_dict(), unknown_field=1)) == g
+    assert g.key == "gog:123"
+
+
+def test_game_options_drop_defaults(tmp_path, monkeypatch):
+    opts = GameOptions()
+    opts.path = tmp_path / "games.json"
+    opts.data = {}
+    opts.set("epic:a", "proton", "/x")
+    opts.set("epic:a", "bogus", 1)  # unknown keys are ignored
+    assert read_json(opts.path) == {"epic:a": {"proton": "/x"}}
+    opts.set("epic:a", "proton", "default")
+    assert read_json(opts.path) == {}
