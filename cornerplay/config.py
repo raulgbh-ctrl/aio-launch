@@ -56,6 +56,7 @@ DEFAULTS = {
     "save_backups": True,    # zip a game's saves before each start (savebackup.py)
     "backup_keep": 5,        # backups kept per game
     "card_shadow": "soft",   # cover shadows: "none", "soft", "deep"
+    "wallpaper_backdrop": True,  # Follow wallpaper: the wallpaper, blurred, behind the main window
     "tv_reflection": True,   # TV mode: covers reflected on the shelf below
     "tv_intro": False,       # TV mode: a short start-up animation and chime
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)

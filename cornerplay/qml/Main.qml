@@ -180,6 +180,36 @@ ApplicationWindow {
         }
     }
 
+    // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
+    // sits in the desktop like a pane of frosted glass (works with or without compositor blur).
+    readonly property bool backdropOn: app.settingsMap.theme_mode === "ryoku" && app.settingsMap.wallpaper_backdrop !== false
+                                       && app.wallpaperPath !== "" && GraphicsInfo.api !== GraphicsInfo.Software
+    Item {
+        id: backdrop
+        anchors.fill: parent
+        visible: win.backdropOn && !win.tv
+        opacity: wallImage.status === Image.Ready ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 400 } }
+        layer.enabled: visible  // drawn once, then reused: the blur does not cost a frame each time
+        Image {
+            id: wallImage
+            anchors.fill: parent
+            source: win.backdropOn ? "file://" + app.wallpaperPath : ""
+            sourceSize.width: 720
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            visible: false
+        }
+        MultiEffect {
+            anchors.fill: parent
+            source: wallImage
+            autoPaddingEnabled: false
+            blurEnabled: true; blur: 1.0; blurMax: 64
+            saturation: 0.15
+        }
+        Rectangle { anchors.fill: parent; color: Qt.alpha(theme.background, 0.78) }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -193,7 +223,7 @@ ApplicationWindow {
             id: sidebar
             Layout.fillHeight: true
             Layout.preferredWidth: 236
-            color: theme.surfaceContainerLow
+            color: win.backdropOn ? Qt.alpha(theme.surfaceContainerLow, 0.55) : theme.surfaceContainerLow
             // Lamplight: a warm glow pooling in the sidebar's bottom corner, like the icon.
             Rectangle {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -443,10 +473,23 @@ ApplicationWindow {
                 Layout.preferredHeight: 0
                 z: -1
                 visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software && !!win.heroInfo.key
+                Rectangle {  // over the wallpaper backdrop, the art fades out by transparency
+                    id: ambientFade
+                    width: parent.width; height: 620
+                    visible: false
+                    layer.enabled: true
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "white" }
+                        GradientStop { position: 0.55; color: Qt.alpha("white", 0.6) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
                 Item {
                     width: parent.width
                     height: 620
                     clip: true  // the blur spreads past its box, under the fade that hides the bottom
+                    layer.enabled: win.backdropOn
+                    layer.effect: MultiEffect { maskEnabled: true; maskSource: ambientFade; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
                     ArtImage {
                         id: ambientArt
                         anchors.fill: parent
@@ -464,9 +507,10 @@ ApplicationWindow {
                     }
                     Rectangle {
                         anchors.fill: parent
+                        // Over the wallpaper backdrop it fades out instead of to the solid background.
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.25) }
-                            GradientStop { position: 1.0; color: theme.background }
+                            GradientStop { position: 1.0; color: win.backdropOn ? "transparent" : theme.background }
                         }
                     }
                 }
@@ -1456,15 +1500,20 @@ ApplicationWindow {
         RowLayout {
             Layout.fillWidth: true
             spacing: 26
-            Rectangle {
+            Item {
                 Layout.preferredWidth: 220
                 Layout.preferredHeight: 320
                 Layout.alignment: Qt.AlignTop
-                radius: 12
-                color: theme.surfaceContainerHigh
-                border.width: 1
-                border.color: Qt.alpha("white", 0.14)
-                clip: true
+                RectangularShadow {
+                    anchors.fill: parent
+                    visible: !app.light
+                    radius: 14; blur: 34; offset.y: 14
+                    color: Qt.alpha("black", 0.55)
+                }
+                RoundedArt {
+                anchors.fill: parent
+                radius: 14
+                Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
                 Text {
                     anchors.centerIn: parent
                     width: parent.width - 24
@@ -1479,6 +1528,11 @@ ApplicationWindow {
                     anchors.fill: parent
                     sources: win.selected.covers || []
                     sourceSize.width: Math.min(400, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                }
+                }
+                Rectangle {
+                    anchors.fill: parent; radius: 14; color: "transparent"
+                    border.width: 1; border.color: Qt.alpha("white", 0.12)
                 }
             }
             ColumnLayout {
@@ -1752,7 +1806,7 @@ ApplicationWindow {
                 // Screenshots: click one to see it full size.
                 ListView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 84
+                    Layout.preferredHeight: 107
                     Layout.topMargin: 4
                     visible: count > 0
                     orientation: ListView.Horizontal
@@ -1760,12 +1814,17 @@ ApplicationWindow {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     model: detail.info.screenshots || []
-                    delegate: Rectangle {
+                    delegate: Item {
                         required property var modelData
                         required property int index
-                        width: 150; height: 84; radius: 8
-                        color: theme.surfaceContainerHigh
-                        clip: true
+                        width: 176; height: 99
+                        scale: shotHover.hovered && !app.light ? 1.04 : 1
+                        z: shotHover.hovered ? 1 : 0
+                        Behavior on scale { enabled: !app.light; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                        RoundedArt {
+                        anchors.fill: parent
+                        radius: 10
+                        Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
                         Image {
                             anchors.fill: parent
                             source: modelData.thumb
@@ -1775,8 +1834,9 @@ ApplicationWindow {
                             opacity: status === Image.Ready ? 1 : 0
                             Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
                         }
+                        }
                         Rectangle {
-                            anchors.fill: parent; radius: 8; color: "transparent"
+                            anchors.fill: parent; radius: 10; color: "transparent"
                             border.width: shotHover.hovered ? 2 : 1
                             border.color: shotHover.hovered ? detail.tint.primary : Qt.alpha("white", 0.1)
                         }
@@ -3247,7 +3307,9 @@ ApplicationWindow {
         height: 28
         radius: 14
         width: pillRow.implicitWidth + 24
-        color: accent ? theme.primary : Qt.alpha(theme.surfaceContainerHighest, 0.9)
+        color: accent ? Qt.alpha(theme.primary, 0.18) : Qt.alpha(theme.surfaceContainerHighest, 0.9)
+        border.width: accent ? 1 : 0
+        border.color: Qt.alpha(theme.primary, 0.6)
         Row {
             id: pillRow
             anchors.centerIn: parent
@@ -3266,7 +3328,7 @@ ApplicationWindow {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: pill.label
-                color: pill.accent ? theme.onPrimary : theme.onSurface
+                color: theme.onSurface
                 font.pixelSize: 12
                 font.weight: pill.accent ? Font.DemiBold : Font.Normal
             }
@@ -3483,6 +3545,7 @@ ApplicationWindow {
                                     onActivated: app.setSetting("card_shadow", currentValue)
                                 }
                             }
+                            Toggle { visible: app.settingsMap.theme_mode === "ryoku"; label: "Show the wallpaper behind Cornerplay (blurred)"; settingKey: "wallpaper_backdrop" }
                             Toggle { label: "TV mode: covers reflected on the shelf"; settingKey: "tv_reflection" }
                             Toggle { label: "TV mode: start-up animation and chime"; settingKey: "tv_intro" }
                             KButton {
@@ -4120,6 +4183,7 @@ ApplicationWindow {
                 id: splashIcon
                 anchors.horizontalCenter: parent.horizontalCenter
                 size: 108
+                Component.onCompleted: if (splash.visible) play()
                 SequentialAnimation on scale {
                     running: splash.visible && !app.light
                     NumberAnimation { from: 0.85; to: 1.0; duration: 520; easing.type: Easing.OutBack }

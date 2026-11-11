@@ -33,6 +33,10 @@ Item {
 
     readonly property bool hovered: hover.hovered
     readonly property bool lit: hover.hovered || current
+    // Tilt: the cover tips toward the pointer, like a game case held in the hand (-1..1 each way).
+    readonly property bool tilting: hover.hovered && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+    readonly property real tiltX: tilting ? Math.max(-1, Math.min(1, hover.point.position.x / Math.max(1, width) * 2 - 1)) : 0
+    readonly property real tiltY: tilting ? Math.max(-1, Math.min(1, hover.point.position.y / Math.max(1, height) * 2 - 1)) : 0
 
     // Accent glow around the pointed-at card: a soft, blurred light that sits a little low.
     RectangularShadow {
@@ -86,6 +90,20 @@ Item {
         color: theme.surfaceContainerHigh
         scale: card.lit && !app.light ? 1.03 : 1.0
         Behavior on scale { enabled: !app.light; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        transform: [
+            Rotation {
+                origin.x: frame.width / 2; origin.y: frame.height / 2
+                axis { x: 0; y: 1; z: 0 }
+                angle: card.tiltX * 7
+                Behavior on angle { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            },
+            Rotation {
+                origin.x: frame.width / 2; origin.y: frame.height / 2
+                axis { x: 1; y: 0; z: 0 }
+                angle: -card.tiltY * 6
+                Behavior on angle { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            }
+        ]
 
         Item {
             id: art
@@ -168,6 +186,19 @@ Item {
                 sourceSize.width: Math.min(app.light ? 280 : 400, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.78) : 0
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
+            }
+
+            // A soft light that follows the pointer across the cover while it tilts.
+            RectangularShadow {
+                visible: card.tilting && img.status === Image.Ready
+                width: parent.width * 0.9; height: width
+                x: (card.tiltX + 1) / 2 * parent.width - width / 2
+                y: (card.tiltY + 1) / 2 * parent.height - height / 2
+                radius: width / 2
+                blur: width * 0.45
+                color: Qt.alpha("white", 0.13)
+                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             }
 
             // A soft streak of light sweeps across the cover when it is pointed at.

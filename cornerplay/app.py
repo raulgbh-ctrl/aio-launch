@@ -505,7 +505,7 @@ class AioLaunch(QObject):
         from . import wallpaper
         self._wall_watch = QFileSystemWatcher(wallpaper.watch_paths(), self)
         self._wall_pending = QTimer(self, singleShot=True, interval=800)
-        self._wall_pending.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and self._load_theme())
+        self._wall_pending.timeout.connect(lambda: settings.get("theme_mode") == "ryoku" and (self._load_theme(), self._find_wallpaper()))
         self._wall_files = [p for p in wallpaper.watch_paths() if not os.path.isdir(p)]
         self._wall_watch.fileChanged.connect(lambda _: self._wall_changed())
         self._wall_watch.directoryChanged.connect(lambda _: self._wall_changed())
@@ -513,6 +513,7 @@ class AioLaunch(QObject):
         self._wall_poll = QTimer(self, interval=10000)
         self._wall_poll.timeout.connect(self._poll_wallpaper)
         self._arm_wall_poll()
+        self._find_wallpaper()
 
         session.SESSIONS.mkdir(parents=True, exist_ok=True)
         self._sessions = QFileSystemWatcher([str(session.SESSIONS)], self)
@@ -557,7 +558,23 @@ class AioLaunch(QObject):
         if new != self._theme:
             self._theme = new
             self.themeChanged.emit()
+        self._find_wallpaper()
         self._arm_wall_poll()
+
+    # The wallpaper image itself (Follow wallpaper): shown blurred behind the main window.
+    wallpaperChanged = Signal()
+    _wallpaper = ""
+
+    def _find_wallpaper(self):
+        path = ""
+        if settings.get("theme_mode") == "ryoku":
+            from . import wallpaper
+            path = self._theme.get("wallpaper") or wallpaper.find()[1]
+        if path != self._wallpaper:
+            self._wallpaper = path
+            self.wallpaperChanged.emit()
+
+    wallpaperPath = Property(str, lambda s: s._wallpaper, notify=wallpaperChanged)
 
     POLLED_WALLPAPERS = ("swww", "awww", "swaybg")
 

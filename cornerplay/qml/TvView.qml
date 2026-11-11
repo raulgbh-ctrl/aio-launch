@@ -871,7 +871,7 @@ FocusScope {
         z: 100
         color: theme.background
         visible: false
-        function play() { visible = true; opacity = 1; app.uiSound("intro"); introAnim.restart() }
+        function play() { visible = true; opacity = 1; app.uiSound("intro"); introAnim.restart(); introIcon.play() }
         BrandMark {
             id: introIcon
             anchors.centerIn: parent

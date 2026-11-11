@@ -7,12 +7,13 @@ from pathlib import Path
 
 
 def load_fonts(app):
-    """Use the bundled Inter font (OFL, cornerplay/fonts) so the app looks the same on every desktop."""
+    """Use the bundled fonts (OFL, cornerplay/fonts) so the app looks the same on every desktop:
+    Nunito, rounded like the logo's letters (Inter if Nunito is missing)."""
     from PySide6.QtGui import QFont, QFontDatabase
     ok = [QFontDatabase.addApplicationFont(str(f)) >= 0
           for f in sorted((Path(__file__).parent / "fonts").glob("*.ttf"))]
     if any(ok):
-        font = QFont("Inter")
+        font = QFont("Nunito" if "Nunito" in QFontDatabase.families() else "Inter")
         font.setPointSizeF(app.font().pointSizeF())
         font.setHintingPreference(QFont.PreferNoHinting)
         app.setFont(font)
