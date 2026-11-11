@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Shapes
 import QtQuick.Dialogs
 import "protondb.js" as ProtonDB
 
@@ -892,8 +893,8 @@ ApplicationWindow {
                             }
                             HoverHandler { id: heroHover }
                             // Corner brackets, the icon's corner, framing the banner.
-                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; rotation: 180; tone: hero.tint.primary; opacity: 0.55; size: 20; thick: 3 }
-                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 18; rotation: -90; tone: hero.tint.primary; opacity: 0.55; size: 20; thick: 3 }
+                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; rotation: 180; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
+                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 18; rotation: -90; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
                             Rectangle {
                                 anchors.fill: parent; radius: 18; color: "transparent"
                                 border.width: 1; border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
@@ -3185,13 +3186,30 @@ ApplicationWindow {
         TapHandler { onTapped: rb.tapped() }
     }
     // An L-shaped corner mark (the icon's corner); rotate it to frame any corner.
+    // A soft L: one stroke with a rounded bend and round ends, like the logo's letters.
+    // Drawn as the bottom-left corner; rotate it for the others.
     component CornerMark: Item {
+        id: cm
         property color tone: "white"
         property int size: 30
-        property int thick: 4
+        property real thick: 4
+        readonly property real bend: size * 0.5
         width: size; height: size
-        Rectangle { width: parent.thick; height: parent.height; radius: parent.thick / 2; color: parent.tone }
-        Rectangle { y: parent.height - parent.thick; width: parent.width; height: parent.thick; radius: parent.thick / 2; color: parent.tone }
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: cm.tone
+                strokeWidth: cm.thick
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                startX: cm.thick / 2; startY: cm.thick / 2
+                PathLine { x: cm.thick / 2; y: cm.size - cm.bend }
+                PathArc { x: cm.bend; y: cm.size - cm.thick / 2; radiusX: cm.bend - cm.thick / 2; radiusY: cm.bend - cm.thick / 2; direction: PathArc.Counterclockwise }
+                PathLine { x: cm.size - cm.thick / 2; y: cm.size - cm.thick / 2 }
+            }
+        }
     }
 
     // A small rounded label: optional store logo, text, optional accent colour.
