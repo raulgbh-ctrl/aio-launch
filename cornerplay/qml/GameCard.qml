@@ -23,11 +23,13 @@ Item {
     required property bool update
     required property string protondb
     required property bool favourite
+    required property real achieved   // 0..1 of the game's achievements earned; -1 when unknown
     property bool showProtonDb: true
     property int cornerRadius: 14
     property bool showBadge: true
     property bool showTitle: false
     property bool dim: true
+    property string trailer: ""   // a trailer to play inside the cover (the main window sets it while pointed at)
     signal opened()
     signal activated()
 
@@ -188,6 +190,14 @@ Item {
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
             }
 
+            // The trailer, muted, inside the cover (fades in once it plays).
+            Loader {
+                anchors.fill: parent
+                active: card.trailer !== "" && typeof canPlayVideo !== "undefined" && canPlayVideo
+                source: "TvTrailer.qml"
+                onLoaded: item.source = Qt.binding(() => card.trailer)
+            }
+
             // A soft light that follows the pointer across the cover while it tilts.
             RectangularShadow {
                 visible: card.tilting && img.status === Image.Ready
@@ -305,6 +315,20 @@ Item {
         }
 
         Rectangle { id: mask; anchors.fill: parent; radius: frame.radius; layer.enabled: true; visible: false }
+
+        // Achievements earned: a thin bar along the bottom edge, in gold once all are done.
+        Item {
+            visible: card.achieved > 0 && card.job === "" && opacity > 0
+            opacity: card.lit || card.achieved >= 1 ? 1 : 0.85
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
+            height: 4
+            Rectangle { anchors.fill: parent; radius: 2; color: Qt.alpha("black", 0.45) }
+            Rectangle {
+                height: parent.height; radius: 2
+                width: Math.max(height, parent.width * Math.min(1, card.achieved))
+                color: card.achieved >= 1 ? "#ffd166" : card.theme.primary
+            }
+        }
 
         // Store chip: shown while the card is pointed at or selected, so covers stay clean.
         Rectangle {

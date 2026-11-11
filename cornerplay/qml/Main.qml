@@ -162,7 +162,10 @@ ApplicationWindow {
                                       || prefs.visible || viewer.visible || conflict.visible || login.visible
                                       || viewMenu.visible
     property bool justClosed: false
-    onPopupOpenChanged: if (!popupOpen) { justClosed = true; closeGuard.restart() }
+    onPopupOpenChanged: {
+        if (!popupOpen) { justClosed = true; closeGuard.restart() }
+        else { trailerWait.stop(); trailerKey = ""; trailerUrl = "" }  // no trailer behind a pop-up
+    }
     Timer { id: closeGuard; interval: 450; onTriggered: win.justClosed = false }
     readonly property bool cardsLive: !popupOpen && !justClosed
     Loader {
@@ -747,9 +750,20 @@ ApplicationWindow {
                         GradientStop { position: 1.0; color: "transparent" }
                     }
                 }
+                // Changing store or list: the covers slide in and fade, rather than snapping.
+                Connections {
+                    target: library
+                    function onFilterChanged() { if (!app.light && !library.search) gridSwap.restart() }
+                }
+                ParallelAnimation {
+                    id: gridSwap
+                    NumberAnimation { target: grid; property: "opacity"; from: 0.2; to: 1; duration: 260; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: gridSlide; property: "y"; from: 22; to: 0; duration: 300; easing.type: Easing.OutCubic }
+                }
                 GridView {
                     id: grid
                     objectName: "libraryGrid"
+                    transform: Translate { id: gridSlide }
                     visible: (app.settingsMap.view || "grid") !== "list"
                     anchors.fill: parent
                     anchors.leftMargin: 12
@@ -1233,6 +1247,7 @@ ApplicationWindow {
                         }
                     }
                     delegate: GameCard {
+                        id: gridCard
                         width: grid.cellWidth
                         height: grid.cellHeight
                         theme: win.theme
@@ -1245,12 +1260,14 @@ ApplicationWindow {
                         // selection steps back.
                         interactive: win.cardsLive
                         current: GridView.isCurrentItem && grid.activeFocus && grid.keyed && grid.hoverIndex < 0
+                        trailer: win.trailerKey === key ? win.trailerUrl : ""
                         onHoveredChanged: {
                             grid.hoverIndex = hovered ? index : (grid.hoverIndex === index ? -1 : grid.hoverIndex)
                             if (hovered) { win.hoverKey = key; win.hoverAccent = app.gameColour(key); previewTimer.restart() }
-                            else if (win.hoverKey === key) { previewTimer.stop(); preview.visible = false }
+                            else if (win.hoverKey === key) { previewTimer.stop(); preview.visible = false
+                                                             trailerWait.stop(); win.trailerKey = ""; win.trailerUrl = "" }
                         }
-                        onOpened: { grid.currentIndex = index; win.select(key) }
+                        onOpened: { grid.currentIndex = index; flyer.from(key, gridCard); win.select(key) }
                         onActivated: { grid.currentIndex = index; win.activate(key) }
                         required property int index
                     }
@@ -1460,6 +1477,7 @@ ApplicationWindow {
             enabled: !app.light
             NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 140 }
         }
+        onAboutToHide: flyer.back()
         onClosed: { win.selectedKey = ""; confirmRemove.armed = false }
         background: Rectangle {
             radius: 0
@@ -1513,6 +1531,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             spacing: 26
             Item {
+                id: detailCoverBox
                 Layout.preferredWidth: 220
                 Layout.preferredHeight: 320
                 Layout.alignment: Qt.AlignTop
@@ -1588,6 +1607,7 @@ ApplicationWindow {
                               : win.selected.progress < 0 ? "Starting…"
                               : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
                                 + (win.selected.progress || 0).toFixed(1) + "%"
+                                + (win.selected.jobDetail ? "   \u00B7   " + win.selected.jobDetail : "")
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -3406,7 +3426,12 @@ ApplicationWindow {
         headingIcon: "sliders-horizontal"
         width: Math.min(win.width - 60, 640)
         property int tab: 0
-        onTabChanged: prefsScroll.contentY = 0
+        onTabChanged: { prefsScroll.contentY = 0; if (!app.light) tabSwap.restart() }
+        ParallelAnimation {
+            id: tabSwap
+            NumberAnimation { target: prefsScroll; property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic }
+            NumberAnimation { target: prefsSlide; property: "y"; from: 18; to: 0; duration: 260; easing.type: Easing.OutCubic }
+        }
         // Search: matching options light up; the first page with a match opens; tabs show counts.
         property string query: ""
         property var counts: []
@@ -3474,6 +3499,7 @@ ApplicationWindow {
             // The pages scroll when they are taller than the window.
             Flickable {
                 id: prefsScroll
+                transform: Translate { id: prefsSlide }
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(prefsStack.implicitHeight, win.height - 220)
                 contentHeight: prefsStack.implicitHeight
@@ -3575,6 +3601,8 @@ ApplicationWindow {
                                 }
                             }
                             Toggle { visible: app.settingsMap.theme_mode === "ryoku"; label: "Show the wallpaper behind Cornerplay (blurred)"; settingKey: "wallpaper_backdrop" }
+                            Toggle { label: "Play a game's trailer inside its cover while pointed at"; settingKey: "hover_trailers" }
+                            Toggle { label: "Warmer colours in the evening and at night"; settingKey: "evening_warmth" }
                             Toggle { label: "TV mode: covers reflected on the shelf"; settingKey: "tv_reflection" }
                             Toggle { label: "TV mode: start-up animation and chime"; settingKey: "tv_intro" }
                             KButton {
@@ -4224,6 +4252,98 @@ ApplicationWindow {
                 showIcon: false; size: 30
                 NumberAnimation on opacity { running: splash.visible; from: 0; to: 1; duration: 600 }
             }
+        }
+    }
+
+    // -------------------------------------------------------------------- trailer on hover
+    // Pointing at a cover for a moment plays its trailer inside it, muted (Settings > Appearance).
+    property string trailerKey: ""
+    property string trailerUrl: ""
+    readonly property bool trailersOk: app.settingsMap.hover_trailers !== false && !app.light && !win.tv
+                                       && typeof canPlayVideo !== "undefined" && canPlayVideo
+                                       && Qt.application.state === Qt.ApplicationActive
+    onHoverKeyChanged: { trailerKey = ""; trailerUrl = ""; if (hoverKey && trailersOk) trailerWait.restart(); else trailerWait.stop() }
+    onTrailersOkChanged: if (!trailersOk) { trailerWait.stop(); trailerKey = ""; trailerUrl = "" }
+    Timer {
+        id: trailerWait
+        interval: 1200
+        onTriggered: {
+            if (!win.hoverKey || grid.hoverIndex < 0 || win.popupOpen) return
+            const d = app.gameDetails(win.hoverKey)   // {} until fetched; detailsReady follows
+            if (d.trailer) { win.trailerKey = win.hoverKey; win.trailerUrl = d.trailer }
+        }
+    }
+    Connections {
+        target: app
+        function onDetailsReady(key, d) {
+            if (key === win.hoverKey && grid.hoverIndex >= 0 && !trailerWait.running && win.trailersOk && d.trailer) {
+                win.trailerKey = key; win.trailerUrl = d.trailer
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------- cover flight
+    // Opening a game: its cover lifts off the grid and lands on the game page, where the page's
+    // own cover takes over. Closing: it flies back into its place in the grid.
+    Item {
+        id: flyer
+        parent: Overlay.overlay
+        z: 1000
+        visible: false
+        property var covers: []
+        property real fromRadius: 14
+        property rect gridRect: Qt.rect(0, 0, 0, 0)
+        property string key: ""
+        readonly property bool on: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+        // Where the game page shows its cover (it is the first thing on the page).
+        function pageRect() {
+            // (detail.x reads 0 until the page has opened: it always sits right of the sidebar)
+            return Qt.rect(sidebar.width + detail.leftPadding, detail.topPadding - detailFlick.contentY, 220, 320)
+        }
+        function from(key, card) {
+            if (!on || !card) return
+            const r = card.mapToItem(null, 8, 8, card.width - 16, card.height - 16)
+            gridRect = r; flyer.key = key
+            covers = app.game(key).covers || []
+            fromRadius = card.cornerRadius
+            fly(r, pageRect(), true)
+        }
+        function back() {
+            if (!on || !key || key !== win.selectedKey) return
+            const card = grid.itemAtIndex(grid.currentIndex)
+            if (!card || card.key !== key) return
+            const r = card.mapToItem(null, 8, 8, card.width - 16, card.height - 16)
+            if (r.y + r.height < 0 || r.y > win.height) return  // scrolled out of sight
+            fly(pageRect(), r, false)
+        }
+        function fly(a, b, opening) {
+            flight.stop()
+            x = a.x; y = a.y; width = a.width; height = a.height
+            ax.to = b.x; ay.to = b.y; aw.to = b.width; ah.to = b.height
+            flight.opening = opening
+            detailCoverBox.opacity = 0
+            visible = true
+            flight.start()
+        }
+        ParallelAnimation {
+            id: flight
+            property bool opening: true
+            NumberAnimation { id: ax; target: flyer; property: "x"; duration: 380; easing.type: Easing.OutCubic }
+            NumberAnimation { id: ay; target: flyer; property: "y"; duration: 380; easing.type: Easing.OutCubic }
+            NumberAnimation { id: aw; target: flyer; property: "width"; duration: 380; easing.type: Easing.OutCubic }
+            NumberAnimation { id: ah; target: flyer; property: "height"; duration: 380; easing.type: Easing.OutCubic }
+            onFinished: { flyer.visible = false; detailCoverBox.opacity = 1; if (!flight.opening) flyer.key = "" }
+        }
+        RectangularShadow {
+            anchors.fill: parent
+            radius: 14; blur: 34; offset.y: 14
+            color: Qt.alpha("black", 0.5)
+        }
+        RoundedArt {
+            anchors.fill: parent
+            radius: 14
+            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+            ArtImage { anchors.fill: parent; sources: flyer.covers; sourceSize.width: 400 }
         }
     }
 

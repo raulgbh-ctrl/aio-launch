@@ -31,11 +31,33 @@ from .stores.custom import Custom
 LIBRARY_CACHE = CACHE_DIR / "library.json"
 PALETTE = themes.RYOKU_PALETTE
 PROGRESS = re.compile(r"Progress:\s*([\d.]+)")
+# Download speed and time left, as legendary / gogdl / nile print them ("+ Download - 25.3 MiB/s",
+# "ETA: 00:04:10"); when a tool prints neither, the time left is worked out from the progress.
+SPEED = re.compile(r"([\d.]+)\s*(B|KiB|MiB|GiB|kB|KB|MB|GB)/s", re.I)
+ETA = re.compile(r"ETA:\s*(\d+):(\d\d):(\d\d)")
+_UNITS = {"b": 1, "kib": 1024, "mib": 1024 ** 2, "gib": 1024 ** 3, "kb": 1000, "mb": 1000 ** 2, "gb": 1000 ** 3}
+
+
+def job_detail(job):
+    """'12.3 MB/s · 4 min left' (either part only when known), or ''."""
+    if not job or job.get("kind") == "queued":
+        return ""
+    parts = []
+    speed = job.get("speed") or 0
+    if speed > 0:
+        parts.append(f"{speed / 1e6:.1f} MB/s" if speed >= 1e6 else f"{speed / 1e3:.0f} kB/s")
+    eta = job.get("eta")
+    if eta is not None and job.get("etaAt"):
+        left = max(0, eta - (time.monotonic() - job["etaAt"]))
+        parts.append("under a minute left" if left < 60 else
+                     f"{round(left / 60)} min left" if left < 3600 else
+                     f"{int(left // 3600)} h {round(left % 3600 / 60)} min left")
+    return "  \u00B7  ".join(parts)
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
          "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite",
-         "status", "rating", "sizeBytes"]
+         "status", "rating", "sizeBytes", "achieved"]
 GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite", "status", "rating")
 SORTS = ("name", "recent", "playtime", "rating", "size")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
@@ -121,6 +143,7 @@ _FIELDS = {
     "installPath": lambda m, g: g.install_path,
     "copies": lambda m, g: 1,
     "update": lambda m, g: bool(g.installed and g.extra.get("update")),
+    "achieved": lambda m, g: achievements.progress(g.id) if g.store == "steam" else -1.0,
     "playtime": lambda m, g: playtime.of(g, m.played)[0],
     "lastPlayed": lambda m, g: playtime.of(g, m.played)[1],
     "covers": lambda m, g: _covers(g),
@@ -256,6 +279,7 @@ class LibraryModel(QAbstractListModel):
                         "storeColor": self.stores[c.store].color, "installed": c.installed}
                        for c in group] if len(group) > 1 else []
         d["hasDlc"] = g.store in ("steam", "epic", "gog")
+        d["jobDetail"] = job_detail(self.jobs.get(key))
         d["hidden"] = self.is_hidden(group or [g])
         pdb = protondb.rating(_appid(g)) if g.id != "battlenet-app" else {}
         d["protondbTrending"] = pdb.get("trending", "")
@@ -486,6 +510,9 @@ class AioLaunch(QObject):
         self._after.connect(lambda fn: fn())
 
         self._theme = themes.current()
+        if settings.get("evening_warmth") is not False:  # the same as _load_theme, from the first frame
+            _now = time.localtime()
+            self._theme = themes.warmed(self._theme, themes.evening_amount(_now.tm_hour + _now.tm_min / 60))
         self._shortcut = {"accounts": 0, "added": 0, "steam": False, "running": False, "gameMode": False,
                           "busy": False, "games": 0, "gamesInSteam": 0, "inSync": False, "progress": ""}
         self._ge = {"latest": "", "installed": (proton.installed_ge() or [""])[0], "busy": False,
@@ -512,6 +539,10 @@ class AioLaunch(QObject):
         # swww and swaybg keep the wallpaper in a running program, not in a file: ask them now and then.
         self._wall_poll = QTimer(self, interval=10000)
         self._wall_poll.timeout.connect(self._poll_wallpaper)
+        # Evening warmth changes slowly: look again every ten minutes.
+        self._warm_timer = QTimer(self, interval=10 * 60 * 1000)
+        self._warm_timer.timeout.connect(self._load_theme)
+        self._warm_timer.start()
         self._arm_wall_poll()
         self._find_wallpaper()
 
@@ -555,6 +586,9 @@ class AioLaunch(QObject):
             self._palette_timer.start()
             return
         new = themes.current()
+        if settings.get("evening_warmth") is not False:
+            now = time.localtime()
+            new = themes.warmed(new, themes.evening_amount(now.tm_hour + now.tm_min / 60))
         if new != self._theme:
             self._theme = new
             self.themeChanged.emit()
@@ -1615,7 +1649,7 @@ class AioLaunch(QObject):
         for key, job in list(self.model.jobs.items()):
             g = self.model.as_dict(key)
             out.append({"key": key, "title": g.get("title") or key, "job": job.get("kind", ""),
-                        "progress": float(job.get("progress", -1.0))})
+                        "progress": float(job.get("progress", -1.0)), "detail": job_detail(job)})
         return out
 
     def _env(self, extra):
@@ -2655,12 +2689,36 @@ class AioLaunch(QObject):
         text = bytes(p.readAllStandardOutput()).decode("utf-8", "replace")
         lines = [l for l in re.split(r"[\r\n]+", text) if l.strip()]
         self.logs[key] = (self.logs[key] + lines)[-40:]
+        job = self.model.jobs.get(key)
+        if job is None:
+            return
+        now = time.monotonic()
+        told_eta = False
+        for line in lines:
+            sp = SPEED.search(line)
+            if sp and "/s" in line:
+                job["speed"] = float(sp.group(1)) * _UNITS.get(sp.group(2).lower(), 1)
+            et = ETA.search(line)
+            if et:
+                h, mi, se = (int(x) for x in et.groups())
+                job["eta"], job["etaAt"] = h * 3600 + mi * 60 + se, now
+                told_eta = True
         for line in reversed(lines):
             m = PROGRESS.search(line)
             if m:
-                self.model.jobs[key]["progress"] = min(100.0, float(m.group(1)))
-                self._touch(key)
+                pct = min(100.0, float(m.group(1)))
+                job["progress"] = pct
+                # No ETA from the tool: estimate it from the last minute or so of progress.
+                if not told_eta and not job.get("etaFromTool"):
+                    hist = [h for h in job.setdefault("hist", []) if now - h[0] < 90] + [(now, pct)]
+                    job["hist"] = hist
+                    t0, p0 = hist[0]
+                    if now - t0 > 8 and pct > p0:
+                        job["eta"], job["etaAt"] = (100 - pct) * (now - t0) / (pct - p0), now
                 break
+        if told_eta:
+            job["etaFromTool"] = True
+        self._touch(key)
 
     def _job_done(self, g, kind, code):
         key = g.key
@@ -2679,8 +2737,11 @@ class AioLaunch(QObject):
         elif code == 0:
             if kind == "update":
                 g.extra.pop("update", None)  # the refresh below confirms it
-            self.toast.emit(f"Installed DLC for {g.title}" if kind == "dlc" else
-                            f"{ {'install': 'Installed', 'update': 'Updated', 'verify': 'Repaired the files of'}.get(kind, 'Removed')} {g.title}")
+            done = (f"Installed DLC for {g.title}" if kind == "dlc" else
+                    f"{ {'install': 'Installed', 'update': 'Updated', 'verify': 'Repaired the files of'}.get(kind, 'Removed')} {g.title}")
+            self.toast.emit(done)
+            if kind in ("install", "update", "dlc"):
+                self._notify(done, "Ready to play" if kind != "dlc" else "")
             if kind in ("dlc", "update", "install"):
                 self._dlc_cache.pop(key, None)
         else:
@@ -2694,6 +2755,14 @@ class AioLaunch(QObject):
     def _touch(self, key):
         self.model.touch(key)
         self.gameChanged.emit(key)
+
+    def _notify(self, title, body=""):
+        """A desktop notification, only while Cornerplay is not in front (a game, another app)."""
+        if QGuiApplication.applicationState() == Qt.ApplicationActive:
+            return
+        import shutil
+        if shutil.which("notify-send"):
+            QProcess.startDetached("notify-send", ["--app-name=Cornerplay", "--icon=cornerplay", title, body])
 
     # --- settings and helpers --------------------------------------------
     settingsMap = Property("QVariantMap", lambda s: {k: settings.get(k) for k in DEFAULTS}, notify=settingsChanged)
@@ -2711,6 +2780,8 @@ class AioLaunch(QObject):
             settings.set(key, value)
             self.settingsChanged.emit()
             if key.startswith("theme_"):
+                self._load_theme()
+            if key == "evening_warmth":
                 self._load_theme()
             if key == "wallpaper_backdrop":
                 self._find_wallpaper()
@@ -2758,7 +2829,7 @@ class AioLaunch(QObject):
             art = (LAUNCHER_COVER if appid == "battlenet-app" else
                    "" if store == "battlenet" else f"{cdn}/{appid}/library_600x900.jpg")
             games.append(Game(store=store, id=appid, title=title, cover=art,
-                              cover_fallback=art and f"{cdn}/{appid}/header.jpg", installed=inst))
+                              cover_fallback=art and appid.isdigit() and f"{cdn}/{appid}/header.jpg" or "", installed=inst))
         hints = {"pro": 2357570, "fenris": 2344520}
         for g in games:
             if g.id in hints:
@@ -2774,4 +2845,4 @@ class AioLaunch(QObject):
         self.model.set_games(games)
         self.pool.submit(lambda: (covers.fill_all(games), protondb.refresh(_appid(g) for g in games),
                                   self._after.emit(lambda: (self.model.touch(), self.storesChanged.emit()))))
-        self.model.jobs["gog:646570"] = {"kind": "install", "progress": 42.0}
+        self.model.jobs["gog:646570"] = {"kind": "install", "progress": 42.0, "speed": 18.4e6, "eta": 260, "etaAt": time.monotonic()}

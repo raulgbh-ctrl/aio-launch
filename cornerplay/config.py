@@ -56,6 +56,7 @@ DEFAULTS = {
     "save_backups": True,    # zip a game's saves before each start (savebackup.py)
     "backup_keep": 5,        # backups kept per game
     "card_shadow": "soft",   # cover shadows: "none", "soft", "deep"
+    "evening_warmth": True,  # surfaces turn a little warmer in the evening and at night
     "wallpaper_backdrop": True,  # Follow wallpaper: the wallpaper, blurred, behind the main window
     "tv_reflection": True,   # TV mode: covers reflected on the shelf below
     "tv_intro": False,       # TV mode: a short start-up animation and chime
@@ -85,6 +86,7 @@ DEFAULTS = {
     "performance": "auto",     # "auto", "light" or "full"
     "sort": "name",            # library order: "name", "recent" or "playtime"
     "tv_trailers": True,       # TV mode plays the focused game's trailer (muted) after a moment
+    "hover_trailers": True,    # the library plays a cover's trailer (muted) inside it while it is pointed at
     "tv_sounds": False,        # TV mode makes soft clicks when moving and choosing
     "show_protondb": True,     # ProtonDB rating badge on covers
 }

@@ -80,6 +80,35 @@ def build(bg, accent):
 
 FALLBACK = build(*PRESETS["Midnight"])
 
+# Evening warmth: from 19:00 the surfaces drift a little toward warm lamplight, deepest
+# 22:00 to 05:00, gone again by 07:00. Text and the accent stay as they are (contrast).
+WARM = "#ff9a4a"
+SURFACES = ("background", "surface", "surfaceContainerLowest", "surfaceContainerLow", "surfaceContainer",
+            "surfaceContainerHigh", "surfaceContainerHighest", "outlineVariant")
+
+
+def evening_amount(hour):
+    """0 in the day, rising to 1 late at night. hour: a float, 0..24."""
+    if 22 <= hour or hour < 5:
+        return 1.0
+    if 19 <= hour < 22:
+        return (hour - 19) / 3
+    if 5 <= hour < 7:
+        return 1 - (hour - 5) / 2
+    return 0.0
+
+
+def warmed(theme, amount):
+    """The theme with its surfaces tinted toward lamplight (amount 0..1; dark themes only)."""
+    if amount <= 0 or not theme.get("dark", True):
+        return theme
+    out = dict(theme)
+    for k in SURFACES:
+        if valid(out.get(k, "")):
+            out[k] = mix(out[k], WARM, 0.07 * amount)
+    out["warmth"] = round(amount, 2)
+    return out
+
 
 _wall_cache = {}
 

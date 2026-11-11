@@ -83,6 +83,15 @@ FocusScope {
         grid.currentIndex = 0
         grid.contentX = 0
         sync()
+        shelfSwap.go(0, step > 0 ? 40 : -40)
+    }
+    // The shelf's covers glide in from the way you moved, and fade up.
+    ParallelAnimation {
+        id: shelfSwap
+        function go(dx, dy) { if (app.light) return; sx.from = dx; sy.from = dy; restart() }
+        NumberAnimation { target: grid; property: "opacity"; from: 0.15; to: 1; duration: 240; easing.type: Easing.OutCubic }
+        NumberAnimation { id: sx; target: shelfSlide; property: "x"; to: 0; duration: 280; easing.type: Easing.OutCubic }
+        NumberAnimation { id: sy; target: shelfSlide; property: "y"; to: 0; duration: 280; easing.type: Easing.OutCubic }
     }
     Connections {
         target: app
@@ -122,6 +131,7 @@ FocusScope {
         tvLibrary.storeFilter = storeIds[(i + step + storeIds.length) % storeIds.length]
         grid.currentIndex = 0
         sync()
+        shelfSwap.go(step > 0 ? 60 : -60, 0)
     }
     function accept() {
         if (!cur.key) return
@@ -626,6 +636,13 @@ FocusScope {
                         TapHandler { onTapped: panel.show() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
+                    Text {  // download speed and time left, beside the progress in the button
+                        visible: !!tv.cur.job && !!tv.cur.jobDetail
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: tv.cur.jobDetail || ""
+                        color: theme.onSurfaceVariant
+                        font.pixelSize: 18
+                    }
                 }
             }
         }
@@ -679,6 +696,7 @@ FocusScope {
         // One row of covers along the bottom; left / right to browse.
         GridView {
             id: grid
+            transform: Translate { id: shelfSlide }
             objectName: "tvGrid"
             Layout.fillWidth: true
             Layout.preferredHeight: Math.round(Math.max(200, tv.height * (peek.visible ? 0.29 : 0.34)))
@@ -1380,7 +1398,7 @@ FocusScope {
             out.push({ group: "Now playing", label: "Quit " + p.title, icon: "x", act: "quitgame", key: p.key })
         for (const j of app.jobList())
             out.push({ group: "Downloads", label: j.title, icon: j.job === "update" ? "arrow-up" : "download", act: "",
-                       value: j.job === "queued" ? "Queued" : j.progress < 0 ? "Starting" : Math.floor(j.progress) + "%" })
+                       value: j.job === "queued" ? "Queued" : j.progress < 0 ? "Starting" : Math.floor(j.progress) + "%", sub: j.detail })
         if (!out.length) out.push({ group: "Now playing", label: "Nothing running", icon: "gamepad-2", act: "" })
         out.push({ group: "Quick settings", label: "Sounds", icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
         out.push({ group: "Quick settings", label: "Trailers", icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
@@ -1505,7 +1523,7 @@ FocusScope {
                         required property int index
                         readonly property bool lit: ListView.isCurrentItem && sheetList.activeFocus
                         width: sheetList.width
-                        height: 56
+                        height: modelData.sub ? 66 : 56
                         radius: 16
                         color: lit ? tv.tint.primary : "transparent"
                         RectangularShadow {
@@ -1522,8 +1540,17 @@ FocusScope {
                             name: row.modelData.icon || "ellipsis"; size: 22
                             color: row.lit ? tv.tint.onPrimary : row.modelData.danger ? theme.error : theme.onSurfaceVariant
                         }
+                        Text {  // a second, small line (a download's speed and time left)
+                            visible: !!row.modelData.sub
+                            anchors { left: parent.left; leftMargin: 54; right: rowEnd.left; rightMargin: 12; bottom: parent.bottom; bottomMargin: 8 }
+                            text: row.modelData.sub || ""
+                            color: row.lit ? tv.tint.onPrimary : theme.onSurfaceVariant
+                            font.pixelSize: 14
+                            elide: Text.ElideRight
+                        }
                         Text {
-                            anchors { left: parent.left; leftMargin: 54; right: rowEnd.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                            anchors { left: parent.left; leftMargin: 54; right: rowEnd.left; rightMargin: 12; verticalCenter: parent.verticalCenter
+                                      verticalCenterOffset: row.modelData.sub ? -9 : 0 }
                             text: row.modelData.label
                             color: row.lit ? tv.tint.onPrimary : row.modelData.danger ? theme.error : theme.onSurface
                             font.pixelSize: 19; font.weight: Font.DemiBold
