@@ -76,7 +76,7 @@ ApplicationWindow {
             const right = card.mapToItem(win.contentItem, card.width - 4, 18)
             const left = card.mapToItem(win.contentItem, 4, 18)
             preview.x = right.x + preview.width < win.width - 8 ? right.x : left.x - preview.width
-            preview.y = Math.min(right.y, win.height - preview.height - 12)
+            preview.y = Math.max(12, Math.min(right.y, win.height - preview.height - 12))  // always inside the window
             preview.visible = true
         }
     }
@@ -180,6 +180,7 @@ ApplicationWindow {
             onExit: win.tv = false
         }
     }
+    LaunchCard { theme: win.theme; blurSource: win.tv ? null : mainArea }  // the launch moment, over the library and TV mode alike
 
     // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
     // sits in the desktop like a pane of frosted glass (works with or without compositor blur).
@@ -211,7 +212,10 @@ ApplicationWindow {
         Rectangle { anchors.fill: parent; color: Qt.alpha(theme.background, 0.78) }
     }
 
+    // What pop-ups blur behind them (KDialog).
+    readonly property Item blurTarget: mainArea
     RowLayout {
+        id: mainArea
         anchors.fill: parent
         spacing: 0
         opacity: win.tv ? 0 : 1
@@ -321,9 +325,19 @@ ApplicationWindow {
                     signal remove()
                     Layout.fillWidth: true
                     height: 40
-                    radius: 10
-                    color: active ? theme.primaryContainer : navHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    radius: 12
+                    // Selected: a soft wash of the accent with a faint glow, not a solid block.
+                    color: active ? Qt.alpha(theme.primary, 0.16) : navHover.hovered ? Qt.alpha(theme.surfaceContainerHigh, 0.9) : "transparent"
+                    border.width: active ? 1 : 0
+                    border.color: Qt.alpha(theme.primary, 0.28)
                     Behavior on color { enabled: !app.light; ColorAnimation { duration: 120 } }
+                    RectangularShadow {
+                        z: -1
+                        anchors.fill: parent
+                        visible: nav.active && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                        radius: parent.radius; blur: 18
+                        color: Qt.alpha(theme.primary, 0.18)
+                    }
                     // Accent bar on the selected item.
                     Rectangle {
                         visible: nav.active
@@ -334,21 +348,25 @@ ApplicationWindow {
                     StoreTile {
                         visible: nav.dot !== ""
                         x: 10; anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: navHover.hovered && !app.light ? -1 : 0
                         size: 22
                         store: nav.store
                         opacity: nav.dim ? 0.35 : 1
+                        scale: navHover.hovered && !app.light ? 1.12 : 1
+                        Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+                        Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: 140 } }
                     }
                     Icon {
                         visible: nav.dot === "" && nav.icon !== ""
                         x: 13; anchors.verticalCenter: parent.verticalCenter
                         name: nav.icon; size: 17
-                        color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                        color: nav.active ? theme.primary : theme.onSurfaceVariant
                     }
                     Text {
                         x: nav.dot !== "" || nav.icon !== "" ? 38 : 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: nav.label
-                        color: nav.active ? theme.onPrimaryContainer : theme.onSurface
+                        color: theme.onSurface
                         opacity: nav.dim ? 0.6 : 1
                         font.pixelSize: 14
                         font.weight: nav.active ? Font.DemiBold : Font.Normal
@@ -357,7 +375,7 @@ ApplicationWindow {
                         anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
                         visible: !(nav.removable && navHover.hovered) && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
                         text: nav.count
-                        color: nav.active ? theme.onPrimaryContainer : theme.onSurfaceVariant
+                        color: nav.active ? theme.primary : theme.onSurfaceVariant
                         font.pixelSize: 12
                     }
                     HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
@@ -1347,14 +1365,13 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     spacing: 14
                     width: Math.min(parent.width - 60, 460)
-                    Image {  // a little scene for the reason
+                    EmptyScene {  // a little scene for the reason, in the theme's colours
                         visible: !app.refreshing
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 240; height: 160
-                        sourceSize: Qt.size(480, 320)
-                        source: app.totalCount === 0 ? "../art/empty-library.svg"
-                                : library.shelf && !library.search && !(library.tags || []).length ? "../art/empty-list.svg"
-                                : "../art/no-results.svg"
+                        theme: win.theme
+                        kind: app.totalCount === 0 ? "library"
+                              : library.shelf && !library.search && !(library.tags || []).length ? "list" : "search"
                     }
                     Text {
                         width: parent.width
@@ -1374,7 +1391,7 @@ ApplicationWindow {
                         font.pixelSize: 14
                         visible: !app.refreshing && !library.showHidden
                         text: app.totalCount === 0
-                              ? "Pull up a chair: connect your stores in Accounts and every game you own settles in here."
+                              ? "Connect your stores in Accounts and every game you own settles in here."
                               : library.search ? "No game called \u201c" + library.search + "\u201d" + ((library.tags || []).length || library.installedOnly || library.storeFilter || library.shelf ? " with these filters." : ".")
                               : library.shelf && !(library.tags || []).length && !library.installedOnly ? "This list is empty. Add games to it from a game's page."
                               : "No games match these filters."
@@ -4217,24 +4234,57 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- hover preview
-    Rectangle {
+    Item {
         id: preview
         property var g: ({})
         visible: false
         z: 50
-        width: 250
-        height: pcol.implicitHeight + 26
-        radius: 14
-        color: Qt.alpha(theme.surfaceContainerHigh, 0.97)
-        border.width: 1; border.color: theme.outlineVariant
+        width: 260
+        readonly property bool art: (g.heroes || []).length > 0
+        height: pcol.implicitHeight + 26 + (art ? 78 : 0)
         opacity: visible ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 120 } }
+        scale: visible ? 1 : 0.96
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        Behavior on scale { enabled: !app.light; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        RectangularShadow {
+            anchors.fill: parent
+            visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+            radius: 16; blur: 30; offset.y: 10
+            color: Qt.alpha("black", 0.5)
+        }
+        RoundedArt {
+            anchors.fill: parent
+            radius: 16
+            Rectangle { anchors.fill: parent; color: Qt.alpha(theme.surfaceContainerHigh, 0.97) }
+            // The game's wide art along the top, fading into the card.
+            ArtImage {
+                id: previewArt
+                visible: preview.art
+                width: parent.width; height: 104
+                sources: preview.visible ? (preview.g.heroes || []) : []
+                sourceSize.width: 520
+                opacity: status === Image.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+            Rectangle {
+                visible: preview.art
+                width: parent.width; height: 104
+                gradient: Gradient {
+                    GradientStop { position: 0.35; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.alpha(theme.surfaceContainerHigh, 0.97) }
+                }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent; radius: 16; color: "transparent"
+            border.width: 1; border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.09)
+        }
         Column {
             id: pcol
-            x: 14; y: 13
-            width: parent.width - 28
+            x: 16; y: preview.art ? 90 : 14
+            width: parent.width - 32
             spacing: 6
-            Text { width: parent.width; text: preview.g.title || ""; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; wrapMode: Text.WordWrap }
+            Text { width: parent.width; text: preview.g.title || ""; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.Bold; wrapMode: Text.WordWrap }
             Row { spacing: 6
                   StoreTile { anchors.verticalCenter: parent.verticalCenter; size: 16; store: preview.g.store || "" }
                   Text { text: (preview.g.storeName || "") + (preview.g.installed ? "  ·  installed" : "  ·  not installed"); color: theme.onSurfaceVariant; font.pixelSize: 12 } }
@@ -4331,10 +4381,28 @@ ApplicationWindow {
                 required property string message
                 required property int index
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(toastText.implicitWidth + 64, win.width - 80)
-                height: Math.max(44, toastText.height + 24)
-                radius: 14
-                color: theme.surfaceContainerHighest
+                width: Math.min(toastText.implicitWidth + 70, win.width - 80)
+                height: Math.max(48, toastText.height + 26)
+                radius: Math.min(24, height / 2)
+                color: Qt.alpha(theme.surfaceContainerHighest, 0.96)
+                border.width: 1
+                border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.1)
+                RectangularShadow {
+                    z: -1
+                    anchors.fill: parent
+                    visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                    radius: parent.radius; blur: 26; offset.y: 8
+                    color: Qt.alpha("black", 0.45)
+                }
+                // How long it stays: a thin line in the accent that runs out.
+                Rectangle {
+                    anchors { bottom: parent.bottom; bottomMargin: 5; horizontalCenter: parent.horizontalCenter }
+                    height: 2; radius: 1
+                    width: (parent.width - 2 * parent.radius) * toast.life
+                    color: Qt.alpha(toast.bad ? theme.error : theme.primary, 0.7)
+                }
+                property real life: 1
+                NumberAnimation on life { from: 1; to: 0; duration: 5000; running: !app.light }
                 // Slide up and fade in.
                 opacity: 0
                 transform: Translate { id: toastShift; y: 14 }
@@ -4356,14 +4424,14 @@ ApplicationWindow {
                     : /installed|updated|added|is back|copied|in steam|ready/i.test(message) ? "check"
                     : "gamepad-2"
                 Rectangle {
-                    x: 10; anchors.verticalCenter: parent.verticalCenter
-                    width: 26; height: 26; radius: 13
+                    x: 12; anchors.verticalCenter: parent.verticalCenter
+                    width: 28; height: 28; radius: 14
                     color: Qt.alpha(toast.bad ? theme.error : theme.primary, 0.18)
                     Icon { anchors.centerIn: parent; name: toast.icon; size: 15; color: toast.bad ? theme.error : theme.primary }
                 }
                 Text {
                     id: toastText
-                    x: 46; anchors.verticalCenter: parent.verticalCenter
+                    x: 50; anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(implicitWidth, win.width - 144)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3

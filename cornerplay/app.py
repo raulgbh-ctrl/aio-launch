@@ -2338,10 +2338,15 @@ class AioLaunch(QObject):
                 return True
         return False
 
+    # The launch card in the window: "start" (getting ready), then "ok" or "fail"; "cancel" when a
+    # save conflict needs an answer first.
+    launching = Signal(str, str)
+
     def _play(self, key, mode):
         g, store = self._guard(key)
         if not g:
             return
+        self.launching.emit(key, "start")
         self._vulkan_warning(g)  # warn, but still try: the check should never stop a game that would run
         opts = self._options_for(g)
         sync = saves.enabled_for(g) and mode != "skip"
@@ -2352,7 +2357,7 @@ class AioLaunch(QObject):
             if sync:
                 res = saves.sync(g, mode)
                 if res["status"] == "conflict":
-                    return lambda: self.saveConflict.emit(key, res["local"], res["cloud"])
+                    return lambda: (self.launching.emit(key, "cancel"), self.saveConflict.emit(key, res["local"], res["cloud"]))
                 if res["status"] == "error":
                     self._worker_toast.emit(f"{g.title}: {res['message']} (launching anyway)")
             if settings.get("save_backups") and g.id != "battlenet-app":
@@ -2380,7 +2385,9 @@ class AioLaunch(QObject):
             ok = self._detach([sys.executable, "-m", "cornerplay.session", str(job)], env, "", g.key + ".session")
         else:
             ok = self._detach(cmd.argv, cmd.env, cmd.cwd, g.key)
-        self.toast.emit(f"Launching {g.title}" if ok else f"Could not start {g.title} (log: {LOG_DIR})")
+        self.launching.emit(g.key, "ok" if ok else "fail")
+        if not ok:
+            self.toast.emit(f"Could not start {g.title} (log: {LOG_DIR})")
 
     # --- now playing ------------------------------------------------------------
     nowPlayingChanged = Signal()
