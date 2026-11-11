@@ -39,6 +39,8 @@ finish-args:
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl:ro
   - --filesystem=xdg-data/lutris:ro
   - --filesystem=xdg-config/MangoHud:ro
+  # RetroArch from Flathub keeps its cores here (retro games; RetroArch itself runs on the host).
+  - --filesystem=~/.var/app/org.libretro.RetroArch:ro
   # Discord Rich Presence: the desktop Discord app's local socket (native, Flatpak Discord, Vesktop).
   - --filesystem=xdg-run/discord-ipc-0
   - --filesystem=xdg-run/app/com.discordapp.Discord:create

@@ -399,7 +399,7 @@ ApplicationWindow {
                     model: app.storesInfo
                     NavItem {
                         required property var modelData
-                        visible: modelData.count > 0 || (modelData.id !== "custom" && modelData.loggedIn)
+                        visible: modelData.count > 0 || (modelData.inAccounts && modelData.loggedIn)
                         label: modelData.name
                         dot: modelData.color
                         store: modelData.id
@@ -2285,6 +2285,11 @@ ApplicationWindow {
         onAccepted: app.setSyncDir(selectedFolder.toString())
     }
     FolderDialog {
+        id: romDest
+        title: "Which folder has your ROMs?"
+        onAccepted: app.addRomFolder(selectedFolder.toString())
+    }
+    FolderDialog {
         id: moveDest
         title: "Move to which folder?"
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
@@ -3718,6 +3723,18 @@ ApplicationWindow {
                         Toggle { label: "TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"; settingKey: "tv_animated" }
                         Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
                         Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
+                        Row2 {
+                            label: "Retro games (ROM folders)"
+                            hint: (app.settingsMap.rom_dirs || []).length
+                                  ? (app.settingsMap.rom_dirs || []).join("  ·  ") + (app.retroProblem ? "  —  " + app.retroProblem : "")
+                                  : "Add a folder with ROMs (a folder per system works best: snes, psx, gba ...). They play in RetroArch, with box art, playtime and TV mode."
+                            RowLayout {
+                                spacing: 8
+                                KButton { theme: win.theme; iconName: "folder-open"; text: "Add folder"; onClicked: romDest.open() }
+                                KButton { theme: win.theme; text: "Clear"; visible: (app.settingsMap.rom_dirs || []).length > 0
+                                          onClicked: { app.setSetting("rom_dirs", []); app.refresh("retro") } }
+                            }
+                        }
                         Toggle { label: "Show games from my Steam and GOG wishlists that are on sale"; settingKey: "wishlist_sales" }
                         Row2 {
                             visible: !!app.settingsMap.wishlist_sales

@@ -74,6 +74,7 @@ DEFAULTS = {
     "steam_api_key": "",
     "steam_id": "",
     "steamgriddb_key": "",
+    "rom_dirs": [],             # folders with ROMs for Retro games (stores/retro.py)
     "wishlist_sales": True,
     "store_country": "",        # two letters for store prices (AU, RO, ...); empty: your GOG account's, else the system's     # "On sale from your wishlist" on the home page (Steam and GOG wishlists)
     "discord_presence": False,  # "Playing <game>" on Discord for Epic / GOG / Amazon games (discord.py)

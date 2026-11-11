@@ -1726,6 +1726,17 @@ class AioLaunch(QObject):
 
     cloudSaveStores = Property("QVariantList", lambda s: list(saves.SUPPORTED), constant=True)
     hasGamescope = Property(bool, lambda s: bool(shutil.which("gamescope")), constant=True)
+    retroProblem = Property(str, lambda s: s.stores["retro"].problem(), notify=settingsChanged)
+
+    @Slot(str)
+    def addRomFolder(self, url):
+        path = QUrl(url).toLocalFile() if url.startswith("file:") else url
+        if not path or not os.path.isdir(path):
+            return
+        dirs = [d for d in (settings.get("rom_dirs") or []) if d != path] + [path]
+        settings.set("rom_dirs", dirs)
+        self.settingsChanged.emit()
+        self.refresh("retro")
 
     def _light(self):
         """Light mode skips per-cover GPU effects, blur and animations, for older PCs."""

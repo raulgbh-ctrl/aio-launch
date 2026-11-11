@@ -110,7 +110,7 @@ def fetch_backends():
 def status():
     from .stores import all_stores
     for s in all_stores():
-        if s.id == "custom":
+        if not getattr(s, "in_accounts", True):
             continue
         if s.problem():
             state = s.problem()

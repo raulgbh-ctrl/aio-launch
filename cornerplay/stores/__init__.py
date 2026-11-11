@@ -9,5 +9,6 @@ def all_stores():
     from .epic import Epic
     from .gog import Gog
     from .itch import Itch
+    from .retro import Retro
     from .steam import Steam
-    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Itch(), Custom()]
+    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Itch(), Retro(), Custom()]

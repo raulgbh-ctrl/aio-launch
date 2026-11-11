@@ -67,6 +67,17 @@ def checks(stores, gamepad_available=True):
         add(f"tool-{tool}", f"{store} tool ({tool})", bool(found), "Installed" if found else "Missing",
             {} if found else {"kind": "action", "action": "fetchBackends", "label": "Download"})
 
+    # RetroArch, when there are ROM folders
+    from .stores import retro
+    if retro.rom_dirs():
+        argv, folders = retro.retroarch()
+        systems = sorted({sid for sid, _ in retro.scan()})
+        no_core = [retro.SYSTEM_NAMES[s] for s in systems if argv and not retro.find_core(s, folders)]
+        add("retroarch", "RetroArch (retro games)", bool(argv) and not no_core,
+            ("Missing" if not argv else f"No core yet for: {', '.join(no_core)} (RetroArch > Online Updater > Core Downloader)"
+             if no_core else f"Ready for {len(systems)} system{'s' if len(systems) != 1 else ''}"),
+            {} if argv else {"kind": "command", "command": _pm_install("retroarch")})
+
     # Steam client
     steam = stores.get("steam")
     has_steam = bool(steam and steam.client())
