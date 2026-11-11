@@ -56,3 +56,31 @@ def test_one_store_list_everywhere():
     for sid in ids:
         if sid != "steam":
             assert eligible(Game(sid, "1", "X", installed=True))
+
+
+def test_sharp_screens_get_steams_double_size_art(monkeypatch):
+    from cornerplay import covers
+    from cornerplay.config import settings
+    monkeypatch.setitem(settings.data, "screen_size", [1920, 1080])
+    monkeypatch.setitem(settings.data, "screen_dpr", 1.0)
+    assert not covers.hi_res()
+    monkeypatch.setitem(settings.data, "screen_size", [2560, 1440])
+    assert covers.hi_res()
+    monkeypatch.setitem(settings.data, "screen_size", [1920, 1200])
+    monkeypatch.setitem(settings.data, "screen_dpr", 1.5)
+    assert covers.hi_res()
+
+
+def test_auto_scale_from_last_start(monkeypatch):
+    from cornerplay import __main__ as m
+    from cornerplay.config import settings
+    monkeypatch.delenv("HYPRLAND_INSTANCE_SIGNATURE", raising=False)
+    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+    monkeypatch.setitem(settings.data, "screen_size", [3840, 2160])
+    monkeypatch.setitem(settings.data, "screen_dpr", 1.0)
+    assert m.auto_scale() == 2.0          # a 4K TV the desktop leaves at 100 %
+    monkeypatch.setitem(settings.data, "screen_dpr", 2.0)
+    assert m.auto_scale() == 1.0          # the desktop scales it already
+    monkeypatch.setitem(settings.data, "screen_size", [2560, 1440])
+    monkeypatch.setitem(settings.data, "screen_dpr", 1.0)
+    assert m.auto_scale() == 1.0          # 1440p at 100 % is meant to look like that

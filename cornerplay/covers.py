@@ -37,6 +37,15 @@ _NOISE = re.compile(r"\b(game of the year|goty|definitive|complete|deluxe|standa
                     r"enhanced|gold|edition|the)\b")
 
 
+def hi_res() -> bool:
+    """A sharp screen (1440p and up, or any desktop scaling of 125 % and more): Steam's double-size
+    art is worth its download there. Steam's "library_600x900.jpg" is really 300x450 (the 600x900
+    one is the _2x file), and its banner is 1920 wide (3840 in _2x, for most games)."""
+    size = settings.get("screen_size") or []
+    dpr = float(settings.get("screen_dpr") or 1.0)
+    return (len(size) == 2 and size[0] >= 2400) or dpr >= 1.25
+
+
 def norm(title: str) -> str:
     t = title.lower().replace("™", "").replace("®", "").replace("&", "and")
     t = _NOISE.sub(" ", t)
@@ -329,13 +338,18 @@ def add_backup_art(games):
         # Steam's own "portrait.png" is a stand-in it generates when a publisher uploaded no cover
         # (the wide banner on a blurred background): never above real art, only as a last resort.
         generated = "portrait.png" in (a.get("cover") or "")
-        g.extra["current_cover"] = "" if generated else a.get("cover", "")
+        sharp = hi_res()
+        g.extra["current_cover"] = "" if generated else (sharp and a.get("cover2x")) or a.get("cover", "")
         if g.extra["current_cover"] and g.cover:
             _add(covers, g.cover)
         if not generated:
-            _add(covers, a.get("cover2x"))
+            _add(covers, a.get("cover2x"), a.get("cover"))
         if appid(g):
+            if sharp:
+                _add(covers, f"{STEAM_CDN}/{appid(g)}/library_600x900_2x.jpg")
             _add(covers, f"{STEAM_CDN}/{appid(g)}/library_600x900.jpg")
+        if sharp and appid(g):  # not every game has it: the next one is tried when it fails
+            _add(heroes, f"{STEAM_CDN}/{appid(g)}/library_hero_2x.jpg")
         _add(heroes, a.get("hero"), sgdb.get(g.title))
         if appid(g):
             _add(heroes, f"{STEAM_CDN}/{appid(g)}/library_hero.jpg")

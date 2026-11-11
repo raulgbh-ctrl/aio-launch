@@ -207,7 +207,8 @@ FocusScope {
     component ArtLayer: ArtImage {
         property string tag: ""
         anchors.fill: parent
-        sourceSize.width: Math.min(app.light ? 1280 : 1920, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+        // Up to 3840: a 4K TV gets Steam's double-size banners (covers.py) at their full sharpness.
+        sourceSize.width: Math.min(app.light ? 1280 : 3840, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
         horizontalAlignment: Image.AlignRight
         Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
         // Slow pan and zoom while the art is showing (off in Light mode).
@@ -333,7 +334,7 @@ FocusScope {
             height: h
             width: Math.round(h / 1.5)
             sources: stage.none && tv.cur.key ? (tv.cur.covers || [tv.cur.cover]).filter(u => !!u) : []
-            sourceSize.width: 600
+            sourceSize.width: Math.min(1200, Math.max(300, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
             fillMode: Image.PreserveAspectCrop
             opacity: stage.none && status === Image.Ready ? 1 : 0
             Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
@@ -381,10 +382,22 @@ FocusScope {
         // Store tabs. On narrower screens (the Steam Deck) the stores you are not on show only
         // their logo, and the row never pushes the layout wider than the screen.
         RowLayout {
-            readonly property bool compact: tv.width < 1500
+          Layout.fillWidth: true
+          spacing: 18
+          // The wordmark and the store tabs get what is left after the status on the right, and
+          // are the ones cut if it is ever too little: the clock and battery always stay on screen
+          // (on the Legion Go S the clock ran off the right edge).
+          Item {
+            id: tabsBox
             Layout.fillWidth: true
             Layout.minimumWidth: 0
+            implicitHeight: tabsRow.implicitHeight
             clip: true
+          RowLayout {
+            id: tabsRow
+            anchors.verticalCenter: parent.verticalCenter
+            // Only the active tab keeps its name when the names would not all fit (about 172 px a tab).
+            readonly property bool compact: tabsBox.width < tv.storeIds.length * 172 + 240
             spacing: 12
             WordMark { size: 30; Layout.rightMargin: 20 }
             Repeater {
@@ -422,7 +435,8 @@ FocusScope {
                     TapHandler { onTapped: { tvLibrary.storeFilter = parent.modelData; grid.currentIndex = 0; tv.sync() } }
                 }
             }
-            Item { Layout.fillWidth: true }
+          }
+          }
             // Console-style status: battery (Steam Deck, laptops) and the time.
             Row {
                 id: topStatus
@@ -1244,7 +1258,7 @@ FocusScope {
             anchors.fill: parent
             visible: panel.visible && !app.light
             sources: tv.cur.heroes || []
-            sourceSize.width: 1280
+            sourceSize.width: Math.min(2560, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
             opacity: status === Image.Ready ? 0.38 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }

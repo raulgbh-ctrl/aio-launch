@@ -39,6 +39,15 @@ def auto_scale():
             width = int(m.group(1)) if m else 0
     except (OSError, ValueError, subprocess.SubprocessError):
         return 1.0
+    if not width:
+        # Other desktops (KDE, GNOME, niri on Wayland): what Qt saw on the last start, kept by
+        # _note_screen_size. A desktop that scales itself already shows up as a ratio above 1.
+        try:
+            from .config import settings
+            size, ratio = settings.get("screen_size") or [], float(settings.get("screen_dpr") or 1.0)
+            width, desk = (int(size[0]) if len(size) == 2 else 0), ratio
+        except (TypeError, ValueError):
+            return 1.0
     if desk > 1.01 or width < 3200:
         return 1.0
     return min(2.5, round(width / 1920 * 4) / 4)  # 3840 wide -> 2x
@@ -51,10 +60,13 @@ def _note_screen_size(app):
     screen = app.primaryScreen()
     if not screen or app.platformName() == "offscreen":  # tests and headless runs have no real screen
         return
-    size = screen.size() * screen.devicePixelRatio()
+    dpr = round(float(screen.devicePixelRatio()), 2)
+    size = screen.size() * dpr
     wh = [int(size.width()), int(size.height())]
     if wh[0] > 0 and wh[1] > 0 and settings.get("screen_size") != wh:
         settings.set("screen_size", wh)
+    if settings.get("screen_dpr") != dpr:
+        settings.set("screen_dpr", dpr)  # covers.hi_res(), and auto_scale() on desktops it cannot ask
 
 
 def _load_translation(app):

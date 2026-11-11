@@ -883,7 +883,7 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     sources: hero.info.heroes || []
                                     horizontalAlignment: Image.AlignRight
-                                    sourceSize.width: Math.min(1920, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                    sourceSize.width: Math.min(3840, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                                     opacity: status === Image.Ready ? 1 : 0
                                     Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
                                 }
@@ -1569,7 +1569,7 @@ ApplicationWindow {
                 ArtImage {
                     anchors.fill: parent
                     sources: detail.visible ? (win.selected.heroes || []) : []
-                    sourceSize.width: Math.min(1600, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                    sourceSize.width: Math.min(3840, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                     opacity: status === Image.Ready ? 1 : 0
                     Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 250 } }
                 }
