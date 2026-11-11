@@ -160,7 +160,7 @@ ApplicationWindow {
     // land on the game underneath).
     readonly property bool popupOpen: detail.visible || gameOpts.visible || dlc.visible || accounts.visible
                                       || prefs.visible || viewer.visible || conflict.visible || login.visible
-                                      || viewMenu.visible
+                                      || viewMenu.visible || gameMenu.visible
     property bool justClosed: false
     onPopupOpenChanged: {
         if (!popupOpen) { justClosed = true; closeGuard.restart() }
@@ -1155,6 +1155,12 @@ ApplicationWindow {
                                     enabled: win.cardsLive
                                     onSingleTapped: if (win.cardsLive) win.select(recentTile.modelData.key)
                                     onDoubleTapped: if (win.cardsLive) win.activate(recentTile.modelData.key)
+                                    onLongPressed: if (win.cardsLive) gameMenu.showFor(recentTile.modelData.key, recentTile, point.position)
+                                }
+                                TapHandler {
+                                    enabled: win.cardsLive
+                                    acceptedButtons: Qt.RightButton
+                                    onTapped: (eventPoint, button) => gameMenu.showFor(recentTile.modelData.key, recentTile, eventPoint.position)
                                 }
                             }
                             }
@@ -1346,6 +1352,7 @@ ApplicationWindow {
                         }
                         onOpened: { grid.currentIndex = index; flyer.from(key, gridCard); win.select(key) }
                         onActivated: { grid.currentIndex = index; win.activate(key) }
+                        onMenuRequested: at => { grid.currentIndex = index; gameMenu.showFor(key, gridCard, at) }
                         required property int index
                     }
                     Keys.onReturnPressed: {
@@ -1443,6 +1450,11 @@ ApplicationWindow {
                         TapHandler {
                             onSingleTapped: win.select(trow.key)
                             onDoubleTapped: win.activate(trow.key)
+                            onLongPressed: gameMenu.showFor(trow.key, trow, point.position)
+                        }
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: (eventPoint, button) => gameMenu.showFor(trow.key, trow, eventPoint.position)
                         }
                     }
                 }
@@ -2294,6 +2306,83 @@ ApplicationWindow {
         id: moveDest
         title: qsTr("Move to which folder?")
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
+    }
+
+    // -------------------------------------------------------------------- right-click menu
+    // Right-click a cover (library, list, Continue playing), or long-press it on a touchscreen:
+    // the things you would otherwise open the game's page for.
+    Popup {
+        id: gameMenu
+        objectName: "gameMenu"
+        property string key: ""
+        property var g: ({})
+        function showFor(k, item, at) {
+            key = k
+            g = app.game(k)
+            if (!g || !g.key) return
+            removeRow.armed = false
+            const p = item.mapToItem(win.contentItem, at.x, at.y)
+            x = Math.max(8, Math.min(p.x, win.width - width - 8))
+            y = Math.max(8, Math.min(p.y, win.height - implicitHeight - 8))
+            open()
+        }
+        Connections { target: app; function onGameChanged(k) { if (gameMenu.opened && (k === gameMenu.key || k === "")) gameMenu.g = app.game(gameMenu.key) } }
+        parent: win.contentItem
+        z: 900
+        width: 250
+        padding: 6
+        modal: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+        contentItem: Column {
+            spacing: 2
+            Text {
+                width: parent.width; leftPadding: 12; rightPadding: 12; topPadding: 6; bottomPadding: 6
+                text: gameMenu.g.title || ""; textFormat: Text.PlainText
+                color: theme.outline; font.pixelSize: 12; font.weight: Font.DemiBold; elide: Text.ElideRight
+            }
+            MenuRow {
+                visible: !gameMenu.g.job
+                icon: gameMenu.g.installed ? "play" : "download"
+                text: gameMenu.g.installed ? qsTr("Play") : qsTr("Install")
+                onPicked: { const k = gameMenu.key; const inst = gameMenu.g.installed; gameMenu.close(); inst ? win.activate(k) : app.install(k) }
+            }
+            MenuRow {
+                visible: !!gameMenu.g.job
+                icon: "x"; text: qsTr("Cancel")
+                onPicked: { app.cancel(gameMenu.key); gameMenu.close() }
+            }
+            MenuRow { icon: "info"; text: qsTr("Details"); onPicked: { const k = gameMenu.key; gameMenu.close(); win.select(k) } }
+            MenuRow {
+                icon: "star"
+                text: gameMenu.g.favourite ? qsTr("Remove from favourites") : qsTr("Add to favourites")
+                onPicked: { app.toggleFavourite(gameMenu.key); gameMenu.close() }
+            }
+            MenuRow { icon: "bookmark"; text: qsTr("Add to a collection")
+                      onPicked: { const k = gameMenu.key, t = gameMenu.g.title; gameMenu.close(); collPick.show(k, t) } }
+            MenuRow { icon: "settings-2"; text: qsTr("Options"); onPicked: { const k = gameMenu.key; gameMenu.close(); gameOpts.show(k) } }
+            MenuRow { icon: "cloud"; text: qsTr("Save backups")
+                      onPicked: { const k = gameMenu.key, t = gameMenu.g.title; gameMenu.close(); savesBox.show(k, t) } }
+            MenuRow {
+                visible: !!gameMenu.g.installed && !!gameMenu.g.installPath
+                icon: "folder-open"; text: qsTr("Open folder")
+                onPicked: { app.openFolder(gameMenu.g.installPath); gameMenu.close() }
+            }
+            MenuRow {
+                icon: gameMenu.g.hidden ? "eye" : "eye-off"
+                text: gameMenu.g.hidden ? qsTr("Unhide") : qsTr("Hide")
+                onPicked: { app.setHidden(gameMenu.key, !gameMenu.g.hidden); gameMenu.close() }
+            }
+            MenuRow {
+                id: removeRow
+                property bool armed: false
+                visible: !!gameMenu.g.installed && !gameMenu.g.job && gameMenu.g.store !== "battlenet" && gameMenu.g.store !== "retro"
+                icon: "trash-2"; danger: true
+                text: armed ? qsTr("Really uninstall?") : qsTr("Uninstall")
+                onPicked: { if (!armed) { armed = true; return } armed = false; app.uninstall(gameMenu.key); gameMenu.close() }
+            }
+        }
     }
 
     // -------------------------------------------------------------------- what should I play?

@@ -32,6 +32,7 @@ Item {
     property string trailer: ""   // a trailer to play inside the cover (the main window sets it while pointed at)
     signal opened()
     signal activated()
+    signal menuRequested(point at)  // right-click, or a long press on a touchscreen (in the card's coordinates)
 
     readonly property bool hovered: hover.hovered
     readonly property bool lit: hover.hovered || current
@@ -405,5 +406,11 @@ Item {
         enabled: card.interactive
         onSingleTapped: if (card.interactive) card.opened()
         onDoubleTapped: if (card.interactive) card.activated()
+        onLongPressed: if (card.interactive) card.menuRequested(point.position)
+    }
+    TapHandler {
+        enabled: card.interactive
+        acceptedButtons: Qt.RightButton
+        onTapped: (eventPoint, button) => card.menuRequested(eventPoint.position)
     }
 }
