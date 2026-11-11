@@ -20,7 +20,7 @@ Window {
     height: 760
     minimumWidth: 420
     minimumHeight: 560
-    title: "Sign in to " + storeName
+    title: qsTr("Sign in to ") + storeName
     color: theme.background
     modality: Qt.ApplicationModal
 
@@ -94,14 +94,14 @@ Window {
                 spacing: 10
                 Text {
                     Layout.fillWidth: true
-                    text: "Log in below. The window closes by itself when you're signed in."
+                    text: qsTr("Log in below. The window closes by itself when you're signed in.")
                     color: w.theme.onSurfaceVariant
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
                 Button {
                     id: altButton
-                    text: "Use my browser instead"
+                    text: qsTr("Use my browser instead")
                     font.pixelSize: 12
                     onClicked: { w.close(); w.fallback() }
                     contentItem: Text { text: altButton.text; font: altButton.font; color: w.theme.primary }

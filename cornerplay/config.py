@@ -13,6 +13,7 @@ BIN_DIR = DATA_DIR / "bin"
 LOG_DIR = CACHE_DIR / "logs"
 XDG_CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config"))
 
+LANGUAGES = {"en": "English", "ro": "Română"}  # interface languages: cornerplay/i18n (English is the source)
 OLD_NAMES = ("aiolaunch", "kura")  # earlier names of the app, newest first
 
 
@@ -74,6 +75,7 @@ DEFAULTS = {
     "steam_api_key": "",
     "steam_id": "",
     "steamgriddb_key": "",
+    "language": "",             # interface language: "" = the system's, "en", "ro" (after a restart)
     "rom_dirs": [],             # folders with ROMs for Retro games (stores/retro.py)
     "wishlist_sales": True,
     "store_country": "",        # two letters for store prices (AU, RO, ...); empty: your GOG account's, else the system's     # "On sale from your wishlist" on the home page (Steam and GOG wishlists)

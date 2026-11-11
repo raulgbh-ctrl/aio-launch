@@ -13,7 +13,7 @@ ApplicationWindow {
     minimumWidth: 760
     minimumHeight: 480
     visible: true
-    title: "Cornerplay"
+    title: qsTr("Cornerplay")
     color: theme.background
 
     readonly property var theme: app.theme
@@ -44,7 +44,7 @@ ApplicationWindow {
         select(key)
         const g = app.game(key)
         if (g.copies.filter(c => c.installed).length > 1)
-            toasts.append({ message: "Installed from several stores: pick the launcher to use" })
+            toasts.append({ message: qsTr("Installed from several stores: pick the launcher to use") })
     }
     // Home sections: folded away or not, and their order (Settings keys home_collapsed / home_order).
     function homeFolded(id) { return (app.settingsMap.home_collapsed || []).indexOf(id) !== -1 }
@@ -241,22 +241,22 @@ ApplicationWindow {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
                 spacing: 4
                 Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; opacity: sideFlick.contentHeight > sideFlick.height + 1 ? 1 : 0 }
-                NavItem { label: "TV mode"; icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                NavItem { label: qsTr("TV mode"); icon: "tv"; count: "F11"; onPicked: win.tv = true }
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.topMargin: 6
                     spacing: 1
-                    ToolIcon { icon: "gamepad-2"; tip: "What should I play?"; onPicked: picker.show() }
-                    ToolIcon { icon: "trophy"; tip: "Stats"; onPicked: statsBox.show() }
-                    ToolIcon { icon: "folder-open"; tip: "Storage"; onPicked: storage.show() }
-                    ToolIcon { icon: "check"; tip: healthBox.bad > 0 ? "Health check: " + healthBox.bad + " to fix" : "Health check"
+                    ToolIcon { icon: "gamepad-2"; tip: qsTr("What should I play?"); onPicked: picker.show() }
+                    ToolIcon { icon: "trophy"; tip: qsTr("Stats"); onPicked: statsBox.show() }
+                    ToolIcon { icon: "folder-open"; tip: qsTr("Storage"); onPicked: storage.show() }
+                    ToolIcon { icon: "check"; tip: healthBox.bad > 0 ? qsTr("Health check: ") + healthBox.bad + qsTr(" to fix") : qsTr("Health check")
                                alert: healthBox.bad > 0; onPicked: healthBox.show() }
                     ToolIcon { visible: app.hiddenCount > 0 || library.showHidden; icon: "eye-off"; on: library.showHidden
-                               tip: "Hidden games (" + app.hiddenCount + ")"
+                               tip: qsTr("Hidden games (") + app.hiddenCount + ")"
                                onPicked: { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } }
                     Item { Layout.fillWidth: true }
-                    ToolIcon { icon: "user-round"; tip: "Accounts"; onPicked: accounts.open() }
-                    ToolIcon { icon: "sliders-horizontal"; tip: "Settings"; onPicked: prefs.open() }
+                    ToolIcon { icon: "user-round"; tip: qsTr("Accounts"); onPicked: accounts.open() }
+                    ToolIcon { icon: "sliders-horizontal"; tip: qsTr("Settings"); onPicked: prefs.open() }
                 }
             }
 
@@ -389,7 +389,7 @@ ApplicationWindow {
                 }
 
                 NavItem {
-                    label: "All games"
+                    label: qsTr("All games")
                     icon: "library"
                     count: app.totalCount
                     active: library.storeFilter === "" && !library.showHidden && library.shelf === ""
@@ -416,7 +416,7 @@ ApplicationWindow {
                     visible: app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0
                     Layout.fillWidth: true
                     Layout.topMargin: 14; Layout.leftMargin: 14; Layout.rightMargin: 6; Layout.bottomMargin: 2
-                    Text { Layout.fillWidth: true; text: "YOUR LISTS"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
+                    Text { Layout.fillWidth: true; text: qsTr("YOUR LISTS"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
                     Rectangle {
                         width: 24; height: 24; radius: 12
                         color: addHover.hovered ? theme.surfaceContainerHigh : "transparent"
@@ -541,7 +541,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.maximumWidth: 460
                     iconName: "search"
-                    placeholderText: "Search your games  (Ctrl+F)"
+                    placeholderText: qsTr("Search your games  (Ctrl+F)")
                     onTextChanged: library.search = text
                     Keys.onDownPressed: grid.forceActiveFocus()
                     Keys.onEscapePressed: { text = ""; grid.forceActiveFocus() }
@@ -549,14 +549,14 @@ ApplicationWindow {
                 // How many games, when it tells you something (a search, a filter, a store or a list).
                 Text {
                     visible: !!library.search || (library.tags || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf
-                    text: grid.count + (grid.count === 1 ? " game" : " games")
+                    text: grid.count + (grid.count === 1 ? qsTr(" game") : qsTr(" games"))
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
                 }
                 Item { Layout.fillWidth: true }
                 // Filters: the chip row shows while this is on, or while a filter is set.
                 TopButton {
-                    icon: "filter"; label: "Filters"
+                    icon: "filter"; label: qsTr("Filters")
                     badge: (library.tags || []).length
                     on: win.showFilters || (library.tags || []).length > 0
                     onPicked: win.showFilters = !win.showFilters
@@ -564,7 +564,7 @@ ApplicationWindow {
                 // View: covers or list, sort, installed only, cover size.
                 TopButton {
                     id: viewButton
-                    icon: (app.settingsMap.view || "grid") === "list" ? "list" : "layout-grid"; label: "View"
+                    icon: (app.settingsMap.view || "grid") === "list" ? "list" : "layout-grid"; label: qsTr("View")
                     badge: library.installedOnly ? 1 : 0
                     onPicked: viewMenu.opened ? viewMenu.close() : viewMenu.open()
                     Popup {
@@ -576,7 +576,7 @@ ApplicationWindow {
                         background: Rectangle { radius: 14; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
                         contentItem: ColumnLayout {
                             spacing: 10
-                            Text { text: "Show as"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            Text { text: qsTr("Show as"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
                             RowLayout {
                                 spacing: 6
                                 Repeater {
@@ -585,7 +585,7 @@ ApplicationWindow {
                                             on: (app.settingsMap.view || "grid") === modelData.v; onPicked: app.setSetting("view", modelData.v) }
                                 }
                             }
-                            Text { text: "Sort by"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            Text { text: qsTr("Sort by"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
@@ -597,10 +597,10 @@ ApplicationWindow {
                                 }
                             }
                             RowLayout {
-                                Text { Layout.fillWidth: true; text: "Installed only"; color: theme.onSurface; font.pixelSize: 13 }
+                                Text { Layout.fillWidth: true; text: qsTr("Installed only"); color: theme.onSurface; font.pixelSize: 13 }
                                 Switch { checked: library.installedOnly; onToggled: library.installedOnly = checked }
                             }
-                            Text { visible: (app.settingsMap.view || "grid") !== "list"; text: "Cover size"; color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            Text { visible: (app.settingsMap.view || "grid") !== "list"; text: qsTr("Cover size"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
                             KSlider { visible: (app.settingsMap.view || "grid") !== "list"; theme: win.theme; Layout.fillWidth: true
                                       from: 130; to: 320; stepSize: 2; value: app.settingsMap.card_size
                                       onMoved: app.setSetting("card_size", value) }
@@ -609,7 +609,7 @@ ApplicationWindow {
                 }
                 KButton {
                     theme: win.theme
-                    text: "Add"
+                    text: qsTr("Add")
                     iconName: "plus"
                     onClicked: addBox.show()
                 }
@@ -666,13 +666,13 @@ ApplicationWindow {
                     Chip2 { required property string modelData; label: modelData
                             on: (library.tags || []).indexOf("genre:" + modelData) !== -1; onPicked: chips.toggle("genre:" + modelData) }
                 }
-                Chip2 { visible: (library.tags || []).length > 0; label: "Clear filters"; icon: "x"; onPicked: library.tags = [] }
+                Chip2 { visible: (library.tags || []).length > 0; label: qsTr("Clear filters"); icon: "x"; onPicked: library.tags = [] }
             }
             Text {
                 Layout.leftMargin: 22; Layout.bottomMargin: 6
                 readonly property var free: library.search ? app.epicFree.filter(g => g.title.toLowerCase().indexOf(library.search) !== -1) : []
                 visible: free.length > 0
-                text: "Also free on Epic right now: " + free.map(g => g.title).join(", ")
+                text: qsTr("Also free on Epic right now: ") + free.map(g => g.title).join(", ")
                 color: theme.primary; font.pixelSize: 12
             }
 
@@ -696,11 +696,11 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             readonly property int mins: Math.max(0, Math.floor((parent.parent.now - modelData.since) / 60))
-                            text: "Playing " + modelData.title + "  ·  " + (mins >= 60 ? Math.floor(mins / 60) + " h " + (mins % 60) + " min" : mins + " min")
+                            text: qsTr("Playing ") + modelData.title + "  ·  " + (mins >= 60 ? Math.floor(mins / 60) + " h " + (mins % 60) + qsTr(" min") : mins + qsTr(" min"))
                             color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
                         }
-                        KButton { theme: win.theme; text: "Quit game"; iconName: "x"; onClicked: app.quitGame(modelData.key, false) }
-                        KButton { theme: win.theme; danger: true; text: "Force close"; onClicked: app.quitGame(modelData.key, true) }
+                        KButton { theme: win.theme; text: qsTr("Quit game"); iconName: "x"; onClicked: app.quitGame(modelData.key, false) }
+                        KButton { theme: win.theme; danger: true; text: qsTr("Force close"); onClicked: app.quitGame(modelData.key, true) }
                     }
                 }
             }
@@ -719,14 +719,14 @@ ApplicationWindow {
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        text: app.appUpdate.installed ? "Cornerplay " + app.appUpdate.version + " is installed. Restart to use it."
+                        text: app.appUpdate.installed ? qsTr("Cornerplay ") + app.appUpdate.version + qsTr(" is installed. Restart to use it.")
                               : app.appUpdate.busy ? "Updating to Cornerplay " + app.appUpdate.version + "…"
                               : "Cornerplay " + app.appUpdate.version + " is out."
                         color: theme.onPrimaryContainer; font.pixelSize: 14; font.weight: Font.DemiBold
                     }
-                    KButton { theme: win.theme; visible: !app.appUpdate.installed && !app.appUpdate.busy; text: "What's new"; onClicked: app.openUrl(app.appUpdate.url) }
+                    KButton { theme: win.theme; visible: !app.appUpdate.installed && !app.appUpdate.busy; text: qsTr("What's new"); onClicked: app.openUrl(app.appUpdate.url) }
                     KButton { theme: win.theme; primary: true; visible: !app.appUpdate.busy
-                              text: app.appUpdate.installed ? "Restart" : "Update"
+                              text: app.appUpdate.installed ? qsTr("Restart") : qsTr("Update")
                               iconName: app.appUpdate.installed ? "refresh-cw" : "download"
                               onClicked: app.appUpdate.installed ? app.restartApp() : app.installUpdate() }
                     KButton { theme: win.theme; visible: !app.appUpdate.busy; iconName: "x"; text: ""; onClicked: app.dismissUpdate() }
@@ -824,7 +824,7 @@ ApplicationWindow {
                         RowLayout {
                             visible: win.homeFolded("banner")
                             x: 8; width: parent.width - 16
-                            Text { text: "Back in your corner: " + (win.heroInfo.title || ""); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: qsTr("Back in your corner: ") + (win.heroInfo.title || ""); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                             Icon { name: "chevron-down"; size: 16; color: theme.onSurfaceVariant
                                    TapHandler { onTapped: win.toggleHome("banner") }
                                    HoverHandler { cursorShape: Qt.PointingHandCursor } }
@@ -986,7 +986,7 @@ ApplicationWindow {
                                     width: Math.min(560, hero.width - (heroThumbBox.visible ? heroThumb.width + 26 : 0) - 56)
                                     spacing: 10
                                     Text {
-                                        text: "BACK IN YOUR CORNER"
+                                        text: qsTr("BACK IN YOUR CORNER")
                                         color: hero.tint.primary
                                         font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
                                     }
@@ -1022,7 +1022,7 @@ ApplicationWindow {
                                             primary: true
                                             visible: !hero.game.job
                                             // Played on another PC (or uninstalled since): install it from here.
-                                            text: hero.game.installed ? "Resume" : "Install"
+                                            text: hero.game.installed ? qsTr("Resume") : qsTr("Install")
                                             iconName: hero.game.installed ? "play" : "download"
                                             onClicked: {
                                                 if (hero.game.installed) win.activate(hero.info.key)
@@ -1032,20 +1032,20 @@ ApplicationWindow {
                                         KButton {
                                             theme: hero.tint
                                             visible: !hero.game.job && !!hero.game.update
-                                            text: "Update"
+                                            text: qsTr("Update")
                                             iconName: "arrow-up"
                                             onClicked: app.update(hero.info.key)
                                         }
                                         Text {
                                             visible: !!hero.game.job
                                             anchors.verticalCenter: parent.verticalCenter
-                                            text: hero.game.job === "update" ? "Updating " + Math.max(0, Math.floor(hero.game.progress)) + "%" : "Working…"
+                                            text: hero.game.job === "update" ? qsTr("Updating ") + Math.max(0, Math.floor(hero.game.progress)) + "%" : qsTr("Working…")
                                             color: theme.primary
                                             font.pixelSize: 14; font.weight: Font.DemiBold
                                         }
                                         KButton {
                                             theme: hero.tint
-                                            text: "Details"
+                                            text: qsTr("Details")
                                             onClicked: win.select(hero.info.key)
                                         }
                                     }
@@ -1067,7 +1067,7 @@ ApplicationWindow {
                             x: 8
                             width: parent.width - 16
                             spacing: 10
-                            SectionHead { sid: "continue"; title: "Continue playing" }
+                            SectionHead { sid: "continue"; title: qsTr("Continue playing") }
                             ListView {
                                 id: recentRow
                                 visible: !win.homeFolded("continue")
@@ -1170,8 +1170,8 @@ ApplicationWindow {
                             SectionHead {
                                 sid: "free"; icon: "gift"
                                 readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
-                                title: "Free on Epic" + (nowFree ? "  \u00B7  " + nowFree + " this week" : "")
-                                extra: "Hide until next week"
+                                title: qsTr("Free on Epic") + (nowFree ? "  \u00B7  " + nowFree + qsTr(" this week") : "")
+                                extra: qsTr("Hide until next week")
                                 onExtraPicked: app.hideEpicFreeForNow()
                             }
                             ListView {
@@ -1215,7 +1215,7 @@ ApplicationWindow {
                                         }
                                         Text {
                                             width: parent.width
-                                            text: freeTile.modelData.now ? "Free until " + freeTile.modelData.when
+                                            text: freeTile.modelData.now ? qsTr("Free until ") + freeTile.modelData.when
                                                                          : "Free from " + freeTile.modelData.when
                                             color: freeTile.modelData.now ? theme.primary : theme.outline
                                             font.pixelSize: 12
@@ -1225,7 +1225,7 @@ ApplicationWindow {
                                             visible: freeTile.modelData.now
                                             primary: !freeTile.modelData.owned
                                             enabled: !freeTile.modelData.owned
-                                            text: freeTile.modelData.owned ? "In your library" : "Get"
+                                            text: freeTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
                                             iconName: freeTile.modelData.owned ? "check" : "external-link"
                                             onClicked: app.openUrl(freeTile.modelData.url)
                                         }
@@ -1244,7 +1244,7 @@ ApplicationWindow {
                             bottomPadding: 18
                             SectionHead {
                                 sid: "sales"; icon: "tag"
-                                title: "On sale from your wishlist  \u00B7  " + app.wishlistSales.length
+                                title: qsTr("On sale from your wishlist  \u00B7  ") + app.wishlistSales.length
                             }
                             ListView {
                                 visible: !win.homeFolded("sales")
@@ -1301,7 +1301,7 @@ ApplicationWindow {
                                         }
                                         KButton {
                                             theme: win.theme
-                                            text: saleTile.modelData.store === "gog" ? "Open on GOG" : "Open on Steam"
+                                            text: saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
                                             iconName: "external-link"
                                             onClicked: app.openUrl(saleTile.modelData.url)
                                         }
@@ -1314,7 +1314,7 @@ ApplicationWindow {
                         Text {
                             x: 8
                             textFormat: Text.StyledText
-                            text: (library.shelf === "" ? "Library" + "  <font color='" + theme.outline + "'>\u00B7  " + grid.count + " games</font>"
+                            text: (library.shelf === "" ? qsTr("Library") + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
                                   : library.shelf === "fav" ? "Favourites"
                                   : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
                                   : library.shelf.replace(/^c:/, ""))
@@ -1383,7 +1383,7 @@ ApplicationWindow {
                                     x: 0
                                     Text {
                                         anchors { left: parent.left; leftMargin: index === 0 ? 56 : 0; verticalCenter: parent.verticalCenter }
-                                        text: modelData.t + (modelData.s && library.sortMode === modelData.s ? "  \u25BE" : "")
+                                        text: modelData.t + (modelData.s && library.sortMode === modelData.s ? qsTr("  \u25BE") : "")
                                         color: modelData.s && library.sortMode === modelData.s ? theme.primary : theme.outline
                                         font.pixelSize: 12; font.weight: Font.DemiBold
                                     }
@@ -1428,15 +1428,15 @@ ApplicationWindow {
                                 Text { anchors.verticalCenter: parent.verticalCenter; text: trow.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
                             Text { width: 120; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
-                                   text: ({ playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" })[trow.status] || (trow.installed ? "Installed" : "") }
+                                   text: ({ playing: qsTr("Playing"), want: qsTr("Want to play"), finished: qsTr("Finished"), dropped: qsTr("Dropped") })[trow.status] || (trow.installed ? qsTr("Installed") : "") }
                             Text { width: 96; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 13; color: "#ffd166"
                                    text: trow.rating ? "\u2605".repeat(trow.rating) : "" }
                             Text { width: 90; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
-                                   text: trow.playtime >= 3600 ? Math.round(trow.playtime / 360) / 10 + " h" : trow.playtime > 0 ? Math.round(trow.playtime / 60) + " min" : "" }
+                                   text: trow.playtime >= 3600 ? Math.round(trow.playtime / 360) / 10 + " h" : trow.playtime > 0 ? Math.round(trow.playtime / 60) + qsTr(" min") : "" }
                             Text { width: 110; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.lastPlayed > 0 ? new Date(trow.lastPlayed * 1000).toLocaleDateString(Qt.locale(), "d MMM yyyy") : "" }
                             Text { width: 84; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
-                                   text: trow.sizeBytes > 0 ? (trow.sizeBytes / 1073741824).toFixed(1) + " GB" : "" }
+                                   text: trow.sizeBytes > 0 ? (trow.sizeBytes / 1073741824).toFixed(1) + qsTr(" GB") : "" }
                         }
                         HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
                         TapHandler {
@@ -1466,7 +1466,7 @@ ApplicationWindow {
                         color: theme.onSurface
                         font.pixelSize: 20
                         font.weight: Font.DemiBold
-                        text: library.showHidden ? "No hidden games"
+                        text: library.showHidden ? qsTr("No hidden games")
                               : app.refreshing ? "Loading your libraries…"
                               : app.totalCount === 0 ? "Your corner is empty" : "Nothing matches"
                     }
@@ -1487,12 +1487,12 @@ ApplicationWindow {
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: 8
                         visible: !app.refreshing && !library.showHidden
-                        KButton { theme: win.theme; primary: true; visible: app.totalCount === 0; text: "Connect stores"; onClicked: accounts.open() }
-                        KButton { theme: win.theme; visible: app.totalCount === 0; text: "Add a game"; iconName: "plus"; onClicked: addBox.show() }
-                        KButton { theme: win.theme; visible: !!library.search; text: "Clear search"; iconName: "x"; onClicked: search.text = "" }
-                        KButton { theme: win.theme; visible: (library.tags || []).length > 0; text: "Clear filters"; onClicked: library.tags = [] }
-                        KButton { theme: win.theme; visible: library.installedOnly; text: "Show all games"; onClicked: library.installedOnly = false }
-                        KButton { theme: win.theme; visible: !!library.storeFilter || !!library.shelf; text: "All games"; iconName: "library"
+                        KButton { theme: win.theme; primary: true; visible: app.totalCount === 0; text: qsTr("Connect stores"); onClicked: accounts.open() }
+                        KButton { theme: win.theme; visible: app.totalCount === 0; text: qsTr("Add a game"); iconName: "plus"; onClicked: addBox.show() }
+                        KButton { theme: win.theme; visible: !!library.search; text: qsTr("Clear search"); iconName: "x"; onClicked: search.text = "" }
+                        KButton { theme: win.theme; visible: (library.tags || []).length > 0; text: qsTr("Clear filters"); onClicked: library.tags = [] }
+                        KButton { theme: win.theme; visible: library.installedOnly; text: qsTr("Show all games"); onClicked: library.installedOnly = false }
+                        KButton { theme: win.theme; visible: !!library.storeFilter || !!library.shelf; text: qsTr("All games"); iconName: "library"
                                   onClicked: { library.storeFilter = ""; library.shelf = "" } }
                     }
                 }
@@ -1588,7 +1588,7 @@ ApplicationWindow {
                 color: closeHover.hovered ? Qt.alpha("black", 0.7) : Qt.alpha("black", 0.45)
                 Row { id: backRow; anchors.centerIn: parent; spacing: 6
                       Icon { anchors.verticalCenter: parent.verticalCenter; name: "arrow-left"; size: 16; color: "white" }
-                      Text { anchors.verticalCenter: parent.verticalCenter; text: "Library"; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold } }
+                      Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Library"); color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold } }
                 HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: detail.close() }
             }
@@ -1661,7 +1661,7 @@ ApplicationWindow {
                     spacing: 8
                     Pill { store: win.selected.store || ""; dot: win.selected.storeColor || ""; label: win.selected.storeName || "" }
                     Pill {
-                        label: !win.selected.installed ? "Not installed" : win.selected.update ? "↑  Update available" : "Installed"
+                        label: !win.selected.installed ? qsTr("Not installed") : win.selected.update ? qsTr("↑  Update available") : qsTr("Installed")
                         accent: !!win.selected.update
                     }
                     Pill {
@@ -1679,7 +1679,7 @@ ApplicationWindow {
                     Text {
                         color: theme.onSurface
                         font.pixelSize: 13
-                        text: win.selected.job === "uninstall" ? "Removing…"
+                        text: win.selected.job === "uninstall" ? qsTr("Removing…")
                               : win.selected.progress < 0 ? "Starting…"
                               : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
                                 + (win.selected.progress || 0).toFixed(1) + "%"
@@ -1715,7 +1715,7 @@ ApplicationWindow {
                         theme: detail.tint
                         primary: true
                         visible: !win.selected.job
-                        text: win.selected.installed ? "Play" : "Install"
+                        text: win.selected.installed ? qsTr("Play") : qsTr("Install")
                         iconName: win.selected.installed ? "play" : "download"
                         onClicked: {
                             app.preferCopy(win.selectedKey)
@@ -1725,27 +1725,27 @@ ApplicationWindow {
                     KButton {
                         theme: detail.tint
                         visible: !win.selected.job && !!win.selected.update
-                        text: "Update"
+                        text: qsTr("Update")
                         iconName: "arrow-up"
                         onClicked: app.update(win.selectedKey)
                     }
                     KButton {
                         theme: detail.tint
                         visible: !!win.selected.job
-                        text: "Cancel"
+                        text: qsTr("Cancel")
                         iconName: "x"
                         onClicked: app.cancel(win.selectedKey)
                     }
                     KButton {
                         theme: detail.tint
                         visible: !!win.selected.hasDlc && detail.dlcCount !== 0
-                        text: detail.dlcCount > 0 ? "DLC · " + detail.dlcCount : "DLC"
+                        text: detail.dlcCount > 0 ? qsTr("DLC · ") + detail.dlcCount : qsTr("DLC")
                         iconName: "puzzle"
                         onClicked: dlc.show(win.selectedKey, win.selected.title)
                     }
                     KButton {
                         theme: detail.tint
-                        text: win.selected.favourite ? "Favourited" : "Favourite"
+                        text: win.selected.favourite ? qsTr("Favourited") : qsTr("Favourite")
                         iconName: win.selected.favourite ? "star-filled" : "star"
                         onClicked: app.toggleFavourite(win.selectedKey)
                     }
@@ -1753,7 +1753,7 @@ ApplicationWindow {
                     KButton {
                         id: moreBtn
                         theme: detail.tint
-                        text: "More"
+                        text: qsTr("More")
                         iconName: "ellipsis"
                         onClicked: moreMenu.opened ? moreMenu.close() : moreMenu.open()
                         Popup {
@@ -1765,18 +1765,18 @@ ApplicationWindow {
                             background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
                             contentItem: Column {
                                 spacing: 2
-                                MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? "Collections · " + win.selected.collections.length : "Add to a collection"
+                                MenuRow { icon: "bookmark"; text: (win.selected.collections || []).length ? qsTr("Collections · ") + win.selected.collections.length : qsTr("Add to a collection")
                                           onPicked: { moreMenu.close(); collPick.show(win.selectedKey, win.selected.title) } }
-                                MenuRow { icon: "settings-2"; text: "Options"; onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
-                                MenuRow { icon: "cloud"; text: "Save backups"; onPicked: { moreMenu.close(); savesBox.show(win.selectedKey, win.selected.title) } }
-                                MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? "Unhide" : "Hide"
+                                MenuRow { icon: "settings-2"; text: qsTr("Options"); onPicked: { moreMenu.close(); gameOpts.show(win.selectedKey) } }
+                                MenuRow { icon: "cloud"; text: qsTr("Save backups"); onPicked: { moreMenu.close(); savesBox.show(win.selectedKey, win.selected.title) } }
+                                MenuRow { icon: win.selected.hidden ? "eye" : "eye-off"; text: win.selected.hidden ? qsTr("Unhide") : qsTr("Hide")
                                           onPicked: { moreMenu.close(); app.setHidden(win.selectedKey, !win.selected.hidden); detail.close() } }
                                 MenuRow {
                                     id: confirmRemove
                                     property bool armed: false
                                     visible: !!win.selected.installed && !win.selected.job && win.selected.store !== "battlenet"
                                     icon: "trash-2"; danger: true
-                                    text: armed ? "Really uninstall?" : "Uninstall"
+                                    text: armed ? qsTr("Really uninstall?") : qsTr("Uninstall")
                                     onPicked: { if (!armed) { armed = true; return } armed = false; moreMenu.close(); app.uninstall(win.selectedKey) }
                                 }
                             }
@@ -1791,7 +1791,7 @@ ApplicationWindow {
                         id: statusBox
                         theme: detail.tint
                         Layout.preferredWidth: 190
-                        model: [{ label: "No status", value: "" }].concat(app.statusNames.map(x => ({ label: x.name, value: x.id })))
+                        model: [{ label: qsTr("No status"), value: "" }].concat(app.statusNames.map(x => ({ label: x.name, value: x.id })))
                         Component.onCompleted: select(win.selected.status || "")
                         Connections { target: win; function onSelectedChanged() { statusBox.select(win.selected.status || "") } }
                         onActivated: app.setStatus(win.selectedKey, currentValue)
@@ -1818,7 +1818,7 @@ ApplicationWindow {
                     theme: win.theme
                     Layout.fillWidth: true
                     iconName: "bookmark"
-                    placeholderText: "Your note (where you got to, what to try next)"
+                    placeholderText: qsTr("Your note (where you got to, what to try next)")
                     text: win.selected.note || ""
                     onEditingFinished: app.setNote(win.selectedKey, text)
                 }
@@ -1893,12 +1893,12 @@ ApplicationWindow {
                     spacing: 8
                     Pill {
                         visible: win.selected.store === "gog" && (win.selected.platform === "linux" || (!win.selected.installed && !!win.selected.linuxVersion))
-                        label: win.selected.platform === "linux" ? "\u{1F427}  Linux version" : "\u{1F427}  Has a Linux version"
+                        label: win.selected.platform === "linux" ? qsTr("\u{1F427}  Linux version") : qsTr("\u{1F427}  Has a Linux version")
                     }
                     // Controller support (Steam's store data); not full: Steam Input can map one.
                     Pill {
                         visible: detail.info.controller !== undefined && !!win.selected.steamAppId
-                        label: (detail.info.controller === "full" ? "\u{1F3AE}  Full controller support"
+                        label: (detail.info.controller === "full" ? qsTr("\u{1F3AE}  Full controller support")
                                : detail.info.controller === "partial" ? "\u{1F3AE}  Partial controller support"
                                : "\u2328  Mouse and keyboard")
                                + (win.selected.store === "steam" && detail.info.controller !== "full" ? "  \u00B7  set up \u2197" : "")
@@ -1911,14 +1911,14 @@ ApplicationWindow {
                     }
                     Pill {
                         visible: !!detail.ach.total
-                        label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + " achievements"
+                        label: "\u{1F3C6}  " + (detail.ach.done || 0) + " / " + (detail.ach.total || 0) + qsTr(" achievements")
                         accent: !!detail.ach.total && detail.ach.done === detail.ach.total
                     }
                     Pill {
                         visible: !!win.selected.protondb
                         store: "protondb"
                         dot: ProtonDB.color(win.selected.protondb)
-                        label: "ProtonDB: " + ProtonDB.label(win.selected.protondb)
+                        label: qsTr("ProtonDB: ") + ProtonDB.label(win.selected.protondb)
                                + (win.selected.protondbTrending && win.selected.protondbTrending !== win.selected.protondb
                                   ? " (trending " + ProtonDB.label(win.selected.protondbTrending) + ")" : "")
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -1974,7 +1974,7 @@ ApplicationWindow {
                     Layout.topMargin: 6
                     spacing: 8
                     Text {
-                        text: "You own this on " + (win.selected.copies || []).length + " stores. Launcher to use:"
+                        text: qsTr("You own this on ") + (win.selected.copies || []).length + qsTr(" stores. Launcher to use:")
                         color: theme.onSurfaceVariant
                         font.pixelSize: 12
                     }
@@ -1985,7 +1985,7 @@ ApplicationWindow {
                             model: win.selected.copies || []
                             Chip {
                                 required property var modelData
-                                label: modelData.storeName + (modelData.installed ? " · installed" : "")
+                                label: modelData.storeName + (modelData.installed ? qsTr(" · installed") : "")
                                 dot: modelData.storeColor
                                 store: modelData.key.split(":")[0]
                                 active: modelData.key === win.selectedKey
@@ -2009,7 +2009,7 @@ ApplicationWindow {
             visible: detail.similar.length > 0
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "More like this in your library"; color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold }
+            Text { text: qsTr("More like this in your library"); color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold }
             ListView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 196
@@ -2028,7 +2028,7 @@ ApplicationWindow {
                     }
                     Text { y: 176; width: parent.width; text: modelData.title; color: theme.onSurfaceVariant; font.pixelSize: 11; elide: Text.ElideRight }
                     Rectangle { visible: modelData.unplayed; x: 6; y: 6; height: 20; radius: 10; width: newT.implicitWidth + 14; color: "#cc000000"
-                                Text { id: newT; anchors.centerIn: parent; text: "Not played"; color: "white"; font.pixelSize: 10 } }
+                                Text { id: newT; anchors.centerIn: parent; text: qsTr("Not played"); color: "white"; font.pixelSize: 10 } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: { win.select(modelData.key); detail.opened() } }
                 }
@@ -2057,7 +2057,7 @@ ApplicationWindow {
         property string title: ""
         property string local: ""
         property string cloud: ""
-        heading: "Which saves should " + title + " use?"
+        heading: qsTr("Which saves should ") + title + qsTr(" use?")
         onOpened: useCloud.forceActiveFocus()
         width: Math.min(win.width - 60, 560)
         closePolicy: Popup.CloseOnEscape
@@ -2068,14 +2068,14 @@ ApplicationWindow {
                 wrapMode: Text.WordWrap
                 color: theme.onSurfaceVariant
                 font.pixelSize: 13
-                text: "Saves changed both on this PC and in the cloud since the last sync, probably because you played on another computer. The one you don't pick is replaced."
+                text: qsTr("Saves changed both on this PC and in the cloud since the last sync, probably because you played on another computer. The one you don't pick is replaced.")
             }
             KButton {
                 id: useCloud
                 theme: win.theme; primary: true; Layout.fillWidth: true
                 KeyNavigation.down: keepLocal
                 Keys.onReturnPressed: clicked()
-                text: "Use the cloud save" + (conflict.cloud ? "  (" + conflict.cloud + ")" : "")
+                text: qsTr("Use the cloud save") + (conflict.cloud ? "  (" + conflict.cloud + ")" : "")
                 onClicked: { conflict.close(); app.resolveConflict(conflict.key, "cloud") }
             }
             KButton {
@@ -2084,7 +2084,7 @@ ApplicationWindow {
                 KeyNavigation.up: useCloud
                 KeyNavigation.down: skipSync
                 Keys.onReturnPressed: clicked()
-                text: "Keep this PC's save" + (conflict.local ? "  (" + conflict.local + ")" : "")
+                text: qsTr("Keep this PC's save") + (conflict.local ? "  (" + conflict.local + ")" : "")
                 onClicked: { conflict.close(); app.resolveConflict(conflict.key, "local") }
             }
             KButton {
@@ -2092,7 +2092,7 @@ ApplicationWindow {
                 theme: win.theme; Layout.fillWidth: true
                 KeyNavigation.up: keepLocal
                 Keys.onReturnPressed: clicked()
-                text: "Play without syncing this time"
+                text: qsTr("Play without syncing this time")
                 onClicked: { conflict.close(); app.resolveConflict(conflict.key, "skip") }
             }
         }
@@ -2104,7 +2104,7 @@ ApplicationWindow {
         id: storage
         objectName: "storageBox"
         theme: win.theme
-        heading: "Storage"
+        heading: qsTr("Storage")
         headingIcon: "folder-open"
         property var d: ({ games: [], drives: [] })
         property bool loading: false
@@ -2131,7 +2131,7 @@ ApplicationWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: modelData.label + "  (" + modelData.mount + ")"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideMiddle }
-                        Text { text: modelData.freeText + " free of " + modelData.totalText; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                        Text { text: modelData.freeText + qsTr(" free of ") + modelData.totalText; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -2148,16 +2148,16 @@ ApplicationWindow {
                             color: modelData.free / Math.max(1, modelData.total) < 0.1 ? theme.error : theme.primary
                         }
                     }
-                    Text { text: modelData.games + (modelData.games === 1 ? " game, " : " games, ") + modelData.gamesText; color: theme.outline; font.pixelSize: 12 }
+                    Text { text: modelData.games + (modelData.games === 1 ? qsTr(" game, ") : qsTr(" games, ")) + modelData.gamesText; color: theme.outline; font.pixelSize: 12 }
                 }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                Text { text: storage.loading ? "Measuring your games…" : (storage.shown.length + " games · " + (storage.d.total || "")); color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.fillWidth: true }
+                Text { text: storage.loading ? qsTr("Measuring your games…") : (storage.shown.length + qsTr(" games · ") + (storage.d.total || "")); color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.fillWidth: true }
                 KButton {
                     theme: win.theme
-                    text: storage.tidy ? "Show all" : "Free up space"
+                    text: storage.tidy ? qsTr("Show all") : qsTr("Free up space")
                     iconName: storage.tidy ? "library" : "trash-2"
                     onClicked: storage.tidy = !storage.tidy
                 }
@@ -2175,7 +2175,7 @@ ApplicationWindow {
                     spacing: 6
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: "Leftover Proton prefixes (Windows settings of games no longer installed). They can hold saves from games without cloud saves: delete only what you are sure about."
+                        text: qsTr("Leftover Proton prefixes (Windows settings of games no longer installed). They can hold saves from games without cloud saves: delete only what you are sure about.")
                         color: theme.onSurfaceVariant; font.pixelSize: 12
                     }
                     Repeater {
@@ -2183,10 +2183,10 @@ ApplicationWindow {
                         RowLayout {
                             required property var modelData
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: modelData.name + (modelData.reset ? "  (put aside by Reset)" : ""); color: theme.onSurface; font.pixelSize: 13; elide: Text.ElideMiddle }
+                            Text { Layout.fillWidth: true; text: modelData.name + (modelData.reset ? qsTr("  (put aside by Reset)") : ""); color: theme.onSurface; font.pixelSize: 13; elide: Text.ElideMiddle }
                             Text { text: modelData.size; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                             KButton { property bool armed: false; theme: win.theme; danger: true; iconName: "trash-2"
-                                      text: armed ? "Sure?" : "Delete"
+                                      text: armed ? qsTr("Sure?") : qsTr("Delete")
                                       onClicked: { if (!armed) { armed = true; return } app.deletePrefix(modelData.path) } }
                         }
                     }
@@ -2196,7 +2196,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 visible: storage.tidy
                 wrapMode: Text.WordWrap
-                text: storage.shown.length ? "Games over 2 GB you haven't played for three months, biggest first."
+                text: storage.shown.length ? qsTr("Games over 2 GB you haven't played for three months, biggest first.")
                                            : "Nothing to clear: every big game was played lately."
                 color: theme.outline; font.pixelSize: 12
             }
@@ -2226,7 +2226,7 @@ ApplicationWindow {
                         Row {
                             spacing: 6
                             StoreIcon { size: 12; store: modelData.store; color: modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: live.job === "move" ? "Moving " + Math.max(0, Math.floor(live.progress)) + "%"
+                            Text { text: live.job === "move" ? qsTr("Moving ") + Math.max(0, Math.floor(live.progress)) + "%"
                                          : modelData.size + "  ·  played " + modelData.lastText
                                    color: live.job ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12 }
                         }
@@ -2238,7 +2238,7 @@ ApplicationWindow {
                         KButton {
                             theme: win.theme
                             visible: !live.job && modelData.store !== "battlenet"
-                            text: "Move"
+                            text: qsTr("Move")
                             iconName: "folder-open"
                             onClicked: {
                                 if (!modelData.movable) { app.moveGame(modelData.key, ""); return }
@@ -2249,7 +2249,7 @@ ApplicationWindow {
                         KButton {
                             theme: win.theme
                             visible: !!live.job
-                            text: "Cancel"
+                            text: qsTr("Cancel")
                             iconName: "x"
                             onClicked: app.cancel(modelData.key)
                         }
@@ -2259,7 +2259,7 @@ ApplicationWindow {
                             theme: win.theme
                             danger: true
                             visible: !live.job && modelData.store !== "battlenet"
-                            text: armed ? "Sure?" : "Uninstall"
+                            text: armed ? qsTr("Sure?") : qsTr("Uninstall")
                             iconName: "trash-2"
                             onClicked: { if (!armed) { armed = true; return } armed = false; app.uninstall(modelData.key) }
                         }
@@ -2270,28 +2270,28 @@ ApplicationWindow {
     }
     FolderDialog {
         id: backupDest
-        title: "Save the backup in which folder?"
+        title: qsTr("Save the backup in which folder?")
         onAccepted: app.makeBackup(selectedFolder.toString())
     }
     FileDialog {
         id: restoreFile
-        title: "Restore which Cornerplay backup?"
+        title: qsTr("Restore which Cornerplay backup?")
         nameFilters: ["Cornerplay backups (Cornerplay-backup-*.zip)", "Zip files (*.zip)"]
         onAccepted: app.restoreBackup(selectedFile.toString())
     }
     FolderDialog {
         id: syncDest
-        title: "Which folder do your PCs sync?"
+        title: qsTr("Which folder do your PCs sync?")
         onAccepted: app.setSyncDir(selectedFolder.toString())
     }
     FolderDialog {
         id: romDest
-        title: "Which folder has your ROMs?"
+        title: qsTr("Which folder has your ROMs?")
         onAccepted: app.addRomFolder(selectedFolder.toString())
     }
     FolderDialog {
         id: moveDest
-        title: "Move to which folder?"
+        title: qsTr("Move to which folder?")
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
     }
 
@@ -2300,7 +2300,7 @@ ApplicationWindow {
         id: picker
         objectName: "picker"
         theme: win.theme
-        heading: "What should I play?"
+        heading: qsTr("What should I play?")
         headingIcon: "gamepad-2"
         property string length: ""
         property bool installedOnly: true
@@ -2317,7 +2317,7 @@ ApplicationWindow {
             RowLayout {
                 spacing: 6
                 Repeater {
-                    model: [{ id: "", name: "Any length" }, { id: "short", name: "About an hour" }, { id: "long", name: "A long session" }]
+                    model: [{ id: "", name: qsTr("Any length") }, { id: "short", name: qsTr("About an hour") }, { id: "long", name: qsTr("A long session") }]
                     Rectangle {
                         required property var modelData
                         readonly property bool on: picker.length === modelData.id
@@ -2332,7 +2332,7 @@ ApplicationWindow {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                Text { text: "Installed only"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                Text { text: qsTr("Installed only"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
                 Switch {
                     id: pickInst
                     checked: picker.installedOnly
@@ -2352,15 +2352,15 @@ ApplicationWindow {
                     spacing: 10
                     Text { Layout.fillWidth: true; text: picker.g.title || ""; color: theme.onSurface; font.pixelSize: 22; font.weight: Font.Bold; wrapMode: Text.WordWrap }
                     Text { Layout.fillWidth: true; text: picker.g.why || ""; color: theme.onSurfaceVariant; font.pixelSize: 14; wrapMode: Text.WordWrap }
-                    Text { text: (picker.g.storeName || "") + (picker.g.installed ? "" : "  ·  not installed"); color: theme.outline; font.pixelSize: 12 }
+                    Text { text: (picker.g.storeName || "") + (picker.g.installed ? "" : qsTr("  ·  not installed")); color: theme.outline; font.pixelSize: 12 }
                     Item { Layout.fillHeight: true }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
-                        KButton { theme: win.theme; primary: true; text: picker.g.installed ? "Play" : "Install"; iconName: picker.g.installed ? "play" : "download"
+                        KButton { theme: win.theme; primary: true; text: picker.g.installed ? qsTr("Play") : qsTr("Install"); iconName: picker.g.installed ? "play" : "download"
                                   onClicked: { const k = picker.g.key; picker.close(); picker.g.installed ? win.activate(k) : app.install(k) } }
-                        KButton { theme: win.theme; text: "Another"; iconName: "refresh-cw"; onClicked: picker.roll() }
-                        KButton { theme: win.theme; text: "Details"; onClicked: { const k = picker.g.key; picker.close(); win.select(k) } }
+                        KButton { theme: win.theme; text: qsTr("Another"); iconName: "refresh-cw"; onClicked: picker.roll() }
+                        KButton { theme: win.theme; text: qsTr("Details"); onClicked: { const k = picker.g.key; picker.close(); win.select(k) } }
                     }
                 }
             }
@@ -2368,7 +2368,7 @@ ApplicationWindow {
                 visible: !picker.g.key
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: picker.installedOnly ? "Nothing fits: no installed game that isn't finished or dropped. Turn off Installed only to pick from everything."
+                text: picker.installedOnly ? qsTr("Nothing fits: no installed game that isn't finished or dropped. Turn off Installed only to pick from everything.")
                                            : "Nothing fits these choices."
                 color: theme.onSurfaceVariant; font.pixelSize: 14
             }
@@ -2380,7 +2380,7 @@ ApplicationWindow {
         id: addBox
         objectName: "addBox"
         theme: win.theme
-        heading: "Add games"
+        heading: qsTr("Add games")
         headingIcon: "plus"
         property string exe: ""
         property string importStore: "epic"
@@ -2390,43 +2390,43 @@ ApplicationWindow {
         contentItem: ColumnLayout {
             spacing: 16
             // 1. any program
-            Text { text: "A game or app on this PC"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+            Text { text: qsTr("A game or app on this PC"); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
-                   text: "A Windows program (.exe) runs through Proton in its own prefix; a Linux program runs as it is. It gets covers, playtime, Options and TV mode like any other game." }
+                   text: qsTr("A Windows program (.exe) runs through Proton in its own prefix; a Linux program runs as it is. It gets covers, playtime, Options and TV mode like any other game.") }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                KField { Layout.fillWidth: true; theme: win.theme; readOnly: true; placeholderText: "No program chosen"
+                KField { Layout.fillWidth: true; theme: win.theme; readOnly: true; placeholderText: qsTr("No program chosen")
                          text: addBox.exe ? decodeURIComponent(addBox.exe.replace("file://", "")) : "" }
-                KButton { theme: win.theme; text: "Choose…"; iconName: "folder-open"; onClicked: addExe.open() }
+                KButton { theme: win.theme; text: qsTr("Choose…"); iconName: "folder-open"; onClicked: addExe.open() }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                KField { id: addName; Layout.fillWidth: true; theme: win.theme; placeholderText: "Name (optional: taken from the file)" }
-                KField { id: addArgs; Layout.preferredWidth: 180; theme: win.theme; placeholderText: "Arguments" }
-                KButton { theme: win.theme; primary: true; text: "Add"; enabled: addBox.exe !== ""
+                KField { id: addName; Layout.fillWidth: true; theme: win.theme; placeholderText: qsTr("Name (optional: taken from the file)") }
+                KField { id: addArgs; Layout.preferredWidth: 180; theme: win.theme; placeholderText: qsTr("Arguments") }
+                KButton { theme: win.theme; primary: true; text: qsTr("Add"); enabled: addBox.exe !== ""
                           onClicked: { app.addGame(addBox.exe, addName.text, addArgs.text); addBox.close() } }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
             // 2. already installed
-            Text { text: "Games you already installed"; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+            Text { text: qsTr("Games you already installed"); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
-                       text: "GOG games: pick the folder they are in (or one game's folder); every GOG game there is found." }
-                KButton { theme: win.theme; text: "Choose folder…"; iconName: "folder-open"; onClicked: importDir.open() }
+                       text: qsTr("GOG games: pick the folder they are in (or one game's folder); every GOG game there is found.") }
+                KButton { theme: win.theme; text: qsTr("Choose folder…"); iconName: "folder-open"; onClicked: importDir.open() }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
                 KCombo { id: impStore; theme: win.theme; Layout.preferredWidth: 130
-                         model: [{ label: "Epic", value: "epic" }, { label: "Amazon", value: "amazon" }]
+                         model: [{ label: qsTr("Epic"), value: "epic" }, { label: qsTr("Amazon"), value: "amazon" }]
                          onActivated: addBox.importStore = currentValue }
                 KCombo { id: impGame; theme: win.theme; Layout.fillWidth: true
                          model: app.ownedNotInstalled(addBox.importStore).map(g => ({ label: g.title, value: g.id })) }
-                KButton { theme: win.theme; text: "Its folder…"; iconName: "folder-open"; enabled: impGame.count > 0; onClicked: importGameDir.open() }
+                KButton { theme: win.theme; text: qsTr("Its folder…"); iconName: "folder-open"; enabled: impGame.count > 0; onClicked: importGameDir.open() }
             }
             // 3. Heroic
             RowLayout {
@@ -2434,24 +2434,24 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
-                       text: "Heroic has " + addBox.heroic + " installed game" + (addBox.heroic === 1 ? "" : "s") + ". Bring them in (nothing is copied or downloaded)." }
-                KButton { theme: win.theme; primary: true; text: "Import from Heroic"; onClicked: { app.importHeroic(); addBox.close() } }
+                       text: qsTr("Heroic has ") + addBox.heroic + qsTr(" installed game") + (addBox.heroic === 1 ? "" : "s") + qsTr(". Bring them in (nothing is copied or downloaded).") }
+                KButton { theme: win.theme; primary: true; text: qsTr("Import from Heroic"); onClicked: { app.importHeroic(); addBox.close() } }
             }
         }
     }
     FileDialog {
         id: addExe
-        title: "Which program?"
+        title: qsTr("Which program?")
         onAccepted: { addBox.exe = selectedFile.toString(); if (!addName.text) addName.text = "" }
     }
     FolderDialog {
         id: importDir
-        title: "Which folder are the GOG games in?"
+        title: qsTr("Which folder are the GOG games in?")
         onAccepted: { app.importFolder(selectedFolder.toString()); addBox.close() }
     }
     FolderDialog {
         id: importGameDir
-        title: "Where is the game installed?"
+        title: qsTr("Where is the game installed?")
         onAccepted: { app.importGame(addBox.importStore, impGame.currentValue, selectedFolder.toString()); addBox.close() }
     }
 
@@ -2463,7 +2463,7 @@ ApplicationWindow {
         property var meta: ({})
         property var rows: []
         property string armed: ""
-        heading: "Save backups"
+        heading: qsTr("Save backups")
         headingIcon: "cloud"
         width: Math.min(win.width - 60, 560)
         function show(k, title) { key = k; heading = "Save backups \u00B7 " + title; rows = []; meta = {}; armed = ""; app.loadSaveBackups(k); open() }
@@ -2473,7 +2473,7 @@ ApplicationWindow {
             spacing: 12
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
-                text: !savesBox.meta.indexed ? "Cornerplay is still fetching where games keep their saves; try again in a minute."
+                text: !savesBox.meta.indexed ? qsTr("Cornerplay is still fetching where games keep their saves; try again in a minute.")
                       : !savesBox.meta.known ? "Cornerplay does not know where this game keeps its saves (it is not in Ludusavi's list)."
                       : savesBox.meta.found ? "Backed up before each start (the last " + app.settingsMap.backup_keep + " are kept). Restoring keeps a copy of what is there now."
                       : "No saves on this PC yet: they are backed up once the game has made some."
@@ -2488,13 +2488,13 @@ ApplicationWindow {
                     Column {
                         x: 14; anchors.verticalCenter: parent.verticalCenter
                         Text { text: modelData.when; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
-                        Text { text: modelData.reason + "  \u00B7  " + modelData.files + (modelData.files === 1 ? " file, " : " files, ") + modelData.sizeText
+                        Text { text: modelData.reason + "  \u00B7  " + modelData.files + (modelData.files === 1 ? qsTr(" file, ") : qsTr(" files, ")) + modelData.sizeText
                                color: theme.onSurfaceVariant; font.pixelSize: 12 }
                     }
                     KButton {
                         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                         theme: win.theme
-                        text: savesBox.armed === modelData.name ? "Really put back?" : "Restore"
+                        text: savesBox.armed === modelData.name ? qsTr("Really put back?") : qsTr("Restore")
                         iconName: "refresh-cw"
                         onClicked: { if (savesBox.armed !== modelData.name) { savesBox.armed = modelData.name; return }
                                      savesBox.armed = ""; app.restoreSaves(savesBox.key, modelData.name) }
@@ -2503,9 +2503,9 @@ ApplicationWindow {
             }
             RowLayout {
                 spacing: 8
-                KButton { theme: win.theme; primary: true; text: "Back up now"; iconName: "download"; enabled: !!savesBox.meta.known
+                KButton { theme: win.theme; primary: true; text: qsTr("Back up now"); iconName: "download"; enabled: !!savesBox.meta.known
                           onClicked: app.backupSavesNow(savesBox.key) }
-                KButton { theme: win.theme; text: "Open folder"; iconName: "folder-open"; onClicked: app.openSaveBackups(savesBox.key) }
+                KButton { theme: win.theme; text: qsTr("Open folder"); iconName: "folder-open"; onClicked: app.openSaveBackups(savesBox.key) }
             }
         }
     }
@@ -2515,7 +2515,7 @@ ApplicationWindow {
         id: healthBox
         objectName: "healthBox"
         theme: win.theme
-        heading: "Health check"
+        heading: qsTr("Health check")
         headingIcon: "check"
         property var rows: []
         property bool busy: false
@@ -2529,7 +2529,7 @@ ApplicationWindow {
             spacing: 10
             Text {
                 Layout.fillWidth: true
-                text: healthBox.busy ? "Checking…" : healthBox.bad ? healthBox.bad + (healthBox.bad === 1 ? " thing needs" : " things need") + " fixing"
+                text: healthBox.busy ? qsTr("Checking…") : healthBox.bad ? healthBox.bad + (healthBox.bad === 1 ? qsTr(" thing needs") : qsTr(" things need")) + qsTr(" fixing")
                                                                     : "Everything games need is in place"
                 color: healthBox.bad ? theme.error : theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold
             }
@@ -2568,7 +2568,7 @@ ApplicationWindow {
                         theme: win.theme
                         visible: !!modelData.fix.kind
                         primary: modelData.ok === false
-                        text: modelData.fix.kind === "command" ? "Copy" : (modelData.fix.label || "Fix")
+                        text: modelData.fix.kind === "command" ? qsTr("Copy") : (modelData.fix.label || qsTr("Fix"))
                         onClicked: {
                             const f = modelData.fix
                             if (f.kind === "command") app.copyText(f.command)
@@ -2580,7 +2580,7 @@ ApplicationWindow {
                     }
                 }
             }
-            KButton { theme: win.theme; text: "Check again"; iconName: "refresh-cw"; enabled: !healthBox.busy; onClicked: healthBox.show() }
+            KButton { theme: win.theme; text: qsTr("Check again"); iconName: "refresh-cw"; enabled: !healthBox.busy; onClicked: healthBox.show() }
         }
     }
 
@@ -2590,7 +2590,7 @@ ApplicationWindow {
         theme: win.theme
         property string key: ""
         property var info: ({})
-        heading: info.full ? "Not enough space for " + (info.title || "") : (info.title || "") + " would nearly fill your drive"
+        heading: info.full ? qsTr("Not enough space for ") + (info.title || "") : (info.title || "") + qsTr(" would nearly fill your drive")
         headingIcon: "folder-open"
         width: Math.min(win.width - 60, 520)
         Connections { target: app; function onDiskWarning(key, info) { diskBox.key = key; diskBox.info = info; diskBox.open() } }
@@ -2598,17 +2598,17 @@ ApplicationWindow {
             spacing: 12
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
-                text: (diskBox.info.need ? "It needs about " + diskBox.info.need + ". " : "")
+                text: (diskBox.info.need ? qsTr("It needs about ") + diskBox.info.need + ". " : "")
                       + diskBox.info.drive + " has " + diskBox.info.free + " free"
                       + (diskBox.info.need ? ", so " + diskBox.info.after + " would be left." : ".")
                       + " Under 10% free slows the PC down and can break updates."
             }
-            Text { visible: (diskBox.info.suggest || []).length > 0; text: "Big games you haven't played for three months:"; color: theme.onSurface; font.pixelSize: 13 }
+            Text { visible: (diskBox.info.suggest || []).length > 0; text: qsTr("Big games you haven't played for three months:"); color: theme.onSurface; font.pixelSize: 13 }
             Repeater { model: diskBox.info.suggest || []; Text { required property string modelData; text: "\u2022  " + modelData; color: theme.onSurfaceVariant; font.pixelSize: 13 } }
             RowLayout {
                 spacing: 8
-                KButton { theme: win.theme; primary: true; text: "Free up space"; iconName: "trash-2"; onClicked: { diskBox.close(); storage.tidy = true; storage.show() } }
-                KButton { theme: win.theme; visible: !diskBox.info.full; text: "Install anyway"; onClicked: { diskBox.close(); app.installAnyway(diskBox.key) } }
+                KButton { theme: win.theme; primary: true; text: qsTr("Free up space"); iconName: "trash-2"; onClicked: { diskBox.close(); storage.tidy = true; storage.show() } }
+                KButton { theme: win.theme; visible: !diskBox.info.full; text: qsTr("Install anyway"); onClicked: { diskBox.close(); app.installAnyway(diskBox.key) } }
             }
         }
     }
@@ -2619,7 +2619,7 @@ ApplicationWindow {
         theme: win.theme
         property string key: ""
         property var p: ({})
-        heading: (p.title || "The game") + " closed right away"
+        heading: (p.title || qsTr("The game")) + qsTr(" closed right away")
         headingIcon: "x"
         width: Math.min(win.width - 60, 540)
         Connections { target: app; function onLaunchProblem(key, p) { problemBox.key = key; problemBox.p = p; problemBox.open() } }
@@ -2630,22 +2630,22 @@ ApplicationWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: 8
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "repair"; text: "Repair files"; iconName: "refresh-cw"
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "repair"; text: qsTr("Repair files"); iconName: "refresh-cw"
                           onClicked: { app.fixProblem(problemBox.key, "repair"); problemBox.close() } }
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vcrun"; text: "Install Visual C++"; iconName: "download"
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vcrun"; text: qsTr("Install Visual C++"); iconName: "download"
                           onClicked: { app.fixProblem(problemBox.key, "vcrun"); problemBox.close() } }
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "dotnet"; text: "Install .NET"; iconName: "download"
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "dotnet"; text: qsTr("Install .NET"); iconName: "download"
                           onClicked: { app.fixProblem(problemBox.key, "dotnet"); problemBox.close() } }
                 KButton { theme: win.theme; primary: problemBox.p.fix === "proton"; visible: problemBox.p.fix === "proton" || problemBox.p.fix === "vcrun"
-                          text: "Try another Proton"; iconName: "settings-2"; onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "native"; text: "Use the Windows version"; iconName: "settings-2"
+                          text: qsTr("Try another Proton"); iconName: "settings-2"; onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "native"; text: qsTr("Use the Windows version"); iconName: "settings-2"
                           onClicked: { problemBox.close(); gameOpts.show(problemBox.key) } }
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vulkan"; text: "Open Health check"; iconName: "check"
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "vulkan"; text: qsTr("Open Health check"); iconName: "check"
                           onClicked: { problemBox.close(); healthBox.show() } }
-                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "storage"; text: "Free up space"; iconName: "trash-2"
+                KButton { theme: win.theme; primary: true; visible: problemBox.p.fix === "storage"; text: qsTr("Free up space"); iconName: "trash-2"
                           onClicked: { problemBox.close(); storage.tidy = true; storage.show() } }
-                KButton { theme: win.theme; text: "Open log"; iconName: "folder-open"; onClicked: app.openLog(problemBox.key) }
-                KButton { theme: win.theme; visible: !!win.selectedKey || true; text: "ProtonDB"; iconName: "external-link"
+                KButton { theme: win.theme; text: qsTr("Open log"); iconName: "folder-open"; onClicked: app.openLog(problemBox.key) }
+                KButton { theme: win.theme; visible: !!win.selectedKey || true; text: qsTr("ProtonDB"); iconName: "external-link"
                           onClicked: { const id = app.game(problemBox.key).steamAppId; app.openUrl(id ? "https://www.protondb.com/app/" + id : "https://www.protondb.com") } }
             }
         }
@@ -2656,7 +2656,7 @@ ApplicationWindow {
         id: statsBox
         objectName: "statsBox"
         theme: win.theme
-        heading: "Your games in numbers"
+        heading: qsTr("Your games in numbers")
         headingIcon: "trophy"
         property var d: ({})
         function show() { d = app.stats(); open() }
@@ -2693,7 +2693,7 @@ ApplicationWindow {
                     Tile { big: String(statsBox.d.installed || 0); small: "installed" }
                 }
                 // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
-                Text { text: "Last two weeks  ·  " + (statsBox.d.weekHours || 0) + " h this week, " + (statsBox.d.monthHours || 0) + " h this month"
+                Text { text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
                        color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
                 Item {
                     Layout.fillWidth: true
@@ -2723,10 +2723,10 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     visible: (statsBox.d.sessions || 0) === 0
                     wrapMode: Text.WordWrap
-                    text: "Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals."
+                    text: qsTr("Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals.")
                     color: theme.outline; font.pixelSize: 12
                 }
-                Text { text: "Most played"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                Text { text: qsTr("Most played"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
                 Repeater {
                     model: statsBox.d.top || []
                     RowLayout {
@@ -2760,7 +2760,7 @@ ApplicationWindow {
                         }
                     }
                 }
-                Text { text: "By store"; color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; visible: (statsBox.d.perStore || []).length > 0 }
+                Text { text: qsTr("By store"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; visible: (statsBox.d.perStore || []).length > 0 }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 8
@@ -2784,7 +2784,7 @@ ApplicationWindow {
         theme: win.theme
         property string key: ""
         property var inList: []
-        heading: "Collections"
+        heading: qsTr("Collections")
         headingIcon: "bookmark"
         width: Math.min(win.width - 60, 420)
         function show(k, title) { key = k; heading = title; inList = app.game(k).collections || []; open() }
@@ -2795,7 +2795,7 @@ ApplicationWindow {
                 visible: app.collections.length === 0
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "No collections yet. Make one for the games you play together, a backlog, anything."
+                text: qsTr("No collections yet. Make one for the games you play together, a backlog, anything.")
                 color: theme.onSurfaceVariant; font.pixelSize: 13
             }
             Repeater {
@@ -2821,7 +2821,7 @@ ApplicationWindow {
             KButton {
                 theme: win.theme
                 Layout.fillWidth: true
-                text: "New collection"
+                text: qsTr("New collection")
                 iconName: "plus"
                 onClicked: { const k = collPick.key; collPick.close(); newColl.ask(k) }
             }
@@ -2831,7 +2831,7 @@ ApplicationWindow {
         id: newColl
         theme: win.theme
         property string addKey: ""   // a game to put in the new collection straight away
-        heading: "New collection"
+        heading: qsTr("New collection")
         headingIcon: "bookmark"
         width: Math.min(win.width - 60, 420)
         function ask(k) { addKey = k; collName.text = ""; open() }
@@ -2848,24 +2848,24 @@ ApplicationWindow {
                 id: collName
                 theme: win.theme
                 Layout.fillWidth: true
-                placeholderText: "Name, e.g. Co-op nights"
+                placeholderText: qsTr("Name, e.g. Co-op nights")
                 Keys.onReturnPressed: newColl.create()
                 Keys.onEnterPressed: newColl.create()
             }
-            KButton { theme: win.theme; primary: true; Layout.fillWidth: true; text: "Create"; enabled: collName.text.trim() !== ""; onClicked: newColl.create() }
+            KButton { theme: win.theme; primary: true; Layout.fillWidth: true; text: qsTr("Create"); enabled: collName.text.trim() !== ""; onClicked: newColl.create() }
         }
     }
     KDialog {
         id: removeColl
         theme: win.theme
         property string name: ""
-        heading: "Delete \u201c" + name + "\u201d?"
+        heading: qsTr("Delete \u201c") + name + "\u201d?"
         width: Math.min(win.width - 60, 420)
         contentItem: ColumnLayout {
             spacing: 14
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
-                   text: "The collection goes away; the games stay in your library." }
-            KButton { theme: win.theme; danger: true; Layout.fillWidth: true; text: "Delete collection"; iconName: "trash-2"
+                   text: qsTr("The collection goes away; the games stay in your library.") }
+            KButton { theme: win.theme; danger: true; Layout.fillWidth: true; text: qsTr("Delete collection"); iconName: "trash-2"
                       onClicked: { app.deleteCollection(removeColl.name); removeColl.close() } }
         }
     }
@@ -2881,7 +2881,7 @@ ApplicationWindow {
         property bool loading: false
         property string error: ""
         property bool busy: false   // a DLC install for this game is running
-        heading: "DLC"
+        heading: qsTr("DLC")
         headingIcon: "puzzle"
         width: Math.min(win.width - 60, 680)
         function show(k, title) {
@@ -2932,7 +2932,7 @@ ApplicationWindow {
                 color: theme.onSurfaceVariant
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
-                text: dlc.loading ? "Looking up DLC…" : (dlc.error || "No DLC found for this game.")
+                text: dlc.loading ? qsTr("Looking up DLC…") : (dlc.error || qsTr("No DLC found for this game."))
             }
             // Install all owned DLC at once (GOG installs them together anyway).
             KButton {
@@ -2940,7 +2940,7 @@ ApplicationWindow {
                 primary: true
                 iconName: "download"
                 visible: !dlc.busy && dlc.rows.filter(r => r.canInstall).length > 1
-                text: "Install all owned DLC"
+                text: qsTr("Install all owned DLC")
                 onClicked: { const r = dlc.rows.find(r => r.canInstall); if (r) { dlc.busy = true; app.installDlc(dlc.key, r.id) } }
             }
             Text {
@@ -2948,7 +2948,7 @@ ApplicationWindow {
                 color: theme.primary
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                text: "Installing DLC… " + (win.selected.job === "dlc" && win.selected.progress >= 0 ? Math.floor(win.selected.progress) + "%" : "")
+                text: qsTr("Installing DLC… ") + (win.selected.job === "dlc" && win.selected.progress >= 0 ? Math.floor(win.selected.progress) + "%" : "")
             }
             ListView {
                 id: dlcList
@@ -2964,10 +2964,10 @@ ApplicationWindow {
                     id: dlcRow
                     required property var modelData
                     readonly property var info: ({
-                        installed: { label: "Installed", icon: "check" },
-                        owned: { label: "Owned", icon: "check" },
-                        missing: { label: "Not installed", icon: "" },
-                        available: { label: "Not owned", icon: "" } })[modelData.status] || { label: modelData.status, icon: "" }
+                        installed: { label: qsTr("Installed"), icon: "check" },
+                        owned: { label: qsTr("Owned"), icon: "check" },
+                        missing: { label: qsTr("Not installed"), icon: "" },
+                        available: { label: qsTr("Not owned"), icon: "" } })[modelData.status] || { label: modelData.status, icon: "" }
                     width: dlcList.width - 10
                     height: 76
                     radius: 12
@@ -3045,7 +3045,7 @@ ApplicationWindow {
                             primary: true
                             iconName: "download"
                             visible: !!dlcRow.modelData.canInstall && !dlc.busy
-                            text: "Install"
+                            text: qsTr("Install")
                             onClicked: { dlc.busy = true; app.installDlc(dlc.key, dlcRow.modelData.id) }
                         }
                         KButton {
@@ -3053,7 +3053,7 @@ ApplicationWindow {
                             implicitHeight: 34
                             iconName: "external-link"
                             visible: !dlcRow.modelData.canInstall && !!dlcRow.modelData.url
-                            text: dlcRow.modelData.url.indexOf("steam://") === 0 ? "Open in Steam" : "Store page"
+                            text: dlcRow.modelData.url.indexOf("steam://") === 0 ? qsTr("Open in Steam") : qsTr("Store page")
                             onClicked: app.openUrl(dlcRow.modelData.url)
                         }
                     }
@@ -3075,7 +3075,7 @@ ApplicationWindow {
         id: accounts
         objectName: "accounts"
         theme: win.theme
-        heading: "Accounts"
+        heading: qsTr("Accounts")
         headingIcon: "user-round"
         width: Math.min(win.width - 60, 620)
         contentItem: ColumnLayout {
@@ -3133,7 +3133,7 @@ ApplicationWindow {
                                 font.pixelSize: 11
                                 color: theme.outline
                                 linkColor: theme.primary
-                                text: "Showing installed games and games you have played. For every game you own, "
+                                text: qsTr("Showing installed games and games you have played. For every game you own, ")
                                       + "<a href=\"key\">add a Steam Web API key</a>."
                                 onLinkActivated: { accounts.close(); prefs.tab = 3; prefs.open() }
                                 HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
@@ -3142,14 +3142,14 @@ ApplicationWindow {
                         KButton {
                             theme: win.theme
                             visible: modelData.id === "battlenet" && typeof webLogin !== "undefined" && webLogin
-                            text: app.blizzardLinked ? "Unlink account" : "Link account"
+                            text: app.blizzardLinked ? qsTr("Unlink account") : qsTr("Link account")
                             iconName: app.blizzardLinked ? "log-out" : "log-in"
                             onClicked: app.blizzardLinked ? app.blizzardUnlink() : app.blizzardLink()
                         }
                         KButton {
                             theme: win.theme
                             visible: modelData.loginKind === "paste" && modelData.loggedIn
-                            text: "Sign out"
+                            text: qsTr("Sign out")
                             iconName: "log-out"
                             onClicked: app.logout(modelData.id)
                         }
@@ -3158,7 +3158,7 @@ ApplicationWindow {
                             primary: !modelData.loggedIn
                             visible: !(modelData.loginKind === "paste" && modelData.loggedIn)
                             enabled: modelData.id === "gog" || !modelData.problem
-                            text: modelData.loginKind === "external" ? "Open" : "Sign in"
+                            text: modelData.loginKind === "external" ? qsTr("Open") : qsTr("Sign in")
                             iconName: modelData.loginKind === "external" ? "external-link" : "log-in"
                             onClicked: app.loginBegin(modelData.id)
                         }
@@ -3171,7 +3171,7 @@ ApplicationWindow {
                 wrapMode: Text.WordWrap
                 color: theme.outline
                 font.pixelSize: 12
-                text: "Sign-ins happen in your browser or in the store's own client. Cornerplay never sees your passwords; it only keeps the session tokens the stores hand back."
+                text: qsTr("Sign-ins happen in your browser or in the store's own client. Cornerplay never sees your passwords; it only keeps the session tokens the stores hand back.")
             }
         }
     }
@@ -3185,7 +3185,7 @@ ApplicationWindow {
         property string prompt: ""
         property string error: ""
         property bool busy: false
-        heading: "Sign in to " + (win.storeInfo(store).name || "")
+        heading: qsTr("Sign in to ") + (win.storeInfo(store).name || "")
         width: Math.min(win.width - 60, 560)
         closePolicy: Popup.CloseOnEscape
         function submit() {
@@ -3205,14 +3205,14 @@ ApplicationWindow {
             }
             RowLayout {
                 spacing: 10
-                KButton { theme: win.theme; iconName: "external-link"; text: "Open login page again"; onClicked: app.openUrl(login.url) }
-                KButton { theme: win.theme; text: "Copy link"; onClicked: { app.copy(login.url); toasts.append({ message: "Link copied" }) } }
+                KButton { theme: win.theme; iconName: "external-link"; text: qsTr("Open login page again"); onClicked: app.openUrl(login.url) }
+                KButton { theme: win.theme; text: qsTr("Copy link"); onClicked: { app.copy(login.url); toasts.append({ message: qsTr("Link copied") }) } }
             }
             KField {
                 id: code
                 theme: win.theme
                 Layout.fillWidth: true
-                placeholderText: "Paste here"
+                placeholderText: qsTr("Paste here")
                 onAccepted: login.submit()
             }
             Text {
@@ -3228,7 +3228,7 @@ ApplicationWindow {
                 primary: true
                 Layout.alignment: Qt.AlignRight
                 enabled: code.text.trim() !== "" && !login.busy
-                text: login.busy ? "Checking…" : "Finish sign-in"
+                text: login.busy ? qsTr("Checking…") : qsTr("Finish sign-in")
                 onClicked: login.submit()
             }
         }
@@ -3518,7 +3518,7 @@ ApplicationWindow {
         id: prefs
         objectName: "prefs"
         theme: win.theme
-        heading: "Settings"
+        heading: qsTr("Settings")
         headingIcon: "sliders-horizontal"
         width: Math.min(win.width - 60, 640)
         property int tab: 0
@@ -3571,15 +3571,16 @@ ApplicationWindow {
                 theme: win.theme
                 Layout.fillWidth: true
                 iconName: "search"
-                placeholderText: "Find a setting (e.g. proton, cover, sync)"
+                placeholderText: qsTr("Find a setting (e.g. proton, cover, sync)")
                 onTextChanged: prefs.query = text.trim().toLowerCase()
             }
-            RowLayout {
+            Flow {  // wraps when the tab names are long (translations)
+                Layout.fillWidth: true
                 spacing: 8
                 Repeater {
-                    model: [{ name: "Appearance", icon: "eye" }, { name: "Games & Proton", icon: "gamepad-2" },
-                            { name: "People & sync", icon: "user-round" }, { name: "Library", icon: "library" },
-                            { name: "Advanced", icon: "sliders-horizontal" }]
+                    model: [{ name: qsTr("Appearance"), icon: "eye" }, { name: qsTr("Games & Proton"), icon: "gamepad-2" },
+                            { name: qsTr("People & sync"), icon: "user-round" }, { name: qsTr("Library"), icon: "library" },
+                            { name: qsTr("Advanced"), icon: "sliders-horizontal" }]
                     Chip {
                         required property var modelData
                         required property int index
@@ -3614,13 +3615,13 @@ ApplicationWindow {
                         ColumnLayout {
                             spacing: 16
                             Row2 {
-                                label: "Theme"
-                                hint: "Follow wallpaper picks Cornerplay's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway."
+                                label: qsTr("Theme")
+                                hint: qsTr("Follow wallpaper picks Cornerplay's colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway.")
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 8
                                     Chip {
-                                        label: "Follow wallpaper"
+                                        label: qsTr("Follow wallpaper")
                                         active: app.settingsMap.theme_mode === "ryoku"
                                         onPicked: app.setSetting("theme_mode", "ryoku")
                                     }
@@ -3634,14 +3635,14 @@ ApplicationWindow {
                                         }
                                     }
                                     Chip {
-                                        label: "Custom"
+                                        label: qsTr("Custom")
                                         active: app.settingsMap.theme_mode === "custom"
                                         onPicked: app.setCustomColor("theme_accent", win.theme.primary)
                                     }
                                 }
                             }
                             Row2 {
-                                label: "Accent colour"
+                                label: qsTr("Accent colour")
                                 Swatches {
                                     theme: win.theme
                                     Layout.fillWidth: true
@@ -3651,8 +3652,8 @@ ApplicationWindow {
                                 }
                             }
                             Row2 {
-                                label: "Background colour"
-                                hint: "Picking a colour switches to a custom theme; text and panel shades are worked out from these two."
+                                label: qsTr("Background colour")
+                                hint: qsTr("Picking a colour switches to a custom theme; text and panel shades are worked out from these two.")
                                 Swatches {
                                     theme: win.theme
                                     Layout.fillWidth: true
@@ -3662,7 +3663,7 @@ ApplicationWindow {
                                 }
                             }
                             Row2 {
-                                label: "Cover size"
+                                label: qsTr("Cover size")
                                 KSlider {
                                     theme: win.theme; Layout.fillWidth: true
                                     from: 130; to: 320; stepSize: 2
@@ -3673,42 +3674,52 @@ ApplicationWindow {
                             RowLayout {
                                 spacing: 10
                                 Row2 {
-                                    label: "Interface size (text and buttons)"
-                                    hint: "Applies after a restart."
+                                    label: qsTr("Interface size (text and buttons)")
+                                    hint: qsTr("Applies after a restart.")
                                     KCombo {
                                         theme: win.theme; Layout.fillWidth: true
-                                        model: [{ label: "Automatic (bigger on large unscaled screens)", value: 0.0 },
-                                                { label: "Normal (100%)", value: 1.0 }, { label: "Larger (115%)", value: 1.15 },
-                                                { label: "Larger still (130%)", value: 1.3 }, { label: "150%", value: 1.5 },
-                                                { label: "200% (4K at 100%)", value: 2.0 }]
+                                        model: [{ label: qsTr("Automatic (bigger on large unscaled screens)"), value: 0.0 },
+                                                { label: qsTr("Normal (100%)"), value: 1.0 }, { label: qsTr("Larger (115%)"), value: 1.15 },
+                                                { label: qsTr("Larger still (130%)"), value: 1.3 }, { label: "150%", value: 1.5 },
+                                                { label: qsTr("200% (4K at 100%)"), value: 2.0 }]
                                         Component.onCompleted: select(app.settingsMap.ui_scale || 0.0)
                                         onActivated: app.setSetting("ui_scale", currentValue)
                                     }
                                 }
-                                KButton { theme: win.theme; Layout.alignment: Qt.AlignBottom; text: "Restart now"; iconName: "refresh-cw"; onClicked: app.restartApp() }
+                                KButton { theme: win.theme; Layout.alignment: Qt.AlignBottom; text: qsTr("Restart now"); iconName: "refresh-cw"; onClicked: app.restartApp() }
                             }
                             Row2 {
-                                label: "Cover shadows"
+                                label: qsTr("Language")
+                                hint: qsTr("Applies after a restart.")
                                 KCombo {
                                     theme: win.theme; Layout.fillWidth: true
-                                    model: [{ label: "None (flat)", value: "none" }, { label: "Soft", value: "soft" }, { label: "Deep", value: "deep" }]
+                                    model: [{ label: qsTr("Automatic (the system's)"), value: "" }].concat(app.languages)
+                                    Component.onCompleted: select(app.settingsMap.language || "")
+                                    onActivated: app.setSetting("language", currentValue)
+                                }
+                            }
+                            Row2 {
+                                label: qsTr("Cover shadows")
+                                KCombo {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    model: [{ label: qsTr("None (flat)"), value: "none" }, { label: qsTr("Soft"), value: "soft" }, { label: qsTr("Deep"), value: "deep" }]
                                     Component.onCompleted: select(app.settingsMap.card_shadow || "soft")
                                     onActivated: app.setSetting("card_shadow", currentValue)
                                 }
                             }
-                            Toggle { visible: app.settingsMap.theme_mode === "ryoku"; label: "Show the wallpaper behind Cornerplay (blurred)"; settingKey: "wallpaper_backdrop" }
-                            Toggle { label: "Play a game's trailer inside its cover while pointed at"; settingKey: "hover_trailers" }
-                            Toggle { label: "Warmer colours in the evening and at night"; settingKey: "evening_warmth" }
-                            Toggle { label: "TV mode: covers reflected on the shelf"; settingKey: "tv_reflection" }
-                            Toggle { label: "TV mode: start-up animation and chime"; settingKey: "tv_intro" }
+                            Toggle { visible: app.settingsMap.theme_mode === "ryoku"; label: qsTr("Show the wallpaper behind Cornerplay (blurred)"); settingKey: "wallpaper_backdrop" }
+                            Toggle { label: qsTr("Play a game's trailer inside its cover while pointed at"); settingKey: "hover_trailers" }
+                            Toggle { label: qsTr("Warmer colours in the evening and at night"); settingKey: "evening_warmth" }
+                            Toggle { label: qsTr("TV mode: covers reflected on the shelf"); settingKey: "tv_reflection" }
+                            Toggle { label: qsTr("TV mode: start-up animation and chime"); settingKey: "tv_intro" }
                             KButton {
                                 theme: win.theme
-                                text: app.settingsMap.card_size >= 250 ? "Back to normal tiles" : "Large tiles (touchscreens)"
+                                text: app.settingsMap.card_size >= 250 ? qsTr("Back to normal tiles") : qsTr("Large tiles (touchscreens)")
                                 iconName: "layout-grid"
                                 onClicked: app.setSetting("card_size", app.settingsMap.card_size >= 250 ? 196 : 270)
                             }
                             Row2 {
-                                label: "Corner roundness"
+                                label: qsTr("Corner roundness")
                                 KSlider {
                                     theme: win.theme; Layout.fillWidth: true
                                     from: 0; to: 28; stepSize: 1
@@ -3716,33 +3727,33 @@ ApplicationWindow {
                                     onMoved: app.setSetting("card_radius", value)
                                 }
                             }
-                            Toggle { label: "Show the store on a cover when pointed at"; settingKey: "show_badges" }
-                            Toggle { label: "Always show game titles"; settingKey: "show_titles" }
-                            Toggle { label: "Dim games that are not installed"; settingKey: "dim_uninstalled" }
-                        Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: "TV mode: play the focused game's trailer (muted)"; settingKey: "tv_trailers" }
-                        Toggle { label: "TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"; settingKey: "tv_animated" }
-                        Toggle { label: "TV mode: soft sounds when moving and choosing"; settingKey: "tv_sounds" }
-                        Toggle { label: "Show the ProtonDB rating on a cover when pointed at"; settingKey: "show_protondb" }
+                            Toggle { label: qsTr("Show the store on a cover when pointed at"); settingKey: "show_badges" }
+                            Toggle { label: qsTr("Always show game titles"); settingKey: "show_titles" }
+                            Toggle { label: qsTr("Dim games that are not installed"); settingKey: "dim_uninstalled" }
+                        Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: qsTr("TV mode: play the focused game's trailer (muted)"); settingKey: "tv_trailers" }
+                        Toggle { label: qsTr("TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"); settingKey: "tv_animated" }
+                        Toggle { label: qsTr("TV mode: soft sounds when moving and choosing"); settingKey: "tv_sounds" }
+                        Toggle { label: qsTr("Show the ProtonDB rating on a cover when pointed at"); settingKey: "show_protondb" }
                         Row2 {
-                            label: "Retro games (ROM folders)"
+                            label: qsTr("Retro games (ROM folders)")
                             hint: (app.settingsMap.rom_dirs || []).length
                                   ? (app.settingsMap.rom_dirs || []).join("  ·  ") + (app.retroProblem ? "  —  " + app.retroProblem : "")
                                   : "Add a folder with ROMs (a folder per system works best: snes, psx, gba ...). They play in RetroArch, with box art, playtime and TV mode."
                             RowLayout {
                                 spacing: 8
-                                KButton { theme: win.theme; iconName: "folder-open"; text: "Add folder"; onClicked: romDest.open() }
-                                KButton { theme: win.theme; text: "Clear"; visible: (app.settingsMap.rom_dirs || []).length > 0
+                                KButton { theme: win.theme; iconName: "folder-open"; text: qsTr("Add folder"); onClicked: romDest.open() }
+                                KButton { theme: win.theme; text: qsTr("Clear"); visible: (app.settingsMap.rom_dirs || []).length > 0
                                           onClicked: { app.setSetting("rom_dirs", []); app.refresh("retro") } }
                             }
                         }
-                        Toggle { label: "Show games from my Steam and GOG wishlists that are on sale"; settingKey: "wishlist_sales" }
+                        Toggle { label: qsTr("Show games from my Steam and GOG wishlists that are on sale"); settingKey: "wishlist_sales" }
                         Row2 {
                             visible: !!app.settingsMap.wishlist_sales
-                            label: "Country for store prices"
-                            hint: "Two letters, like AU or RO. Empty: your GOG account's country, else your system's."
+                            label: qsTr("Country for store prices")
+                            hint: qsTr("Two letters, like AU or RO. Empty: your GOG account's country, else your system's.")
                             KField {
                                 theme: win.theme; Layout.preferredWidth: 90
-                                placeholderText: "Auto"
+                                placeholderText: qsTr("Auto")
                                 maximumLength: 2
                                 text: app.settingsMap.store_country
                                 onEditingFinished: { app.setSetting("store_country", text.trim().toUpperCase()); app.refresh() }
@@ -3754,8 +3765,8 @@ ApplicationWindow {
                         ColumnLayout {
                             spacing: 16
                             Row2 {
-                                label: "Default Proton version"
-                                hint: "Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam."
+                                label: qsTr("Default Proton version")
+                                hint: qsTr("Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam.")
                                 KCombo {
                                     id: protonBox
                                     theme: win.theme; Layout.fillWidth: true
@@ -3781,7 +3792,7 @@ ApplicationWindow {
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             spacing: 2
-                                            Text { text: "Proton-CachyOS"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text { text: qsTr("Proton-CachyOS"); color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
                                             Text {
                                                 Layout.fillWidth: true
                                                 wrapMode: Text.WordWrap
@@ -3797,7 +3808,7 @@ ApplicationWindow {
                                             theme: win.theme
                                             primary: !app.cachyStatus.upToDate
                                             enabled: !app.cachyStatus.busy
-                                            text: app.cachyStatus.upToDate ? "Check again" : "Download latest"
+                                            text: app.cachyStatus.upToDate ? qsTr("Check again") : qsTr("Download latest")
                                             onClicked: app.cachyStatus.upToDate ? app.checkCachy() : app.downloadCachy()
                                         }
                                     }
@@ -3825,7 +3836,7 @@ ApplicationWindow {
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             spacing: 2
-                                            Text { text: "GE-Proton"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text { text: qsTr("GE-Proton"); color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
                                             Text {
                                                 Layout.fillWidth: true
                                                 wrapMode: Text.WordWrap
@@ -3841,7 +3852,7 @@ ApplicationWindow {
                                             theme: win.theme
                                             primary: !app.geStatus.upToDate
                                             enabled: !app.geStatus.busy
-                                            text: app.geStatus.upToDate ? "Check again" : "Download latest"
+                                            text: app.geStatus.upToDate ? qsTr("Check again") : qsTr("Download latest")
                                             onClicked: app.geStatus.upToDate ? app.checkGe() : app.downloadGe()
                                         }
                                     }
@@ -3860,38 +3871,38 @@ ApplicationWindow {
                                             wrapMode: Text.WordWrap
                                             font.pixelSize: 12
                                             color: theme.onSurfaceVariant
-                                            text: "Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them."
+                                            text: qsTr("Steam's own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them.")
                                         }
-                                        KButton { theme: win.theme; text: "Get from Steam"; onClicked: app.getSteamProton() }
-                                        KButton { theme: win.theme; text: "Rescan"; onClicked: app.rescanProtons() }
+                                        KButton { theme: win.theme; text: qsTr("Get from Steam"); onClicked: app.getSteamProton() }
+                                        KButton { theme: win.theme; text: qsTr("Rescan"); onClicked: app.rescanProtons() }
                                     }
                                 }
                             }
-                            Toggle { label: "MangoHud overlay"; settingKey: "mangohud" }
-                            Toggle { label: "Feral GameMode"; settingKey: "gamemode" }
-                            Toggle { label: "FPS counter in games"; settingKey: "show_fps" }
+                            Toggle { label: qsTr("MangoHud overlay"); settingKey: "mangohud" }
+                            Toggle { label: qsTr("Feral GameMode"); settingKey: "gamemode" }
+                            Toggle { label: qsTr("FPS counter in games"); settingKey: "show_fps" }
                             Row2 {
-                                label: "Gamescope for every game"
+                                label: qsTr("Gamescope for every game")
                                 hint: app.hasGamescope
                                       ? "Runs Epic, GOG, Amazon and added games inside Valve's gamescope: a clean full-screen window at your screen's resolution, or drawn smaller and upscaled with FSR for more frames. Each game can choose its own under Options. Steam games: use Steam's launch options."
                                       : "gamescope is not installed (on Arch: sudo pacman -S gamescope). Until it is, games start without it."
                                 KCombo {
                                     theme: win.theme; Layout.fillWidth: true
-                                    model: [{ label: "Off", value: "" }, { label: "Full screen at screen resolution", value: "fullscreen" },
-                                            { label: "FSR upscaling (draws at 2/3 size)", value: "fsr" }]
+                                    model: [{ label: qsTr("Off"), value: "" }, { label: qsTr("Full screen at screen resolution"), value: "fullscreen" },
+                                            { label: qsTr("FSR upscaling (draws at 2/3 size)"), value: "fsr" }]
                                     Component.onCompleted: select(app.settingsMap.gamescope || "")
                                     onActivated: app.setSetting("gamescope", currentValue)
                                 }
                             }
-                            Toggle { label: "HDR in gamescope (HDR screen and compositor needed)"; settingKey: "gamescope_hdr"; visible: app.hasGamescope }
-                            Toggle { label: "GOG: install the Linux version when a game has one (no Proton needed)"; settingKey: "gog_native" }
+                            Toggle { label: qsTr("HDR in gamescope (HDR screen and compositor needed)"); settingKey: "gamescope_hdr"; visible: app.hasGamescope }
+                            Toggle { label: qsTr("GOG: install the Linux version when a game has one (no Proton needed)"); settingKey: "gog_native" }
                             Row2 {
-                                label: "Performance profile for every game"
-                                hint: "Battery saver caps at 30 fps and Balanced at 60, both with FSR upscaling. Each game can choose its own under Options. Steam games use Steam's settings."
+                                label: qsTr("Performance profile for every game")
+                                hint: qsTr("Battery saver caps at 30 fps and Balanced at 60, both with FSR upscaling. Each game can choose its own under Options. Steam games use Steam's settings.")
                                 KCombo {
                                     theme: win.theme; Layout.fillWidth: true
-                                    model: [{ label: "No change", value: "" }, { label: "Battery saver (30 fps)", value: "battery" },
-                                            { label: "Balanced (60 fps)", value: "balanced" }, { label: "Max quality (no cap)", value: "quality" }]
+                                    model: [{ label: qsTr("No change"), value: "" }, { label: qsTr("Battery saver (30 fps)"), value: "battery" },
+                                            { label: qsTr("Balanced (60 fps)"), value: "balanced" }, { label: qsTr("Max quality (no cap)"), value: "quality" }]
                                     Component.onCompleted: select(app.settingsMap.perf || "")
                                     onActivated: app.setSetting("perf", currentValue)
                                 }
@@ -3905,7 +3916,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: theme.onSurfaceVariant; font.pixelSize: 13
-                                text: "Each person gets their own favourites, collections, statuses, stars, notes and play stats. Games, sign-ins and settings are shared. Switch from the name at the top of the sidebar."
+                                text: qsTr("Each person gets their own favourites, collections, statuses, stars, notes and play stats. Games, sign-ins and settings are shared. Switch from the name at the top of the sidebar.")
                             }
                             Repeater {
                                 model: app.profiles
@@ -3921,12 +3932,12 @@ ApplicationWindow {
                                         Text { anchors.centerIn: parent; text: modelData.charAt(0).toUpperCase(); font.pixelSize: 13; font.weight: Font.Bold
                                                color: modelData === app.profile ? theme.onPrimary : theme.onSurface }
                                     }
-                                    Text { x: 52; anchors.verticalCenter: parent.verticalCenter; text: modelData + (modelData === app.profile ? "  (now)" : "")
+                                    Text { x: 52; anchors.verticalCenter: parent.verticalCenter; text: modelData + (modelData === app.profile ? qsTr("  (now)") : "")
                                            color: theme.onSurface; font.pixelSize: 14 }
                                     Row {
                                         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                                         spacing: 6
-                                        KButton { theme: win.theme; visible: modelData !== app.profile; text: "Switch"; onClicked: app.switchProfile(modelData) }
+                                        KButton { theme: win.theme; visible: modelData !== app.profile; text: qsTr("Switch"); onClicked: app.switchProfile(modelData) }
                                         KButton { theme: win.theme; visible: app.profiles.length > 1; danger: true; iconName: "trash-2"; text: ""
                                                   onClicked: app.removeProfile(modelData) }
                                     }
@@ -3935,41 +3946,41 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
-                                KField { id: newPerson; theme: win.theme; Layout.fillWidth: true; placeholderText: "Add a person (name)"
+                                KField { id: newPerson; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("Add a person (name)")
                                          Keys.onReturnPressed: { if (app.addProfile(text)) text = "" } }
-                                KButton { theme: win.theme; text: "Add"; iconName: "plus"; enabled: newPerson.text.trim() !== ""
+                                KButton { theme: win.theme; text: qsTr("Add"); iconName: "plus"; enabled: newPerson.text.trim() !== ""
                                           onClicked: { if (app.addProfile(newPerson.text)) newPerson.text = "" } }
                             }
                             Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
                             Row2 {
-                                label: "Sync with your other PCs"
-                                hint: "Pick a folder that Syncthing, Nextcloud, Dropbox or similar already keeps in step between your PCs (and the Steam Deck). Cornerplay keeps everyone's favourites, collections, statuses, notes and playtime in a Cornerplay folder inside it, merged game by game. Your games themselves are not copied."
+                                label: qsTr("Sync with your other PCs")
+                                hint: qsTr("Pick a folder that Syncthing, Nextcloud, Dropbox or similar already keeps in step between your PCs (and the Steam Deck). Cornerplay keeps everyone's favourites, collections, statuses, notes and playtime in a Cornerplay folder inside it, merged game by game. Your games themselves are not copied.")
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 8
-                                    KField { id: syncField; theme: win.theme; Layout.fillWidth: true; placeholderText: "Not syncing"
+                                    KField { id: syncField; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("Not syncing")
                                              text: app.syncState.dir || ""
                                              onEditingFinished: if (text.trim() !== (app.syncState.dir || "")) app.setSyncDir(text.trim()) }
-                                    KButton { theme: win.theme; text: "Choose…"; iconName: "folder-open"; onClicked: syncDest.open() }
+                                    KButton { theme: win.theme; text: qsTr("Choose…"); iconName: "folder-open"; onClicked: syncDest.open() }
                                 }
                             }
                             Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
                             Row2 {
-                                label: "Back up Cornerplay"
-                                hint: "One file with your settings, people, favourites, collections, notes and playtime: for a new PC, or before trying things. Store sign-ins are not in it (sign in again on the new PC)."
+                                label: qsTr("Back up Cornerplay")
+                                hint: qsTr("One file with your settings, people, favourites, collections, notes and playtime: for a new PC, or before trying things. Store sign-ins are not in it (sign in again on the new PC).")
                                 RowLayout {
                                     spacing: 8
-                                    KButton { theme: win.theme; text: "Save a backup…"; iconName: "download"; onClicked: backupDest.open() }
-                                    KButton { theme: win.theme; text: "Restore…"; iconName: "refresh-cw"; onClicked: restoreFile.open() }
+                                    KButton { theme: win.theme; text: qsTr("Save a backup…"); iconName: "download"; onClicked: backupDest.open() }
+                                    KButton { theme: win.theme; text: qsTr("Restore…"); iconName: "refresh-cw"; onClicked: restoreFile.open() }
                                 }
                             }
                             RowLayout {
                                 visible: !!app.syncState.dir
                                 spacing: 10
-                                KButton { theme: win.theme; text: app.syncState.busy ? "Syncing…" : "Sync now"; iconName: "refresh-cw"
+                                KButton { theme: win.theme; text: app.syncState.busy ? qsTr("Syncing…") : qsTr("Sync now"); iconName: "refresh-cw"
                                           enabled: !app.syncState.busy; onClicked: app.syncPersonal() }
-                                KButton { theme: win.theme; text: "Stop syncing"; onClicked: app.setSyncDir("") }
-                                Text { text: app.syncState.error ? "Last sync failed: " + app.syncState.error
+                                KButton { theme: win.theme; text: qsTr("Stop syncing"); onClicked: app.setSyncDir("") }
+                                Text { text: app.syncState.error ? qsTr("Last sync failed: ") + app.syncState.error
                                              : app.syncState.when ? "Last synced " + app.syncState.when : ""
                                        color: app.syncState.error ? theme.error : theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
@@ -3979,8 +3990,8 @@ ApplicationWindow {
                         ColumnLayout {
                             spacing: 16
                             Row2 {
-                                label: "Games folder"
-                                hint: "Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries."
+                                label: qsTr("Games folder")
+                                hint: qsTr("Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries.")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
                                     text: app.settingsMap.games_dir
@@ -4002,14 +4013,14 @@ ApplicationWindow {
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             spacing: 2
-                                            Text { text: "Your games in Steam & Game Mode"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text { text: qsTr("Your games in Steam & Game Mode"); color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
                                             Text {
                                                 Layout.fillWidth: true
                                                 wrapMode: Text.WordWrap
                                                 font.pixelSize: 12
                                                 color: theme.onSurfaceVariant
                                                 readonly property var st: parent.parent.parent.parent.st
-                                                text: st.busy ? "Working… " + (st.progress || "")
+                                                text: st.busy ? qsTr("Working… ") + (st.progress || "")
                                                       : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
                                                       : st.accounts === 0 ? "Sign in to Steam once, then come back here."
                                                       : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
@@ -4023,17 +4034,17 @@ ApplicationWindow {
                                             readonly property var st: parent.parent.parent.st
                                             primary: !st.inSync
                                             enabled: !st.busy && st.accounts > 0 && st.games > 0 && !st.gameMode
-                                            text: st.inSync ? "Refresh in Steam" : "Add games to Steam"
+                                            text: st.inSync ? qsTr("Refresh in Steam") : qsTr("Add games to Steam")
                                             onClicked: app.addGamesToSteam()
                                         }
                                     }
-                                    Toggle { label: "Keep installed games in Steam automatically"; settingKey: "steam_games" }
+                                    Toggle { label: qsTr("Keep installed games in Steam automatically"); settingKey: "steam_games" }
                                     Text {
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                         font.pixelSize: 11
                                         color: theme.outline
-                                        text: "Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there."
+                                        text: qsTr("Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there.")
                                     }
                                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
                                     RowLayout {
@@ -4042,26 +4053,26 @@ ApplicationWindow {
                                             wrapMode: Text.WordWrap
                                             font.pixelSize: 12
                                             color: theme.onSurfaceVariant
-                                            text: "Also add Cornerplay itself, so the whole library opens in TV mode from Game Mode."
+                                            text: qsTr("Also add Cornerplay itself, so the whole library opens in TV mode from Game Mode.")
                                         }
                                         KButton {
                                             theme: win.theme
                                             readonly property var st: parent.parent.parent.st
                                             enabled: !st.busy && st.accounts > 0 && !st.gameMode
-                                            text: "Add Cornerplay"
+                                            text: qsTr("Add Cornerplay")
                                             onClicked: app.addToSteam()
                                         }
                                     }
                                 }
                                 Component.onCompleted: app.checkSteamShortcut()
                             }
-                            Toggle { label: "Show a game owned on several stores only once"; settingKey: "merge_duplicates" }
-                            Toggle { label: "Back up a game's saves before it starts (keeps the last 5; a game's More > Save backups to restore)"; settingKey: "save_backups" }
-                            Toggle { label: "Update Epic, GOG and Amazon games overnight (plugged in, not on a metered connection, while Cornerplay is open)"; settingKey: "auto_update" }
+                            Toggle { label: qsTr("Show a game owned on several stores only once"); settingKey: "merge_duplicates" }
+                            Toggle { label: qsTr("Back up a game's saves before it starts (keeps the last 5; a game's More > Save backups to restore)"); settingKey: "save_backups" }
+                            Toggle { label: qsTr("Update Epic, GOG and Amazon games overnight (plugged in, not on a metered connection, while Cornerplay is open)"); settingKey: "auto_update" }
                             RowLayout {
                                 visible: !!app.settingsMap.auto_update
                                 spacing: 10
-                                Text { text: "Between"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                Text { text: qsTr("Between"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
                                 KCombo { theme: win.theme; Layout.preferredWidth: 110
                                          model: [...Array(24).keys()].map(h => ({ label: (h < 10 ? "0" : "") + h + ":00", value: h }))
                                          Component.onCompleted: select(app.settingsMap.auto_update_from)
@@ -4074,12 +4085,12 @@ ApplicationWindow {
                             }
                             Row2 {
                                 label: ""
-                                hint: "Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves."
-                                Toggle { label: "Sync cloud saves"; settingKey: "cloud_saves" }
+                                hint: qsTr("Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves.")
+                                Toggle { label: qsTr("Sync cloud saves"); settingKey: "cloud_saves" }
                             }
                             Row2 {
-                                label: "Steam Web API key (optional)"
-                                hint: "Without a key Cornerplay shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>."
+                                label: qsTr("Steam Web API key (optional)")
+                                hint: qsTr("Without a key Cornerplay shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at <a href='https://steamcommunity.com/dev/apikey'>steamcommunity.com/dev/apikey</a>.")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
                                     echoMode: TextInput.PasswordEchoOnEdit
@@ -4088,19 +4099,19 @@ ApplicationWindow {
                                 }
                             }
                             Row2 {
-                                label: "Artwork"
-                                hint: "Covers follow the stores' current art: Steam's is checked every 2 days, GOG's every week, Epic's game data every week. This fetches everything again now."
+                                label: qsTr("Artwork")
+                                hint: qsTr("Covers follow the stores' current art: Steam's is checked every 2 days, GOG's every week, Epic's game data every week. This fetches everything again now.")
                                 KButton {
                                     theme: win.theme
                                     iconName: "refresh-cw"
-                                    text: "Refresh artwork now"
+                                    text: qsTr("Refresh artwork now")
                                     enabled: !app.refreshing
                                     onClicked: app.refreshArtwork()
                                 }
                             }
                             Row2 {
-                                label: "SteamGridDB API key (optional)"
-                                hint: "Games without box art are matched by title against Steam's store. A SteamGridDB key also finds art for games Steam does not sell: <a href='https://www.steamgriddb.com/profile/preferences/api'>steamgriddb.com/profile/preferences/api</a>."
+                                label: qsTr("SteamGridDB API key (optional)")
+                                hint: qsTr("Games without box art are matched by title against Steam's store. A SteamGridDB key also finds art for games Steam does not sell: <a href='https://www.steamgriddb.com/profile/preferences/api'>steamgriddb.com/profile/preferences/api</a>.")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
                                     echoMode: TextInput.PasswordEchoOnEdit
@@ -4109,20 +4120,20 @@ ApplicationWindow {
                                 }
                             }
                             Row2 {
-                                label: "IGDB time to beat (optional)"
-                                hint: "Shows how long a game takes (main story, with extras, 100%) on its page. Make a free app at <a href='https://dev.twitch.tv/console/apps'>dev.twitch.tv/console/apps</a> (OAuth redirect: http://localhost, category: Application Integration, client type: Confidential) and paste its Client ID and a new secret."
+                                label: qsTr("IGDB time to beat (optional)")
+                                hint: qsTr("Shows how long a game takes (main story, with extras, 100%) on its page. Make a free app at <a href='https://dev.twitch.tv/console/apps'>dev.twitch.tv/console/apps</a> (OAuth redirect: http://localhost, category: Application Integration, client type: Confidential) and paste its Client ID and a new secret.")
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 8
                                     KField {
                                         theme: win.theme; Layout.fillWidth: true
-                                        placeholderText: "Client ID"
+                                        placeholderText: qsTr("Client ID")
                                         text: app.settingsMap.igdb_client_id
                                         onEditingFinished: app.setSetting("igdb_client_id", text.trim())
                                     }
                                     KField {
                                         theme: win.theme; Layout.fillWidth: true
-                                        placeholderText: "Client secret"
+                                        placeholderText: qsTr("Client secret")
                                         echoMode: TextInput.PasswordEchoOnEdit
                                         text: app.settingsMap.igdb_client_secret
                                         onEditingFinished: app.setSetting("igdb_client_secret", text.trim())
@@ -4138,13 +4149,13 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: theme.onSurfaceVariant; font.pixelSize: 13
-                                text: "Things most people never need to change."
+                                text: qsTr("Things most people never need to change.")
                             }
-                            Toggle { label: "Show what I play on Discord (Epic, GOG, Amazon and added games)"; settingKey: "discord_presence" }
+                            Toggle { label: qsTr("Show what I play on Discord (Epic, GOG, Amazon and added games)"); settingKey: "discord_presence" }
                             Row2 {
                                 visible: !!app.settingsMap.discord_presence
-                                label: "Discord application ID"
-                                hint: "Discord shows Steam games by itself. For the others, make a free application named Cornerplay at <a href='https://discord.com/developers/applications'>discord.com/developers/applications</a> and paste its Application ID. The desktop Discord app must be open; nothing is sent anywhere else."
+                                label: qsTr("Discord application ID")
+                                hint: qsTr("Discord shows Steam games by itself. For the others, make a free application named Cornerplay at <a href='https://discord.com/developers/applications'>discord.com/developers/applications</a> and paste its Application ID. The desktop Discord app must be open; nothing is sent anywhere else.")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
                                     placeholderText: "e.g. 1234567890123456789"
@@ -4153,38 +4164,38 @@ ApplicationWindow {
                                 }
                             }
                             Row2 {
-                                label: "Performance"
-                                hint: "Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration."
+                                label: qsTr("Performance")
+                                hint: qsTr("Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration.")
                                 KCombo {
                                     id: perfBox
                                     theme: win.theme; Layout.fillWidth: true
-                                    model: [{ label: "Automatic (now: " + (app.light ? "Light" : "Full") + ")", value: "auto" },
-                                            { label: "Full effects", value: "full" }, { label: "Light, for older PCs", value: "light" }]
+                                    model: [{ label: qsTr("Automatic (now: ") + (app.light ? qsTr("Light") : qsTr("Full")) + ")", value: "auto" },
+                                            { label: qsTr("Full effects"), value: "full" }, { label: qsTr("Light, for older PCs"), value: "light" }]
                                     Component.onCompleted: select(app.settingsMap.performance)
                                     onActivated: app.setSetting("performance", currentValue)
                                 }
                             }
                             Row2 {
-                                label: "Or a custom Proton folder"
+                                label: qsTr("Or a custom Proton folder")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
-                                    placeholderText: "/path/to/a/Proton/folder"
+                                    placeholderText: qsTr("/path/to/a/Proton/folder")
                                     text: app.settingsMap.proton.startsWith("/") || app.settingsMap.proton.startsWith("~") ? app.settingsMap.proton : ""
                                     onEditingFinished: if (text.trim() !== "") app.setSetting("proton", text.trim())
                                 }
                             }
-                            Toggle { label: "Keep each game's shader cache (less stutter after the first run)"; settingKey: "shader_cache" }
+                            Toggle { label: qsTr("Keep each game's shader cache (less stutter after the first run)"); settingKey: "shader_cache" }
                             Row2 {
-                                label: "Environment variables for every game"
-                                hint: "Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button."
+                                label: qsTr("Environment variables for every game")
+                                hint: qsTr("Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button.")
                                 KField {
                                     theme: win.theme; Layout.fillWidth: true
-                                    placeholderText: "KEY=value KEY2=value"
+                                    placeholderText: qsTr("KEY=value KEY2=value")
                                     text: app.settingsMap.env
                                     onEditingFinished: app.setSetting("env", text.trim())
                                 }
                             }
-                            Toggle { label: "Check for new Cornerplay versions (once a day)"; settingKey: "update_check" }
+                            Toggle { label: qsTr("Check for new Cornerplay versions (once a day)"); settingKey: "update_check" }
                         }
 
                     }
@@ -4205,7 +4216,7 @@ ApplicationWindow {
         readonly property bool compat: ["epic", "gog", "amazon", "custom", "itch"].includes(game.store) || key === "battlenet:battlenet-app"
         // Runs without Proton: a GOG Linux version, or a Linux program added by hand.
         readonly property bool runsNative: game.platform === "linux"
-        heading: "Options · " + (game.title || "")
+        heading: qsTr("Options · ") + (game.title || "")
         width: Math.min(win.width - 60, 600)
         function show(k) {
             key = k
@@ -4229,7 +4240,7 @@ ApplicationWindow {
             optCover.text = opts.cover || ""
             open()
         }
-        readonly property var triState: [{ label: "Use default", value: "default" }, { label: "On", value: true }, { label: "Off", value: false }]
+        readonly property var triState: [{ label: qsTr("Use default"), value: "default" }, { label: qsTr("On"), value: true }, { label: qsTr("Off"), value: false }]
         property bool resetArmed: false
 
         contentItem: ColumnLayout {
@@ -4240,12 +4251,12 @@ ApplicationWindow {
                 color: theme.onSurfaceVariant
                 font.pixelSize: 12
                 visible: !gameOpts.compat && gameOpts.game.store !== "steam"
-                text: "Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile."
+                text: qsTr("Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile.")
             }
             // Steam games: Steam's own per-game compatibility tool, set from here.
             Row2 {
                 visible: gameOpts.game.store === "steam"
-                label: "Proton version (Steam's setting)"
+                label: qsTr("Proton version (Steam's setting)")
                 hint: gameOpts.steamProton.choices.length
                       ? "The same as the game's Properties → Compatibility in Steam. Cornerplay closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam."
                       : "Steam is not set up on this PC yet: start Steam and sign in once."
@@ -4258,11 +4269,11 @@ ApplicationWindow {
             }
             Row2 {
                 visible: gameOpts.compat && !gameOpts.runsNative
-                label: "Proton version"
+                label: qsTr("Proton version")
                 KCombo {
                     id: optProton
                     theme: win.theme; Layout.fillWidth: true
-                    model: [{ label: "Use default", value: "default" }].concat(app.protonVersions)
+                    model: [{ label: qsTr("Use default"), value: "default" }].concat(app.protonVersions)
                     onActivated: app.setGameOption(gameOpts.key, "proton", currentValue)
                 }
             }
@@ -4270,12 +4281,12 @@ ApplicationWindow {
                 visible: gameOpts.compat
                 spacing: 14
                 Row2 {
-                    label: "MangoHud"
+                    label: qsTr("MangoHud")
                     KCombo { id: optHud; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "mangohud", currentValue) }
                 }
                 Row2 {
-                    label: "GameMode"
+                    label: qsTr("GameMode")
                     KCombo { id: optMode; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "gamemode", currentValue) }
                 }
@@ -4283,13 +4294,13 @@ ApplicationWindow {
             // GOG games with a Linux version: which one to install.
             Row2 {
                 visible: gameOpts.game.store === "gog" && !!gameOpts.game.linuxVersion
-                label: "Version"
+                label: qsTr("Version")
                 hint: gameOpts.game.installed
                       ? "Installed: the " + (gameOpts.game.platform === "linux" ? "Linux" : "Windows") + " version. To switch, pick the other one, then uninstall and install again."
                       : "The Linux version runs without Proton (lighter, but old ones can need extra libraries); the Windows version runs through Proton."
                 KCombo { id: optPlatform; theme: win.theme; Layout.fillWidth: true
-                         model: [{ label: "Use default (Settings)", value: "default" }, { label: "Linux version (native)", value: "linux" },
-                                 { label: "Windows version (Proton)", value: "windows" }]
+                         model: [{ label: qsTr("Use default (Settings)"), value: "default" }, { label: qsTr("Linux version (native)"), value: "linux" },
+                                 { label: qsTr("Windows version (Proton)"), value: "windows" }]
                          onActivated: app.setGameOption(gameOpts.key, "platform", currentValue) }
             }
             // Performance profile: frame cap + FSR upscaling (Steam games: set in Steam).
@@ -4297,17 +4308,17 @@ ApplicationWindow {
                 visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
                 spacing: 14
                 Row2 {
-                    label: "Performance"
-                    hint: "Battery saver caps at 30 fps, Balanced at 60, both with FSR upscaling when the game runs below your screen's resolution."
+                    label: qsTr("Performance")
+                    hint: qsTr("Battery saver caps at 30 fps, Balanced at 60, both with FSR upscaling when the game runs below your screen's resolution.")
                     KCombo { id: optPerf; theme: win.theme; Layout.fillWidth: true
-                             model: [{ label: "Use default", value: "default" }, { label: "No change", value: "none" },
-                                     { label: "Battery saver (30 fps)", value: "battery" },
-                                     { label: "Balanced (60 fps)", value: "balanced" },
-                                     { label: "Max quality (no cap)", value: "quality" }]
+                             model: [{ label: qsTr("Use default"), value: "default" }, { label: qsTr("No change"), value: "none" },
+                                     { label: qsTr("Battery saver (30 fps)"), value: "battery" },
+                                     { label: qsTr("Balanced (60 fps)"), value: "balanced" },
+                                     { label: qsTr("Max quality (no cap)"), value: "quality" }]
                              onActivated: app.setGameOption(gameOpts.key, "perf", currentValue) }
                 }
                 Row2 {
-                    label: "FPS counter"
+                    label: qsTr("FPS counter")
                     KCombo { id: optFps; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "show_fps", currentValue) }
                 }
@@ -4317,44 +4328,44 @@ ApplicationWindow {
                 visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
                 spacing: 14
                 Row2 {
-                    label: "Gamescope"
-                    hint: app.hasGamescope ? "Full screen at your screen's resolution, or drawn at 2/3 size and upscaled with FSR."
+                    label: qsTr("Gamescope")
+                    hint: app.hasGamescope ? qsTr("Full screen at your screen's resolution, or drawn at 2/3 size and upscaled with FSR.")
                                            : "gamescope is not installed, so this has no effect yet."
                     KCombo { id: optScope; theme: win.theme; Layout.fillWidth: true
-                             model: [{ label: "Use default", value: "default" }, { label: "Off", value: "off" },
-                                     { label: "Full screen", value: "fullscreen" }, { label: "FSR upscaling", value: "fsr" }]
+                             model: [{ label: qsTr("Use default"), value: "default" }, { label: qsTr("Off"), value: "off" },
+                                     { label: qsTr("Full screen"), value: "fullscreen" }, { label: qsTr("FSR upscaling"), value: "fsr" }]
                              onActivated: app.setGameOption(gameOpts.key, "gamescope", currentValue) }
                 }
                 Row2 {
-                    label: "HDR"
+                    label: qsTr("HDR")
                     KCombo { id: optHdr; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "gamescope_hdr", currentValue) }
                 }
             }
             Row2 {
                 visible: gameOpts.compat
-                label: "Environment variables"
-                KField { id: optEnv; theme: win.theme; Layout.fillWidth: true; placeholderText: "KEY=value KEY2=value"
+                label: qsTr("Environment variables")
+                KField { id: optEnv; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("KEY=value KEY2=value")
                          onEditingFinished: app.setGameOption(gameOpts.key, "env", text) }
             }
             Row2 {
                 visible: gameOpts.compat && gameOpts.game.store !== "battlenet"
-                label: "Launch arguments"
-                KField { id: optArgs; theme: win.theme; Layout.fillWidth: true; placeholderText: "-windowed -skipintro"
+                label: qsTr("Launch arguments")
+                KField { id: optArgs; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("-windowed -skipintro")
                          onEditingFinished: app.setGameOption(gameOpts.key, "args", text) }
             }
             RowLayout {
                 visible: app.cloudSaveStores.includes(gameOpts.game.store)
                 spacing: 14
                 Row2 {
-                    label: "Cloud saves"
+                    label: qsTr("Cloud saves")
                     KCombo { id: optSaves; theme: win.theme; Layout.fillWidth: true; model: gameOpts.triState
                              onActivated: app.setGameOption(gameOpts.key, "cloud_saves", currentValue) }
                 }
                 KButton {
                     theme: win.theme
                     Layout.alignment: Qt.AlignBottom
-                    text: "Sync saves now"
+                    text: qsTr("Sync saves now")
                     enabled: !!gameOpts.game.installed
                     onClicked: app.syncNow(gameOpts.key)
                 }
@@ -4362,7 +4373,7 @@ ApplicationWindow {
             // When a game misbehaves.
             Row2 {
                 visible: !!gameOpts.game.installed && gameOpts.game.store !== "steam"
-                label: "Fix it"
+                label: qsTr("Fix it")
                 hint: gameOpts.resetArmed
                       ? "A fresh Proton prefix starts Windows settings from scratch. The old one is kept beside it (renamed), so saves stored there are not lost."
                       : "Repair checks every file and downloads the broken or missing ones."
@@ -4370,25 +4381,25 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 8
                     KButton { theme: win.theme; visible: ["epic", "gog", "amazon"].includes(gameOpts.game.store)
-                              text: "Repair files"; iconName: "refresh-cw"
+                              text: qsTr("Repair files"); iconName: "refresh-cw"
                               onClicked: { app.verifyGame(gameOpts.key); gameOpts.close() } }
                     KButton { theme: win.theme; visible: gameOpts.compat && !gameOpts.runsNative; danger: gameOpts.resetArmed
-                              text: gameOpts.resetArmed ? "Really reset?" : "Reset Proton prefix"; iconName: "trash-2"
+                              text: gameOpts.resetArmed ? qsTr("Really reset?") : qsTr("Reset Proton prefix"); iconName: "trash-2"
                               onClicked: { if (!gameOpts.resetArmed) { gameOpts.resetArmed = true; return }
                                            gameOpts.resetArmed = false; app.resetPrefix(gameOpts.key) } }
-                    KButton { theme: win.theme; text: "Open log"; iconName: "folder-open"; onClicked: app.openLog(gameOpts.key) }
+                    KButton { theme: win.theme; text: qsTr("Open log"); iconName: "folder-open"; onClicked: app.openLog(gameOpts.key) }
                 }
             }
             Row2 {
-                label: "Custom cover"
-                hint: "An image file or a web address. Leave empty to use the automatic cover."
+                label: qsTr("Custom cover")
+                hint: qsTr("An image file or a web address. Leave empty to use the automatic cover.")
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    KField { id: optCover; theme: win.theme; Layout.fillWidth: true; placeholderText: "Automatic"
+                    KField { id: optCover; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("Automatic")
                              onEditingFinished: app.setGameOption(gameOpts.key, "cover", text) }
-                    KButton { theme: win.theme; text: "Choose…"; onClicked: coverPicker.open() }
-                    KButton { theme: win.theme; text: "Reset"; enabled: optCover.text !== ""
+                    KButton { theme: win.theme; text: qsTr("Choose…"); onClicked: coverPicker.open() }
+                    KButton { theme: win.theme; text: qsTr("Reset"); enabled: optCover.text !== ""
                               onClicked: { optCover.text = ""; app.setGameOption(gameOpts.key, "cover", "") } }
                 }
             }
@@ -4396,7 +4407,7 @@ ApplicationWindow {
     }
     FileDialog {
         id: coverPicker
-        title: "Choose a cover image"
+        title: qsTr("Choose a cover image")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
         onAccepted: {
             app.setGameOption(gameOpts.key, "cover", selectedFile.toString())
@@ -4590,14 +4601,14 @@ ApplicationWindow {
             Text { width: parent.width; text: preview.g.title || ""; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.Bold; wrapMode: Text.WordWrap }
             Row { spacing: 6
                   StoreTile { anchors.verticalCenter: parent.verticalCenter; size: 16; store: preview.g.store || "" }
-                  Text { text: (preview.g.storeName || "") + (preview.g.installed ? "  ·  installed" : "  ·  not installed"); color: theme.onSurfaceVariant; font.pixelSize: 12 } }
+                  Text { text: (preview.g.storeName || "") + (preview.g.installed ? qsTr("  ·  installed") : qsTr("  ·  not installed")); color: theme.onSurfaceVariant; font.pixelSize: 12 } }
             Text { width: parent.width; visible: text !== ""; text: preview.g.key ? app.playedText(preview.g.playtime, preview.g.lastPlayed) : ""
                    color: theme.onSurfaceVariant; font.pixelSize: 12; wrapMode: Text.WordWrap }
             Text { visible: !!preview.g.status || !!preview.g.rating; color: theme.onSurfaceVariant; font.pixelSize: 12
-                   text: [({ playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" })[preview.g.status] || "",
+                   text: [({ playing: qsTr("Playing"), want: qsTr("Want to play"), finished: qsTr("Finished"), dropped: qsTr("Dropped") })[preview.g.status] || "",
                           preview.g.rating ? "\u2605".repeat(preview.g.rating) : ""].filter(x => x).join("   ") }
             Text { visible: !!preview.g.protondb; color: theme.onSurfaceVariant; font.pixelSize: 12
-                   text: "ProtonDB: " + (preview.g.protondb || "").charAt(0).toUpperCase() + (preview.g.protondb || "").slice(1) }
+                   text: qsTr("ProtonDB: ") + (preview.g.protondb || "").charAt(0).toUpperCase() + (preview.g.protondb || "").slice(1) }
         }
     }
 

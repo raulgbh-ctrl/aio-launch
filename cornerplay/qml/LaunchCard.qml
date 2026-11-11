@@ -109,7 +109,7 @@ Item {
             spacing: 12
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: lc.state_ === "fail" ? "Could not start it (see the message below)"
+                text: lc.state_ === "fail" ? qsTr("Could not start it (see the message below)")
                       : lc.state_ === "ok" ? "Starting… have fun!" : "Getting ready…"
                 color: Qt.alpha("white", 0.8)
                 font.pixelSize: 16

@@ -7,7 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from PySide6.QtCore import (QAbstractListModel, QByteArray, QFileSystemWatcher, QModelIndex, QObject,
+from PySide6.QtCore import (QAbstractListModel, QByteArray, QFileSystemWatcher, QModelIndex, QCoreApplication, QObject,
                             QProcess, QProcessEnvironment, QSortFilterProxyModel, Qt, QTimer, QUrl,
                             Property, Signal, Slot)
 from PySide6.QtGui import QDesktopServices, QGuiApplication
@@ -17,7 +17,7 @@ import shlex
 import sys
 
 from . import achievements, backup, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
-from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
+from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
 from .stores.base import Command, Game, PartialResult, run as store_run
@@ -62,6 +62,23 @@ RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every s
 
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _t(text):
+    """Interface text from Python, in the interface language (cornerplay/i18n)."""
+    return QCoreApplication.translate("app", text)
+
+
+def _translatable_names():
+    """Never called: lists names that reach _t() through variables, so lupdate finds them."""
+    return (QCoreApplication.translate("app", "Playing"),
+            QCoreApplication.translate("app", "Want to play"),
+            QCoreApplication.translate("app", "Finished"),
+            QCoreApplication.translate("app", "Dropped"),
+            QCoreApplication.translate("app", "Continue playing"),
+            QCoreApplication.translate("app", "Favourites"),
+            QCoreApplication.translate("app", "Recently added"),
+            QCoreApplication.translate("app", "Library"))
 
 
 def _short_date(stamp, with_year=False):
@@ -853,15 +870,15 @@ class AioLaunch(QObject):
         seconds, last = int(seconds or 0), int(last or 0)
         parts = []
         if seconds >= 3600:
-            parts.append(f"{seconds / 3600:.1f}".rstrip("0").rstrip(".") + " h played")
+            parts.append(QCoreApplication.translate("app", "%1 h played").replace("%1", f"{seconds / 3600:.1f}".rstrip("0").rstrip(".")))
         elif seconds >= 60:
-            parts.append(f"{seconds // 60} min played")
+            parts.append(QCoreApplication.translate("app", "%1 min played").replace("%1", str(seconds // 60)))
         if last:
             days = (time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1)) - last) / 86400
-            when = ("today" if days < 0 else "yesterday" if days < 1
-                    else f"{int(days) + 1} days ago" if days < 6
+            when = (QCoreApplication.translate("app", "today") if days < 0 else QCoreApplication.translate("app", "yesterday") if days < 1
+                    else QCoreApplication.translate("app", "%1 days ago").replace("%1", str(int(days) + 1)) if days < 6
                     else _short_date(last, with_year=days > 300))
-            parts.append("last played " + when)
+            parts.append(QCoreApplication.translate("app", "last played %1").replace("%1", when))
         text = " · ".join(parts)
         return text[:1].upper() + text[1:]
 
@@ -1726,6 +1743,7 @@ class AioLaunch(QObject):
 
     cloudSaveStores = Property("QVariantList", lambda s: list(saves.SUPPORTED), constant=True)
     hasGamescope = Property(bool, lambda s: bool(shutil.which("gamescope")), constant=True)
+    languages = Property("QVariantList", lambda s: [{"label": n, "value": c} for c, n in LANGUAGES.items()], constant=True)
     retroProblem = Property(str, lambda s: s.stores["retro"].problem(), notify=settingsChanged)
 
     @Slot(str)
@@ -1934,21 +1952,21 @@ class AioLaunch(QObject):
             n = sum(1 for g in groups if test(g))
             if n:
                 out.append({"id": sid, "name": name, "count": n})
-        add("playing", "Continue playing", lambda g: self.model.group_value(g, "lastPlayed") > 0)
-        add("s:playing", "Playing", lambda g: shelves.meta(g, "status") == "playing")
-        add("fav", "Favourites", lambda g: shelves.in_group(g, shelves.FAV))
-        add("s:want", "Want to play", lambda g: shelves.meta(g, "status") == "want")
+        add("playing", _t("Continue playing"), lambda g: self.model.group_value(g, "lastPlayed") > 0)
+        add("s:playing", _t("Playing"), lambda g: shelves.meta(g, "status") == "playing")
+        add("fav", _t("Favourites"), lambda g: shelves.in_group(g, shelves.FAV))
+        add("s:want", _t("Want to play"), lambda g: shelves.meta(g, "status") == "want")
         for c in shelves.names():
             add("c:" + c, c, lambda g, c=c: shelves.in_group(g, c))
-        add("added", "Recently added", shelves.is_recent)
-        add("s:finished", "Finished", lambda g: shelves.meta(g, "status") == "finished")
-        out.append({"id": "", "name": "Library", "count": len(groups)})
+        add("added", _t("Recently added"), shelves.is_recent)
+        add("s:finished", _t("Finished"), lambda g: shelves.meta(g, "status") == "finished")
+        out.append({"id": "", "name": _t("Library"), "count": len(groups)})
         return out
 
     def _sidebar_shelves(self):
         """Favourites and the collections, with counts, for the sidebar (shown even when empty)."""
         groups = [g for g in self.model.groups if not self.model.is_hidden(g)]
-        out = [{"id": "fav", "name": "Favourites",
+        out = [{"id": "fav", "name": _t("Favourites"),
                 "count": sum(1 for g in groups if shelves.in_group(g, shelves.FAV))}]
         for c in shelves.names():
             out.append({"id": "c:" + c, "name": c, "count": sum(1 for g in groups if shelves.in_group(g, c))})
@@ -1962,7 +1980,7 @@ class AioLaunch(QObject):
             st = shelves.meta(g, "status")
             if st:
                 counts[st] = counts.get(st, 0) + 1
-        return [{"id": "s:" + sid, "name": name, "count": counts[sid]} for sid, name in shelves.STATUSES if counts.get(sid)]
+        return [{"id": "s:" + sid, "name": _t(name), "count": counts[sid]} for sid, name in shelves.STATUSES if counts.get(sid)]
 
     sidebarStatuses = Property("QVariantList", _sidebar_statuses, notify=storesChanged)
 
@@ -1987,7 +2005,7 @@ class AioLaunch(QObject):
             shelves.set_meta(group, "note", text.strip()[:2000])
             self.gameChanged.emit(key)
 
-    statusNames = Property("QVariantList", lambda s: [{"id": i, "name": n} for i, n in shelves.STATUSES], constant=True)
+    statusNames = Property("QVariantList", lambda s: [{"id": i, "name": _t(n)} for i, n in shelves.STATUSES], constant=True)
 
     @Slot(result="QVariantMap")
     def stats(self):

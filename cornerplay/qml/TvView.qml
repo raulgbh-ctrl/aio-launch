@@ -54,7 +54,7 @@ FocusScope {
     // Shelves: Continue playing, Favourites, collections, Recently added, Library. Up / down.
     property var shelfList: []
     property int shelfAt: 0
-    readonly property var shelf: shelfList[shelfAt] || ({ id: "", name: "Library" })
+    readonly property var shelf: shelfList[shelfAt] || ({ id: "", name: qsTr("Library") })
     property bool shelvesShown: false   // the first time, start on the top shelf, like a console's home
     function loadShelves() {
         const keep = tvLibrary.shelf
@@ -147,25 +147,25 @@ FocusScope {
         const removable = []
         for (const c of copies) {
             const g = app.game(c.key)
-            if (g.job) out.push({ label: "Cancel " + ({ install: "install", update: "update" }[g.job] || "removal") + " · " + c.storeName, act: "cancel", key: c.key })
+            if (g.job) out.push({ label: qsTr("Cancel ") + ({ install: "install", update: "update" }[g.job] || "removal") + " · " + c.storeName, act: "cancel", key: c.key })
             else if (g.installed) {
-                out.push({ label: "Play on " + c.storeName, act: "play", key: c.key })
-                if (g.update) out.push({ label: "Update on " + c.storeName, act: "update", key: c.key })
+                out.push({ label: qsTr("Play on ") + c.storeName, act: "play", key: c.key })
+                if (g.update) out.push({ label: qsTr("Update on ") + c.storeName, act: "update", key: c.key })
                 if (g.store !== "battlenet") removable.push(c)
             }
-            else out.push({ label: "Install from " + c.storeName, act: "install", key: c.key })
+            else out.push({ label: qsTr("Install from ") + c.storeName, act: "install", key: c.key })
         }
-        for (const c of removable) out.push({ label: "Uninstall from " + c.storeName, act: "uninstall", key: c.key })
+        for (const c of removable) out.push({ label: qsTr("Uninstall from ") + c.storeName, act: "uninstall", key: c.key })
         if (app.nowPlaying.some(p => p.key === cur.key)) {
-            out.unshift({ label: "Force close (if it hangs)", act: "kill", key: cur.key })
-            out.unshift({ label: "Quit game", act: "quit", key: cur.key })
+            out.unshift({ label: qsTr("Force close (if it hangs)"), act: "kill", key: cur.key })
+            out.unshift({ label: qsTr("Quit game"), act: "quit", key: cur.key })
         }
-        out.push({ label: cur.favourite ? "Remove from favourites" : "Add to favourites", act: "fav", key: cur.key })
+        out.push({ label: cur.favourite ? qsTr("Remove from favourites") : qsTr("Add to favourites"), act: "fav", key: cur.key })
         // Backlog status: one row that steps through the choices.
         const names = { "": "None", playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" }
-        out.push({ label: "Status: " + names[cur.status || ""] + "  \u25B8", act: "status", key: cur.key })
-        out.push({ label: cur.hidden ? "Unhide game" : "Hide game", act: cur.hidden ? "unhide" : "hide", key: cur.key })
-        out.push({ label: "Close", act: "close", key: "" })
+        out.push({ label: qsTr("Status: ") + names[cur.status || ""] + "  \u25B8", act: "status", key: cur.key })
+        out.push({ label: cur.hidden ? qsTr("Unhide game") : qsTr("Hide game"), act: cur.hidden ? "unhide" : "hide", key: cur.key })
+        out.push({ label: qsTr("Close"), act: "close", key: "" })
         return out
     }
 
@@ -392,7 +392,7 @@ FocusScope {
                 Rectangle {
                     required property string modelData
                     readonly property bool active: tvLibrary.storeFilter === modelData
-                    readonly property var info: app.storesInfo.find(s => s.id === modelData) || ({ name: "All games", color: "" })
+                    readonly property var info: app.storesInfo.find(s => s.id === modelData) || ({ name: qsTr("All games"), color: "" })
                     implicitWidth: tabRow.implicitWidth + 36
                     implicitHeight: 46
                     radius: 23
@@ -542,7 +542,7 @@ FocusScope {
                         border.width: 1
                         border.color: ProtonDB.color(tv.cur.protondb || "")
                         StoreIcon { x: 11; anchors.verticalCenter: parent.verticalCenter; size: 16; store: "protondb"; color: ProtonDB.color(tv.cur.protondb || "") }
-                        Text { id: tvPdb; x: 33; anchors.verticalCenter: parent.verticalCenter; text: "ProtonDB " + ProtonDB.label(tv.cur.protondb || ""); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { id: tvPdb; x: 33; anchors.verticalCenter: parent.verticalCenter; text: qsTr("ProtonDB ") + ProtonDB.label(tv.cur.protondb || ""); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
                     }
                 }
                 Text {
@@ -595,7 +595,7 @@ FocusScope {
                     visible: !!tv.cur.key
                     Rectangle {
                         id: playBtn
-                        readonly property string label: tv.cur.job ? ({ install: "Installing", update: "Updating", dlc: "Installing DLC", move: "Moving", verify: "Checking files", fix: "Fixing", queued: "Queued" }[tv.cur.job] || "Removing")
+                        readonly property string label: tv.cur.job ? ({ install: qsTr("Installing"), update: qsTr("Updating"), dlc: qsTr("Installing DLC"), move: qsTr("Moving"), verify: qsTr("Checking files"), fix: qsTr("Fixing"), queued: qsTr("Queued") }[tv.cur.job] || qsTr("Removing"))
                                                                        + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
                                                         : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
                         height: 56; radius: 28
@@ -631,7 +631,7 @@ FocusScope {
                             spacing: 10
                             PadButton { visible: pad.connected; anchors.verticalCenter: parent.verticalCenter; button: "x"; style: pad.style; size: 28 }
                             Icon { visible: !pad.connected; anchors.verticalCenter: parent.verticalCenter; name: "ellipsis"; size: 22; color: theme.onSurface }
-                            Text { anchors.verticalCenter: parent.verticalCenter; text: "More"; color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Medium }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("More"); color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Medium }
                         }
                         TapHandler { onTapped: panel.show() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -658,7 +658,7 @@ FocusScope {
                 color: tv.tint.primary
             }
             Text {
-                text: tvLibrary.search !== "" ? "Results for \u201c" + tvLibrary.search + "\u201d" : tv.shelf.name
+                text: tvLibrary.search !== "" ? qsTr("Results for \u201c") + tvLibrary.search + "\u201d" : tv.shelf.name
                 color: theme.onSurface
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
@@ -669,11 +669,11 @@ FocusScope {
                 width: instText.implicitWidth + 22
                 color: Qt.alpha(tv.tint.primary, 0.2)
                 border.width: 1; border.color: tv.tint.primary
-                Text { id: instText; anchors.centerIn: parent; text: "Installed only"; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
+                Text { id: instText; anchors.centerIn: parent; text: qsTr("Installed only"); color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold }
             }
             Text {
                 visible: grid.count > 0
-                text: (grid.currentIndex + 1) + " of " + grid.count
+                text: (grid.currentIndex + 1) + qsTr(" of ") + grid.count
                 color: theme.onSurfaceVariant
                 font.pixelSize: 17
             }
@@ -687,7 +687,7 @@ FocusScope {
             }
             Text {
                 visible: tvLibrary.search === "" && tv.shelfAt < tv.shelfList.length - 1
-                text: "\u25BC  " + (tv.shelfList[tv.shelfAt + 1] || {}).name
+                text: qsTr("\u25BC  ") + (tv.shelfList[tv.shelfAt + 1] || {}).name
                 color: theme.onSurfaceVariant; opacity: 0.7
                 font.pixelSize: 15
             }
@@ -829,7 +829,7 @@ FocusScope {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: app.refreshing ? "Loading your libraries…" : tvLibrary.search !== "" ? "Nothing matches" : "No games here"
+                    text: app.refreshing ? qsTr("Loading your libraries…") : tvLibrary.search !== "" ? qsTr("Nothing matches") : qsTr("No games here")
                     color: theme.onSurfaceVariant
                     font.pixelSize: 26
                 }
@@ -844,7 +844,7 @@ FocusScope {
             spacing: 8
             opacity: 0.55
             Text {
-                text: "\u25BC  " + (tv.nextShelf ? tv.nextShelf.name : "")
+                text: qsTr("\u25BC  ") + (tv.nextShelf ? tv.nextShelf.name : "")
                 color: theme.onSurfaceVariant
                 font.pixelSize: 16
                 font.weight: Font.DemiBold
@@ -1009,13 +1009,13 @@ FocusScope {
                     x: 54; anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - 74 - 110
                     elide: Text.ElideLeft
-                    text: tvLibrary.search !== "" ? tvLibrary.search : "Search your games"
+                    text: tvLibrary.search !== "" ? tvLibrary.search : qsTr("Search your games")
                     color: tvLibrary.search !== "" ? theme.onSurface : theme.onSurfaceVariant
                     font.pixelSize: 22
                 }
                 Text {
                     anchors { right: parent.right; rightMargin: 22; verticalCenter: parent.verticalCenter }
-                    text: grid.count + (grid.count === 1 ? " game" : " games")
+                    text: grid.count + (grid.count === 1 ? qsTr(" game") : qsTr(" games"))
                     color: theme.onSurfaceVariant; font.pixelSize: 16
                 }
             }
@@ -1109,7 +1109,7 @@ FocusScope {
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: ({ space: "space", del: "Delete", done: "Done", clear: "Clear" })[key.k] || key.k.toUpperCase()
+                                        text: ({ space: "space", del: qsTr("Delete"), done: qsTr("Done"), clear: qsTr("Clear") })[key.k] || key.k.toUpperCase()
                                         color: key.lit ? tv.tint.onPrimary : key.special ? theme.onSurfaceVariant : theme.onSurface
                                         font.pixelSize: key.special ? 17 : 21
                                         font.weight: Font.DemiBold
@@ -1244,7 +1244,7 @@ FocusScope {
             }
             Text {
                 Layout.fillWidth: true
-                text: [tv.cur.storeName || "", tv.cur.installed ? "Installed" : "Not installed",
+                text: [tv.cur.storeName || "", tv.cur.installed ? qsTr("Installed") : qsTr("Not installed"),
                        tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : "",
                        tv.info.developer || "", tv.info.year || ""].filter(x => x).join("   \u00B7   ")
                 color: theme.onSurfaceVariant; font.pixelSize: 18; wrapMode: Text.WordWrap
@@ -1292,14 +1292,14 @@ FocusScope {
             spacing: 18
             Text {  // the game's name is on the left already: here, what this column is for
                 Layout.fillWidth: true
-                text: "What would you like to do?"
+                text: qsTr("What would you like to do?")
                 color: theme.onSurfaceVariant
                 font.pixelSize: 18
             }
             Text {
                 Layout.fillWidth: true
                 visible: (tv.cur.copies || []).length > 1
-                text: "You own this on " + (tv.cur.copies || []).length + " stores. Choose the launcher:"
+                text: qsTr("You own this on ") + (tv.cur.copies || []).length + qsTr(" stores. Choose the launcher:")
                 color: theme.onSurfaceVariant
                 font.pixelSize: 16
                 wrapMode: Text.WordWrap
@@ -1341,7 +1341,7 @@ FocusScope {
                     }
                     Text {
                         anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; leftMargin: 62; rightMargin: 22 }
-                        text: panel.armed === parent.index ? "Press again to uninstall" : parent.modelData.label
+                        text: panel.armed === parent.index ? qsTr("Press again to uninstall") : parent.modelData.label
                         color: parent.ListView.isCurrentItem ? tv.tint.onPrimary
                                : parent.modelData.act === "uninstall" ? theme.error : theme.onSurface
                         font.pixelSize: 19
@@ -1362,7 +1362,7 @@ FocusScope {
         Text {
             anchors { left: parent.left; bottom: parent.bottom; margins: 30 }
             visible: tv.width >= 900
-            text: pad.connected ? "Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only   \u00B7   \u29C9 search   \u00B7   Guide + A quick access"
+            text: pad.connected ? qsTr("Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only   \u00B7   \u29C9 search   \u00B7   Guide + A quick access")
                                 : "Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only   \u00B7   F9 quick access"
             color: theme.outline; font.pixelSize: 14
         }
@@ -1382,34 +1382,34 @@ FocusScope {
     // Guide: the main menu slides in from the left. Guide + A (or Share): quick access from the right.
     function mainRows() {
         return [
-            { label: "Home", icon: "library", act: "home" },
-            { label: "Search", icon: "search", act: "search" },
-            { label: "Installed only", icon: "filter", act: "installed", on: tvLibrary.installedOnly },
-            { label: "Next store", icon: "layout-grid", act: "store",
-              value: (app.storesInfo.find(x => x.id === tvLibrary.storeFilter) || { name: "All games" }).name },
-            { label: "Quick access", icon: "ellipsis", act: "quick" },
-            { label: "Exit TV mode", icon: "log-out", act: "exit", group: "Power" },
-            { label: "Quit Cornerplay", icon: "x", act: "quit", group: "Power", danger: true }
+            { label: qsTr("Home"), icon: "library", act: "home" },
+            { label: qsTr("Search"), icon: "search", act: "search" },
+            { label: qsTr("Installed only"), icon: "filter", act: "installed", on: tvLibrary.installedOnly },
+            { label: qsTr("Next store"), icon: "layout-grid", act: "store",
+              value: (app.storesInfo.find(x => x.id === tvLibrary.storeFilter) || { name: qsTr("All games") }).name },
+            { label: qsTr("Quick access"), icon: "ellipsis", act: "quick" },
+            { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
+            { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true }
         ]
     }
     function quickRows() {
         const out = []
         for (const p of app.nowPlaying)
-            out.push({ group: "Now playing", label: "Quit " + p.title, icon: "x", act: "quitgame", key: p.key })
+            out.push({ group: "Now playing", label: qsTr("Quit ") + p.title, icon: "x", act: "quitgame", key: p.key })
         for (const j of app.jobList())
             out.push({ group: "Downloads", label: j.title, icon: j.job === "update" ? "arrow-up" : "download", act: "",
                        value: j.job === "queued" ? "Queued" : j.progress < 0 ? "Starting" : Math.floor(j.progress) + "%", sub: j.detail })
-        if (!out.length) out.push({ group: "Now playing", label: "Nothing running", icon: "gamepad-2", act: "" })
-        out.push({ group: "Quick settings", label: "Sounds", icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
-        out.push({ group: "Quick settings", label: "Trailers", icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
-        out.push({ group: "Quick settings", label: "Animated art", icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
+        if (!out.length) out.push({ group: "Now playing", label: qsTr("Nothing running"), icon: "gamepad-2", act: "" })
+        out.push({ group: "Quick settings", label: qsTr("Sounds"), icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
+        out.push({ group: "Quick settings", label: qsTr("Trailers"), icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
+        out.push({ group: "Quick settings", label: qsTr("Animated art"), icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
         return out
     }
     SideSheet {
         id: mainMenu
         objectName: "tvMainMenu"
         side: "left"
-        title: "Cornerplay"
+        title: qsTr("Cornerplay")
         rowsFn: tv.mainRows
         onPicked: (row) => {
             if (row.act === "home") { hide(); if (tvLibrary.search !== "") tv.clearSearch(); if (tv.shelfAt > 0) tv.stepShelf(-tv.shelfAt) }

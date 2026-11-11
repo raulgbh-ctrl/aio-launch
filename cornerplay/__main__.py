@@ -57,6 +57,19 @@ def _note_screen_size(app):
         settings.set("screen_size", wh)
 
 
+def _load_translation(app):
+    """The interface in the language from Settings > Appearance, or the system's when it is Automatic."""
+    from PySide6.QtCore import QLocale, QTranslator
+    from .config import settings
+    lang = (settings.get("language") or "").strip() or QLocale.system().name()
+    if lang.split("_")[0] == "en":
+        return
+    tr = QTranslator(app)
+    if tr.load(QLocale(lang), "cornerplay", "_", str(Path(__file__).parent / "i18n")):
+        app.installTranslator(tr)
+        app._cornerplay_translator = tr  # keep it alive for as long as the app
+
+
 def check_qml():
     """Compile every QML file (catches syntax and reserved-word mistakes before a restart)."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -240,6 +253,7 @@ def main():
     # argv[0] and the application name; started as "python3 -m cornerplay" both were wrong.
     app = QGuiApplication(["cornerplay"])
     _note_screen_size(app)
+    _load_translation(app)
     app.setApplicationName("cornerplay")
     app.setApplicationDisplayName("Cornerplay")
     from .host import FLATPAK_ID
