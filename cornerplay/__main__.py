@@ -108,13 +108,10 @@ def fetch_backends():
 
 
 def status():
-    from .app import AioLaunch  # noqa: F401  (imports every store)
-    from .stores.amazon import Amazon
-    from .stores.battlenet import BattleNet
-    from .stores.epic import Epic
-    from .stores.gog import Gog
-    from .stores.steam import Steam
-    for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet()):
+    from .stores import all_stores
+    for s in all_stores():
+        if s.id == "custom":
+            continue
         if s.problem():
             state = s.problem()
         elif s.id == "battlenet":
@@ -131,12 +128,9 @@ def play(key):
     import shlex
     from . import runner, saves, session
     from .config import CACHE_DIR, LOG_DIR, game_options, read_json
-    from .stores.amazon import Amazon
+    from .stores import all_stores
     from .stores.base import Game
-    from .stores.battlenet import BattleNet
-    from .stores.epic import Epic
-    from .stores.gog import Gog
-    stores = {s.id: s for s in (Epic(), Gog(), Amazon(), BattleNet())}
+    stores = {s.id: s for s in all_stores() if s.id != "steam"}
     cached = {d["store"] + ":" + d["id"]: d for d in read_json(CACHE_DIR / "library.json") or []}
     if key not in cached or cached[key]["store"] not in stores:
         session.notify("Cornerplay", f"Game not found: {key}. Open Cornerplay once to refresh the library.")

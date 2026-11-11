@@ -44,3 +44,15 @@ def test_host_outside_flatpak():
     from cornerplay import host
     assert not host.IN_FLATPAK
     assert host.argv(["steam"]) == ["steam"]
+
+
+def test_one_store_list_everywhere():
+    """--play (Steam shortcuts) must know every store Steam shortcuts are made for."""
+    from cornerplay.stores import all_stores
+    from cornerplay.steamgames import eligible
+    from cornerplay.stores.base import Game
+    ids = [s.id for s in all_stores()]
+    assert {"steam", "epic", "gog", "amazon", "battlenet", "itch", "custom"} == set(ids)
+    for sid in ids:
+        if sid != "steam":
+            assert eligible(Game(sid, "1", "X", installed=True))

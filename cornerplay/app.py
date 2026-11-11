@@ -20,15 +20,11 @@ from . import achievements, backup, wishlist, health, savebackup, importer, pers
 from .config import CACHE_DIR, DEFAULTS, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
-from .stores.amazon import Amazon
 from .stores.base import Command, Game, PartialResult, run as store_run
 from .stores import battlenet
-from .stores.battlenet import LAUNCHER_COVER, BattleNet
-from .stores.epic import Epic
-from .stores.gog import Gog
-from .stores.steam import Steam
+from .stores.battlenet import LAUNCHER_COVER
 from .stores import custom as custom_games
-from .stores.custom import Custom
+from .stores import all_stores
 
 LIBRARY_CACHE = CACHE_DIR / "library.json"
 PALETTE = themes.RYOKU_PALETTE
@@ -489,7 +485,7 @@ class AioLaunch(QObject):
     def __init__(self, demo=False):
         super().__init__()
         self.demo = demo
-        self.stores = {s.id: s for s in (Steam(), Epic(), Gog(), Amazon(), BattleNet(), Custom())}
+        self.stores = {s.id: s for s in all_stores()}
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
         self.tvProxy = LibraryProxy(self.model)  # TV mode's own list: its shelves leave the main view alone
@@ -1136,8 +1132,10 @@ class AioLaunch(QObject):
     @Slot()
     def loadPrefixes(self):
         root = str(settings.games_dir / "prefixes")
+        # Every game that may run through Proton keeps its prefix: also games added by hand
+        # (their prefix holds their saves) and itch.io games.
         wanted = {os.path.basename(runner.prefix_path(g.store, g.id)) for g in self.model.games
-                  if g.installed and g.store in ("epic", "gog", "amazon")}
+                  if g.installed and g.store in ("epic", "gog", "amazon", "custom", "itch")}
         if self.stores["battlenet"].launcher_exe():
             wanted.add(os.path.basename(runner.prefix_path("battlenet", "launcher")))
 
@@ -2439,7 +2437,7 @@ class AioLaunch(QObject):
 
     def _vulkan_warning(self, g):
         """Before a Proton game: say so when the GPU has no Vulkan driver (it would just crash)."""
-        if g.store in ("epic", "gog", "amazon", "battlenet", "custom") and g.extra.get("platform") != "linux":
+        if g.store in ("epic", "gog", "amazon", "battlenet", "custom", "itch") and g.extra.get("platform") != "linux":
             msg = runner.vulkan_problem()
             if msg:
                 self.toast.emit(msg)
@@ -2493,7 +2491,7 @@ class AioLaunch(QObject):
             except Exception as e:  # a store said no (sign-in expired, files missing): say so at once
                 msg = str(e) or type(e).__name__
                 return lambda: (self._launch_state(key, "fail"), self.toast.emit(f"Could not start {g.title}: {msg}"))
-            if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom"):
+            if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom", "itch"):
                 cmd.argv += shlex.split(opts["args"])
             return lambda: self._start(g, cmd, saves.enabled_for(g))
         self._bg(work)

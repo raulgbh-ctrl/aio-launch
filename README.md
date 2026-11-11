@@ -76,6 +76,7 @@ themselves, and the old `aiolaunch` command keeps working.*
 | **GOG** | Accounts > GOG > Sign in. Installs go through [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl); Linux versions are used when a game has one. | Nothing else. |
 | **Amazon Games** | Accounts > Amazon Games > Sign in, through [nile](https://github.com/imLinguin/nile). | Nothing else. |
 | **Battle.net** | See below. | The Battle.net app, under Proton. |
+| **itch.io** | Accounts > itch.io > Sign in: make an API key at [itch.io/user/settings/api-keys](https://itch.io/user/settings/api-keys) and paste it. Games you bought or claimed are listed; the Linux build installs when there is one, otherwise the Windows build runs through Proton. | Nothing else. |
 
 **Steam Web API key (optional).** Without one, Cornerplay lists the Steam games in your Steam
 client's library. With one it also lists every game you own (even ones Steam has never shown on

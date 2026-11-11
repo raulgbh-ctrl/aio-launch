@@ -237,7 +237,7 @@ def sync_games(games, remove_missing=True, progress=None):
                     "AllowDesktopConfig": 1, "AllowOverlay": 1, "OpenVR": 0, "Devkit": 0,
                     "DevkitGameID": "", "DevkitOverrideAppID": 0,
                     "LastPlayTime": old.get("LastPlayTime", 0), "FlatpakAppID": host.FLATPAK_ID,
-                    "tags": {"0": TAG, "1": {"epic": "Epic Games", "gog": "GOG", "amazon": "Amazon Games",
+                    "tags": {"0": TAG, "1": {"epic": "Epic Games", "gog": "GOG", "amazon": "Amazon Games", "itch": "itch.io",
                                              "battlenet": "Battle.net"}.get(g.store, g.store)},
                 }
                 done += 1
