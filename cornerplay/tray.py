@@ -84,7 +84,10 @@ def _launcher():
 def set_autostart(on: bool) -> str:
     """Make or remove the autostart entry. Returns "" or what went wrong."""
     if host.IN_FLATPAK:
-        return _portal_autostart(on)
+        err = _portal_autostart(on)
+        # Not every desktop's portal has Background (Hyprland's and wlroots' do not): then the
+        # entry is written on the host, the same file the portal would have made.
+        return _host_autostart(on) if err else ""
     try:
         if not on:
             AUTOSTART.unlink(missing_ok=True)
@@ -98,6 +101,21 @@ def set_autostart(on: bool) -> str:
         return ""
     except OSError as e:
         return str(e)
+
+
+def _host_autostart(on: bool) -> str:
+    import subprocess
+    name = f"{host.FLATPAK_ID}.desktop"
+    entry = ("[Desktop Entry]\nType=Application\nName=Cornerplay\nComment=Your game library, in the tray\n"
+             f"Exec=flatpak run {host.FLATPAK_ID} --background\nIcon={host.FLATPAK_ID}\nTerminal=false\n"
+             f"X-Flatpak={host.FLATPAK_ID}\nX-GNOME-Autostart-enabled=true\n")
+    script = ('d="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"; '
+              + ('mkdir -p "$d" && printf "%s" "$2" > "$d/$1"' if on else 'rm -f "$d/$1"'))
+    try:
+        r = subprocess.run(host.argv(["sh", "-c", script, "sh", name, entry]), capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return str(e)
+    return "" if r.returncode == 0 else (r.stderr.strip() or "could not write the autostart entry")
 
 
 def autostart_on() -> bool:
