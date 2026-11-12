@@ -53,6 +53,15 @@
     <category>Game</category>
   </categories>
   <releases>
+    <release version="0.10.0" date="2026-11-12">
+      <description>
+        <p>New: a TV mode that feels like a console (who's playing, a page for each game, power menu,
+        screensaver, Play together shelf, a session to boot into), a tray icon, stats for your year,
+        a downloads panel with pause and a speed limit, wishlist deals and free games from every
+        store, your screenshots on each game, new library views, light and dark that follow your
+        desktop, backgrounds and title fonts, and streaming with Sunshine and Moonlight.</p>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-11-12">
       <description>
         <p>New: itch.io games, retro games through RetroArch, wishlist sales, GOG achievements,
