@@ -1479,6 +1479,7 @@ FocusScope {
             { label: qsTr("Quick access"), icon: "ellipsis", act: "quick" },
             { label: qsTr("Downloads"), icon: "download", act: "downloads", value: app.downloads.length ? String(app.downloads.length) : "" },
             { label: qsTr("Your stats"), icon: "trophy", act: "stats" },
+            ...(app.settingsMap.stream_pc ? [{ label: qsTr("Play on ") + app.settingsMap.stream_pc, icon: "tv", act: "stream" }] : []),
             { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
             { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true },
             { label: tv.powerArmed === "suspend" ? qsTr("Sleep?") : qsTr("Sleep"), icon: "battery", act: "power", what: "suspend", group: qsTr("Power") },
@@ -1524,6 +1525,7 @@ FocusScope {
             else if (row.act === "quick") { hide(); quickMenu.show() }
             else if (row.act === "downloads") { hide(); tvDownloads.show() }
             else if (row.act === "stats") { hide(); tvStats.show() }
+            else if (row.act === "stream") { hide(); app.streamFromPc() }
             else if (row.act === "exit") { hide(); tv.exit() }
             else if (row.act === "quit") Qt.quit()
             else if (row.act === "power") tv.pressPower(row.what)

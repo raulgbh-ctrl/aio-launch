@@ -44,6 +44,8 @@ DEFAULTS = {
     "tray_while_playing": True,  # the window steps aside into the tray while a game runs (tray.py)
     "close_to_tray": False,      # closing the window keeps Cornerplay running in the tray
     "start_with_pc": False,      # an autostart entry that opens Cornerplay in the tray
+    "stream_pc": "",             # the gaming PC Moonlight streams from (its name or address; stream.py)
+    "stream_mac": "",            # its network card's MAC address, to wake it (Wake-on-LAN)
     "profiles": [],        # people using this PC (personal.py); empty: one profile, "Me"
     "profile": "",
     "sync_dir": "",        # a folder another tool syncs between PCs; Cornerplay keeps personal data there

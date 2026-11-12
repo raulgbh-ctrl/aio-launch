@@ -2107,6 +2107,64 @@ class AioLaunch(QObject):
         self._personal_reloaded()
         self.toast.emit(f"Hi {name}: your favourites, collections and stats")
 
+    # --- play on another screen (stream.py) ----------------------------------------------
+    @Slot()
+    def addToSunshine(self):
+        """This PC hosts: TV mode and your favourites (else your recently played, installed games)
+        in Sunshine's app list, for Moonlight on the TV, the laptop or the Deck."""
+        m = self.model
+        groups = [g for g in m.groups if not m.is_hidden(g) and any(x.installed for x in g)]
+        favs = [g for g in groups if shelves.in_group(g, shelves.FAV)]
+        pick = favs or sorted(groups, key=lambda g: -m.group_value(g, "lastPlayed"))[:12]
+        games = [{"key": self.launchTarget(m.rep(g).key) or m.rep(g).key, "title": m.rep(g).title} for g in pick]
+        icon = str(Path(__file__).parent / "icons" / "app" / "cornerplay-256.png")
+
+        def work():
+            from . import stream
+            try:
+                n = stream.add_to_sunshine(games, icon if os.path.exists(icon) else "")
+            except Exception as e:  # unreadable JSON, no permission, the host's shell failing
+                return lambda msg=str(e): self.toast.emit(f"Not added to Sunshine: {msg}")
+            what = "Cornerplay's TV mode" + (f" and {n - 1} game{'s' if n > 2 else ''}" if n > 1 else "")
+            return lambda: self.toast.emit(f"Added {what} to Sunshine. Restart Sunshine to see them in Moonlight.")
+        self._bg(work)
+
+    @Slot()
+    def wakePc(self):
+        from . import stream
+        mac = str(settings.get("stream_mac") or "").strip()
+        try:
+            stream.wake(mac)
+            self.toast.emit(f"Woke {settings.get('stream_pc') or 'the gaming PC'} (it can take a few seconds to start)")
+        except (ValueError, OSError) as e:
+            self.toast.emit(f"Could not wake it: {e}")
+
+    @Slot()
+    def streamFromPc(self):
+        """Wake the gaming PC (when its MAC address is set) and stream its Cornerplay TV mode."""
+        pc = str(settings.get("stream_pc") or "").strip()
+        mac = str(settings.get("stream_mac") or "").strip()
+
+        def work():
+            from . import stream
+            if mac:
+                try:
+                    stream.wake(mac)
+                except (ValueError, OSError):
+                    pass
+            try:
+                cmd = stream.stream_argv(pc)
+            except RuntimeError as e:
+                return lambda msg=str(e): self.toast.emit(msg)
+
+            def start():
+                if QProcess.startDetached(cmd[0], cmd[1:])[0]:
+                    self.toast.emit(f"Streaming from {pc}…")
+                else:
+                    self.toast.emit("Moonlight did not start")
+            return start
+        self._bg(work)
+
     # --- TV mode's power menu ---------------------------------------------------------
     @Slot(str)
     def power(self, what):

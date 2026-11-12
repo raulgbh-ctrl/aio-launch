@@ -5059,6 +5059,28 @@ ApplicationWindow {
                                     onEditingFinished: app.setSetting("env", text.trim())
                                 }
                             }
+                            Row2 {
+                                label: qsTr("Play on another screen")
+                                hint: qsTr("This PC is the gaming PC: add Cornerplay to Sunshine, then Moonlight on the TV, laptop or Steam Deck starts TV mode or a favourite. This PC is the screen: set the gaming PC below, and TV mode's menu gets Play on it (it is woken first when its MAC address is set).")
+                                RowLayout {
+                                    spacing: 8
+                                    KButton { theme: win.theme; text: qsTr("Add Cornerplay to Sunshine"); iconName: "tv"; onClicked: app.addToSunshine() }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    KField { theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("Gaming PC (name or address)")
+                                             text: app.settingsMap.stream_pc; onEditingFinished: app.setSetting("stream_pc", text.trim()) }
+                                    KField { theme: win.theme; Layout.preferredWidth: 190; placeholderText: qsTr("MAC address (to wake it)")
+                                             text: app.settingsMap.stream_mac; onEditingFinished: app.setSetting("stream_mac", text.trim()) }
+                                }
+                                RowLayout {
+                                    visible: !!app.settingsMap.stream_pc
+                                    spacing: 8
+                                    KButton { theme: win.theme; primary: true; text: qsTr("Stream from it"); iconName: "play"; onClicked: app.streamFromPc() }
+                                    KButton { theme: win.theme; visible: !!app.settingsMap.stream_mac; text: qsTr("Wake it"); onClicked: app.wakePc() }
+                                }
+                            }
                             Toggle { label: qsTr("Check for new Cornerplay versions (once a day)"); settingKey: "update_check" }
                             Toggle { visible: app.trayAvailable; label: qsTr("Step aside into the tray while a game runs"); settingKey: "tray_while_playing" }
                             Toggle { visible: app.trayAvailable; label: qsTr("Keep running in the tray when the window is closed"); settingKey: "close_to_tray" }

@@ -161,3 +161,24 @@ def test_light_and_dark_follow_the_desktop_or_the_clock(monkeypatch):
     monkeypatch.setitem(settings.data, "theme_auto", "")
     assert theme.auto_mode(True) == ""
     assert theme.sunset_dark(20) and theme.sunset_dark(3) and not theme.sunset_dark(12)
+
+
+def test_stream_wake_on_lan_and_sunshine_list(tmp_path, monkeypatch):
+    import pytest
+    from cornerplay import stream
+    p = stream.magic_packet("3C-7C-3F-12-34-56")
+    assert p[:6] == b"\xff" * 6 and p[6:12] == bytes.fromhex("3c7c3f123456") and len(p) == 102
+    with pytest.raises(ValueError):
+        stream.magic_packet("not a mac")
+    monkeypatch.setattr(stream, "_launcher", lambda: ["/usr/bin/cornerplay"])
+    old = {"apps": [{"name": "Desktop"}, {"name": "Stale", "cmd": "/old/cornerplay --play gog:1"},
+                    {"name": "Mine", "cmd": "/usr/bin/other-launcher"}]}
+    data = stream.sunshine_apps(old, [{"key": "steam:620", "title": "Portal 2"}], "/i.png")
+    names = [a["name"] for a in data["apps"]]
+    assert names == ["Desktop", "Mine", "Cornerplay (TV mode)", "Portal 2"]   # ours replaced, theirs kept
+    assert data["apps"][2]["detached"] == ["setsid /usr/bin/cornerplay --tv"]
+    assert data["apps"][3]["cmd"] == "/usr/bin/cornerplay --play steam:620"
+    monkeypatch.setattr(stream, "moonlight", lambda: ["moonlight"])
+    with pytest.raises(RuntimeError):
+        stream.stream_argv("pc; rm -rf ~")                                    # never a shell
+    assert stream.stream_argv("gaming-pc")[-3:] == ["stream", "gaming-pc", "Cornerplay (TV mode)"]
