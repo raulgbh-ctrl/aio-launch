@@ -1456,6 +1456,8 @@ class AioLaunch(QObject):
         self._bg(work)
 
     inFlatpak = Property(bool, lambda s: host.IN_FLATPAK, constant=True)
+    # Started as the whole session from the login screen (cornerplay/session/cornerplay-session).
+    inSession = Property(bool, lambda s: os.environ.get("CORNERPLAY_SESSION") == "1", constant=True)
     hostImport = Property("QVariantMap", lambda s: dict(s._host_import), notify=hostImportChanged)
 
     @Slot()

@@ -9,6 +9,8 @@
 # Options: --yes (no questions, say yes)   --no-system (never call sudo)
 #          --venv (always use a private Python environment)
 #          --dev  (run from this folder instead of copying it; for development)
+#          --session  (also add "Cornerplay (TV)" to the login screen: TV mode as the whole
+#                      session, in gamescope, like a console; needs sudo)
 set -eu
 
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -21,7 +23,7 @@ CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/cornerplay
 DATA=${XDG_DATA_HOME:-$HOME/.local/share}/cornerplay
 CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/cornerplay
 
-MODE=install; YES=0; SYSTEM=1; FORCE_VENV=0; DEV=0
+MODE=install; YES=0; SYSTEM=1; FORCE_VENV=0; DEV=0; SESSION=0
 for arg in "$@"; do
     case $arg in
         --uninstall) MODE=uninstall ;;
@@ -30,7 +32,8 @@ for arg in "$@"; do
         --no-system) SYSTEM=0 ;;
         --venv) FORCE_VENV=1 ;;
         --dev) DEV=1 ;;
-        -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --session) SESSION=1 ;;
+        -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "Unknown option: $arg (try --help)" >&2; exit 2 ;;
     esac
 done
@@ -61,6 +64,10 @@ if [ "$MODE" != install ]; then
     rm -rf "$LIB"
     rm -f "$BIN/cornerplay" "$APPS/cornerplay.desktop" "$ICONS/cornerplay.svg" "$PREFIX"/share/icons/hicolor/*/apps/cornerplay.png
     rm -f "$BIN/aiolaunch"  # the old name's forwarding command
+    if [ -f /usr/share/wayland-sessions/cornerplay-tv.desktop ] && [ "$SYSTEM" = 1 ] && have sudo; then
+        note "Removing the Cornerplay (TV) login session (sudo)"
+        sudo rm -f /usr/share/wayland-sessions/cornerplay-tv.desktop /usr/local/bin/cornerplay-session || true
+    fi
     have update-desktop-database && update-desktop-database "$APPS" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
         rm -rf "$CONFIG" "$DATA" "$CACHE"
@@ -402,6 +409,21 @@ fi
 if [ "$TO_STEAM" = 1 ] && want "Add Cornerplay to Steam for Game Mode? (Steam closes and reopens if it is open)"; then
     "$BIN/cornerplay" --add-to-steam | sed 's/^/    /' || note "Not added; use Settings > Library later."
     note "To put your installed games into Steam with their artwork: Settings > Library > Add games to Steam."
+fi
+
+# ---------------------------------------------------------------- login session (--session)
+if [ "$SESSION" = 1 ]; then
+    if [ "$SYSTEM" = 0 ] || ! have sudo; then
+        note "--session needs sudo (it adds an entry to the login screen); skipped."
+    elif ! have gamescope; then
+        note "--session needs gamescope (the compositor of SteamOS's Game Mode): install it, then run this again."
+    else
+        say "Login session: Cornerplay (TV)"
+        sudo install -Dm755 "$SRC/cornerplay/session/cornerplay-session" /usr/local/bin/cornerplay-session
+        sed 's|^Exec=.*|Exec=/usr/local/bin/cornerplay-session|' "$SRC/cornerplay/session/cornerplay-tv.desktop" \
+            | sudo install -Dm644 /dev/stdin /usr/share/wayland-sessions/cornerplay-tv.desktop
+        note "Pick \"Cornerplay (TV)\" on the login screen to start straight into TV mode."
+    fi
 fi
 
 # ---------------------------------------------------------------- done

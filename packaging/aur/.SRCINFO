@@ -18,6 +18,7 @@ pkgbase = cornerplay
 	optdepends = mangohud: FPS counter and performance profiles
 	optdepends = gamemode: Feral GameMode for games
 	optdepends = libnotify: a notification when a download finishes
+	optdepends = gamescope: games in gamescope, and the Cornerplay (TV) login session
 	optdepends = legendary: Epic Games (otherwise Cornerplay downloads its own copy)
 	source = cornerplay-0.9.0.tar.gz::https://github.com/raulgbh-ctrl/cornerplay/archive/refs/tags/v0.9.0.tar.gz
 	sha256sums = 9cea3adfaafe82ed57ba8be168d68b91f41d07942cd057d03f9eae9cccf9ed9f

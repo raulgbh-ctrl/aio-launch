@@ -1,0 +1,22 @@
+#!/bin/sh
+# Cornerplay as the whole session, like a console: TV mode full screen inside gamescope (the
+# compositor SteamOS's Game Mode uses), started from the login screen's "Cornerplay (TV)".
+# Games started from it run inside the same gamescope. "Switch to desktop" in TV mode's menu
+# ends the session and returns to the login screen.
+#   Install: ./install.sh --session   (or the AUR package, which brings it along)
+export CORNERPLAY_SESSION=1
+export XDG_CURRENT_DESKTOP=gamescope
+# The output's own resolution and refresh rate (gamescope picks them on the bare display);
+# CORNERPLAY_GAMESCOPE_ARGS adds anything else, e.g. "--hdr-enabled" or "-r 120".
+if command -v cornerplay >/dev/null 2>&1; then
+    CMD=cornerplay
+elif [ -x "$HOME/.local/bin/cornerplay" ]; then   # the .run installer's copy (not on PATH at the login screen)
+    CMD="$HOME/.local/bin/cornerplay"
+elif command -v flatpak >/dev/null 2>&1 && flatpak info io.github.raulgbh_ctrl.Cornerplay >/dev/null 2>&1; then
+    CMD="flatpak run --env=CORNERPLAY_SESSION=1 io.github.raulgbh_ctrl.Cornerplay"
+else
+    echo "cornerplay-session: Cornerplay is not installed" >&2
+    exit 1
+fi
+# shellcheck disable=SC2086
+exec gamescope --fullscreen ${CORNERPLAY_GAMESCOPE_ARGS:-} -- $CMD --tv

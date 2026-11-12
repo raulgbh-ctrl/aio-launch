@@ -1480,8 +1480,9 @@ FocusScope {
             { label: qsTr("Downloads"), icon: "download", act: "downloads", value: app.downloads.length ? String(app.downloads.length) : "" },
             { label: qsTr("Your stats"), icon: "trophy", act: "stats" },
             ...(app.settingsMap.stream_pc ? [{ label: qsTr("Play on ") + app.settingsMap.stream_pc, icon: "tv", act: "stream" }] : []),
-            { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
-            { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true },
+            app.inSession ? { label: qsTr("Switch to desktop"), icon: "log-out", act: "quit", group: qsTr("Power") }
+                          : { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
+            ...(app.inSession ? [] : [{ label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true }]),
             { label: tv.powerArmed === "suspend" ? qsTr("Sleep?") : qsTr("Sleep"), icon: "battery", act: "power", what: "suspend", group: qsTr("Power") },
             { label: tv.powerArmed === "restart" ? qsTr("Restart?") : qsTr("Restart"), icon: "refresh-cw", act: "power", what: "restart", group: qsTr("Power"), danger: true },
             { label: tv.powerArmed === "shutdown" ? qsTr("Shut down?") : qsTr("Shut down"), icon: "log-out", act: "power", what: "shutdown", group: qsTr("Power"), danger: true }

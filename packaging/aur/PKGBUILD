@@ -14,6 +14,7 @@ optdepends=(
   'mangohud: FPS counter and performance profiles'
   'gamemode: Feral GameMode for games'
   'libnotify: a notification when a download finishes'
+  'gamescope: games in gamescope, and the Cornerplay (TV) login session'
   'legendary: Epic Games (otherwise Cornerplay downloads its own copy)'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
@@ -29,6 +30,12 @@ package() {
 #!/bin/sh
 PYTHONPATH="/usr/lib/$pkgname\${PYTHONPATH:+:\$PYTHONPATH}" exec python3 -m cornerplay "\$@"
 SH
+
+  # "Cornerplay (TV)" on the login screen: TV mode as the whole session, in gamescope (optional dep).
+  if [ -f cornerplay/session/cornerplay-session ]; then
+    install -Dm755 cornerplay/session/cornerplay-session "$pkgdir/usr/bin/cornerplay-session"
+    install -Dm644 cornerplay/session/cornerplay-tv.desktop "$pkgdir/usr/share/wayland-sessions/cornerplay-tv.desktop"
+  fi
 
   install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/cornerplay.desktop" <<DESK
 [Desktop Entry]

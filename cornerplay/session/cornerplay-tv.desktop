@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Cornerplay (TV)
+Comment=Your game library full screen, for the sofa and a controller (gamescope)
+Exec=/usr/bin/cornerplay-session
+TryExec=gamescope
+Type=Application
+DesktopNames=gamescope
