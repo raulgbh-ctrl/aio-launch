@@ -101,6 +101,7 @@ DEFAULTS = {
     "theme_bg": "#141218",
     "theme_accent": "#d2bcfd",
     "card_size": 196,
+    "seasonal": True,          # a small seasonal touch on empty screens and the splash (Seasonal.qml)
     "density": "comfortable",  # space between covers: "compact", "comfortable", "roomy"
     "title_font": "",          # game titles: "" (rounded, Nunito), "condensed", "serif", "pixel"
     "card_radius": 14,

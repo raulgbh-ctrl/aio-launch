@@ -193,6 +193,14 @@ ApplicationWindow {
     // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
     // sits in the desktop like a pane of frosted glass. app.wallpaperPath is already a small,
     // blurred copy (made once, in the background), so this is a plain picture: no GPU effect.
+    // The library's view (View menu). Shelves is a home page: while you search, filter or pick a
+    // store or a list, the matching games show as covers, and the shelves come back after.
+    readonly property string libView: {
+        const v = app.settingsMap.view || "grid"
+        if (v === "shelves" && (library.search !== "" || (library.tags || []).length || library.storeFilter !== ""
+                                || library.shelf !== "" || library.installedOnly || library.showHidden)) return "grid"
+        return v
+    }
     readonly property bool wallOn: app.settingsMap.theme_mode === "ryoku" && app.settingsMap.wallpaper_backdrop !== false
                                    && app.wallpaperPath !== ""
     // Your own background (Settings > Appearance, or a collection's own picture): a picture or
@@ -874,8 +882,8 @@ ApplicationWindow {
                     id: grid
                     objectName: "libraryGrid"
                     transform: Translate { id: gridSlide }
-                    visible: ["grid", "logos", "boxes"].indexOf(app.settingsMap.view || "grid") !== -1
-                    readonly property string cardStyle: ({ logos: "logo", boxes: "box" })[app.settingsMap.view] || "cover"
+                    visible: ["grid", "logos", "boxes"].indexOf(win.libView) !== -1
+                    readonly property string cardStyle: ({ logos: "logo", boxes: "box" })[win.libView] || "cover"
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
@@ -1491,7 +1499,7 @@ ApplicationWindow {
                 // biggest genres), on the desktop. A row's name opens it as covers.
                 ListView {
                     id: shelvesView
-                    visible: (app.settingsMap.view || "grid") === "shelves"
+                    visible: win.libView === "shelves"
                     anchors.fill: parent
                     anchors.leftMargin: 20; anchors.rightMargin: 8
                     clip: true
@@ -4347,6 +4355,7 @@ ApplicationWindow {
                                     onPicked: colour => app.setCustomColor("theme_bg", colour)
                                 }
                             }
+                            Toggle { label: qsTr("Seasonal touches: snow in winter, leaves in autumn, petals in spring, fireflies on summer evenings"); settingKey: "seasonal" }
                             Row2 {
                                 label: qsTr("Spacing")
                                 Flow {
@@ -5233,6 +5242,7 @@ ApplicationWindow {
         anchors.fill: parent
         z: 1000
         color: theme.background
+        Seasonal { anchors.fill: parent; theme: win.theme; count: 22 }
         // Started in TV mode with its intro on: the intro is the welcome, not this.
         visible: !(win.tv && app.settingsMap.tv_intro && !app.light)
         property bool started: false

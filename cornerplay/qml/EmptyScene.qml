@@ -15,6 +15,8 @@ Item {
     readonly property real line: 5
     implicitWidth: 240; implicitHeight: 160
 
+    // The season's small touch (Seasonal.qml): snow, leaves, petals or fireflies.
+    Seasonal { anchors.fill: parent; anchors.margins: -30; theme: es.theme; count: 10; z: 5 }
     // A soft pool of accent light behind the drawing.
     RectangularShadow {
         visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
