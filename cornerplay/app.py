@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, host, hostimport, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -947,6 +947,7 @@ class AioLaunch(QObject):
             self._load_epic_free(force)
             self._load_wishlist(force)
             self._check_update()
+            self._check_host_import()
             self.syncPersonal()
         if self.demo:
             return
@@ -1269,11 +1270,13 @@ class AioLaunch(QObject):
     _updating = False
 
     def _check_update(self):
-        if self.demo or updates.from_source() or updates.managed() or not settings.get("update_check"):
+        if self.demo or updates.from_source() or not settings.get("update_check"):
             return
+        if updates.managed() and not host.IN_FLATPAK:
+            return  # pacman keeps it current
 
         def work():
-            info = updates.latest()
+            info = updates.latest()  # a Flatpak from Flathub gets {} here: Flatpak updates it
             return lambda: (setattr(self, "_update", info), self.updateChanged.emit())
         self._bg(work)
 
@@ -1301,7 +1304,11 @@ class AioLaunch(QObject):
             def run():
                 p = QProcess(self)
                 p.finished.connect(lambda code, _s: self._update_done(code, info["version"]))
-                p.start("sh", [str(path), "--yes", "--no-system"])
+                if info.get("kind") == "flatpak":
+                    cmd = updates.install_flatpak_argv(path)  # the host's flatpak installs it over this one
+                    p.start(cmd[0], cmd[1:])
+                else:
+                    p.start("sh", [str(path), "--yes", "--no-system"])
                 self._update_proc = p
             return run
         self._bg(work)
@@ -1317,6 +1324,14 @@ class AioLaunch(QObject):
 
     @Slot()
     def restartApp(self):
+        args = [a for a in sys.argv[1:] if a == "--tv"]
+        if host.IN_FLATPAK:
+            # A new start of the Flatpak, from the host: it runs the newest installed version
+            # (after an update), where a start from inside this sandbox would run this one again.
+            cmd = host.argv(["flatpak", "run", host.APP_ID, *args])
+            QProcess.startDetached(cmd[0], cmd[1:])
+            QGuiApplication.quit()
+            return
         # The launcher the installer wrote knows where the new copy and its Python live.
         import shutil
         launcher = shutil.which("cornerplay") or str(Path.home() / ".local/bin/cornerplay")
@@ -1331,6 +1346,55 @@ class AioLaunch(QObject):
     def dismissUpdate(self):
         self._update = {}
         self.updateChanged.emit()
+
+    # --- the Flatpak: bring the regular install's library over ---------------------
+    hostImportChanged = Signal()
+    _host_import = {}
+    _host_import_checked = False
+
+    def _check_host_import(self):
+        """Once per start, in the Flatpak: has the regular install been used on this PC?"""
+        if self.demo or not host.IN_FLATPAK or self._host_import_checked:
+            return
+        self._host_import_checked = True
+
+        def work():
+            offer = hostimport.available()
+            return lambda: (setattr(self, "_host_import", {"offer": offer}), self.hostImportChanged.emit())
+        self._bg(work)
+
+    inFlatpak = Property(bool, lambda s: host.IN_FLATPAK, constant=True)
+    hostImport = Property("QVariantMap", lambda s: dict(s._host_import), notify=hostImportChanged)
+
+    @Slot()
+    def importFromHost(self):
+        """Copy the regular install's settings, sign-ins and library into the Flatpak, then restart."""
+        if not host.IN_FLATPAK or self._host_import.get("busy"):
+            return
+        self._host_import = {"busy": True}
+        self.hostImportChanged.emit()
+
+        def work():
+            try:
+                hostimport.run()
+            except RuntimeError as e:
+                def failed(msg=redact(e)):
+                    self._host_import = {}
+                    self.hostImportChanged.emit()
+                    self.toast.emit(f"Nothing was brought over: {msg}")
+                return failed
+
+            def done():
+                self.toast.emit("Your library, settings and sign-ins are here. Cornerplay restarts to load them…")
+                QTimer.singleShot(1500, self.restartApp)
+            return done
+        self._bg(work)
+
+    @Slot()
+    def dismissHostImport(self):
+        hostimport.dismiss()
+        self._host_import = {}
+        self.hostImportChanged.emit()
 
     # --- storage: sizes, drives, moving installs ------------------------------
     MOVABLE = ("epic", "gog", "amazon")

@@ -706,6 +706,31 @@ ApplicationWindow {
                 }
             }
 
+            // The Flatpak's first start on a PC where the regular install was used: offer to bring
+            // its library, settings and sign-ins over (the sandbox cannot see them by itself).
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
+                visible: !!app.hostImport.offer || !!app.hostImport.busy
+                height: 52; radius: 14
+                color: theme.primaryContainer
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 16; rightMargin: 8 }
+                    spacing: 10
+                    Icon { name: "download"; size: 18; color: theme.onPrimaryContainer }
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: app.hostImport.busy ? qsTr("Bringing over your library…")
+                              : qsTr("Cornerplay is also installed outside Flatpak. Bring over its library, settings and sign-ins?")
+                        color: theme.onPrimaryContainer; font.pixelSize: 14; font.weight: Font.DemiBold
+                    }
+                    KButton { theme: win.theme; primary: true; visible: !app.hostImport.busy; text: qsTr("Bring over")
+                              iconName: "download"; onClicked: app.importFromHost() }
+                    KButton { theme: win.theme; visible: !app.hostImport.busy; text: qsTr("Not now"); onClicked: app.dismissHostImport() }
+                }
+            }
+
             // A newer Cornerplay is out (installed copies only; checked once a day).
             Rectangle {
                 Layout.fillWidth: true
@@ -4073,6 +4098,14 @@ ApplicationWindow {
                                 Text { text: app.syncState.error ? qsTr("Last sync failed: ") + app.syncState.error
                                              : app.syncState.when ? "Last synced " + app.syncState.when : ""
                                        color: app.syncState.error ? theme.error : theme.onSurfaceVariant; font.pixelSize: 12 }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; visible: app.inFlatpak }
+                            Row2 {
+                                visible: app.inFlatpak
+                                label: qsTr("Bring over from the regular install")
+                                hint: qsTr("Copies the library, settings and store sign-ins of Cornerplay installed outside Flatpak on this PC (the .run installer or the AUR package). What the Flatpak has now is kept aside, and the other install is left as it is.")
+                                KButton { theme: win.theme; text: app.hostImport.busy ? qsTr("Bringing over…") : qsTr("Bring over")
+                                          iconName: "download"; enabled: !app.hostImport.busy; onClicked: app.importFromHost() }
                             }
                         }
 

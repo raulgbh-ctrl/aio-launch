@@ -56,6 +56,10 @@ themselves, and the old `aiolaunch` command keeps working.*
 
    (the second line adds the 32-bit support Proton needs; the Health check says so if it is missing)
 
+   Used the regular install on this PC before? On its first start the Flatpak offers to bring over
+   its library, settings and store sign-ins (also in Settings > Advanced). A Flatpak installed
+   from this file is offered new releases in the app, like the `.run` copy.
+
    It brings its own Proton runner and store tools; Steam stays the one on your PC (Flathub
    submission is on the way).
 

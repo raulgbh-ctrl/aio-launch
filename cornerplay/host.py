@@ -15,8 +15,11 @@ _which: dict = {}
 
 
 def argv(cmd) -> list:
-    """A command line that runs on the host."""
-    return ["flatpak-spawn", "--host", *cmd] if IN_FLATPAK else list(cmd)
+    """A command line that runs on the host. It starts in the home folder: the sandbox's own
+    working folder (somewhere under /app, say) may not exist on the host, and then nothing runs."""
+    if not IN_FLATPAK:
+        return list(cmd)
+    return ["flatpak-spawn", "--host", f"--directory={os.path.expanduser('~')}", *cmd]
 
 
 def which(name: str) -> str | None:

@@ -105,3 +105,34 @@ def test_download_checked_rejects_mismatch(tmp_path, monkeypatch):
     import hashlib
     net.download_checked("https://x/y", tmp_path / "y", sha256=hashlib.sha256(b"payload").hexdigest(), mode=0o755)
     assert (tmp_path / "y").read_bytes() == b"payload"
+
+
+def test_host_import_only_writes_inside_its_folders(tmp_path):
+    import io
+    import tarfile
+    from cornerplay import hostimport
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as t:
+        for name in ("cornerplay/settings.json", "./legendary/user.json", "../escape", "/etc/passwd",
+                     "cornerplay/../../x", "other/file", "legendary/tmp/big", "cornerplay/bin/legendary"):
+            info = tarfile.TarInfo(name)
+            info.size = 1
+            t.addfile(info, io.BytesIO(b"x"))
+        link = tarfile.TarInfo("cornerplay/link")
+        link.type, link.linkname = tarfile.SYMTYPE, "/home"
+        t.addfile(link)
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r|") as t:
+        names = [m.name for m in hostimport._safe_members(t, {"cornerplay", "legendary"},
+                                                         ("legendary/tmp", "cornerplay/bin"))]
+    assert names == ["cornerplay/settings.json", "legendary/user.json"]
+
+
+def test_flatpak_update_installs_with_the_hosts_flatpak(monkeypatch):
+    from cornerplay import host, updates
+    monkeypatch.setattr(host, "IN_FLATPAK", True)
+    monkeypatch.setattr(updates, "_bundle", {"installation": "user"})
+    cmd = updates.install_flatpak_argv("/home/u/.var/app/x/cache/cornerplay/cornerplay.flatpak")
+    assert cmd[:2] == ["flatpak-spawn", "--host"] and "--bundle" in cmd and "--user" in cmd
+    monkeypatch.setattr(updates, "_bundle", {})
+    assert not updates.offered() or not updates.managed()
