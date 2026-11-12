@@ -38,7 +38,7 @@ _UNITS = {"b": 1, "kib": 1024, "mib": 1024 ** 2, "gib": 1024 ** 3, "kb": 1000, "
 
 def job_detail(job):
     """'12.3 MB/s · 4 min left' (either part only when known), or ''."""
-    if not job or job.get("kind") == "queued":
+    if not job or job.get("kind") in ("queued", "paused"):
         return ""
     parts = []
     speed = job.get("speed") or 0
@@ -1256,7 +1256,7 @@ class AioLaunch(QObject):
             return
         for g in self.model.games:
             if g.installed and g.extra.get("update") and g.key not in self.procs \
-                    and g.store in ("epic", "gog", "amazon") and self.model.jobs.get(g.key, {}).get("kind") != "queued":
+                    and g.store in ("epic", "gog", "amazon") and self.model.jobs.get(g.key, {}).get("kind") not in ("queued", "paused"):
                 self.update(g.key)
 
     @staticmethod
@@ -2897,6 +2897,8 @@ class AioLaunch(QObject):
 
     @Slot(str)
     def installAnyway(self, key):
+        if key in self._paused:
+            return self.resumeDownload(key)  # Install on a paused game carries on with it
         g, store = self._guard(key)
         if not g or key in self.procs:
             return
@@ -2945,19 +2947,102 @@ class AioLaunch(QObject):
 
     @Slot(str)
     def cancel(self, key):
-        if any(q[0].key == key for q in self._queue):  # still waiting: just leave the line
+        if any(q[0].key == key for q in self._queue) or key in self._paused:  # not running: just leave the line
             self._queue = [q for q in self._queue if q[0].key != key]
+            self._paused.pop(key, None)
             self.model.jobs.pop(key, None)
             self._touch(key)
             return
         p = self.procs.get(key)
         if p:
             p.setProperty("cancelled", True)
+            th = self._throttles.pop(key, None)
+            if th:
+                th.stop()  # a frozen process would not see the request to end
             p.terminate()
             QTimer.singleShot(4000, lambda: p.state() != QProcess.NotRunning and p.kill())
 
     DOWNLOADS = ("install", "update", "dlc", "verify", "move", "fix")
+    PAUSABLE = ("install", "update")  # the store tools carry on from where they stopped
     _queue = []  # [(game, kind, cmd)] waiting for the running download to finish
+    _paused = {}  # key -> (game, kind, progress)
+    _throttles = {}  # key -> throttle.Throttle (Settings > Library: download speed limit)
+    downloadsChanged = Signal()
+
+    def _downloads(self):
+        rows = []
+        for key in list(self.procs):
+            job = self.model.jobs.get(key) or {}
+            if job.get("kind") in self.DOWNLOADS:
+                rows.append(self._download_row(key, job, "running"))
+        for g, kind, _cmd in list(self._queue):
+            rows.append(self._download_row(g.key, {"kind": kind, "progress": -1.0}, "queued", g))
+        for key, (g, kind, progress) in list(self._paused.items()):
+            rows.append(self._download_row(key, {"kind": kind, "progress": progress}, "paused", g))
+        return rows
+
+    def _download_row(self, key, job, state, g=None):
+        g = g or self.model.find(key)
+        eta = job.get("eta")
+        if eta is not None and job.get("etaAt"):
+            eta = max(0, eta - (time.monotonic() - job["etaAt"]))
+        return {"key": key, "title": g.title if g else key, "kind": job.get("kind", ""), "state": state,
+                "progress": float(job.get("progress", -1.0)), "speed": float(job.get("speed", 0.0)),
+                "eta": int(eta) if eta is not None else -1, "cover": _cover(g) if g else "",
+                "covers": _covers(g) if g else [], "pausable": job.get("kind") in self.PAUSABLE,
+                "store": g.store if g else ""}
+
+    downloads = Property("QVariantList", _downloads, notify=downloadsChanged)
+
+    @Slot(str)
+    def pauseDownload(self, key):
+        """Stop a download and keep its place; Resume carries on from where it stopped."""
+        for i, (g, kind, _cmd) in enumerate(self._queue):
+            if g.key == key and kind in self.PAUSABLE:
+                self._queue.pop(i)
+                self._paused[key] = (g, kind, -1.0)
+                self.model.jobs[key] = {"kind": "paused", "progress": -1.0}
+                self._touch(key)
+                return
+        p = self.procs.get(key)
+        job = self.model.jobs.get(key) or {}
+        if p and job.get("kind") in self.PAUSABLE:
+            p.setProperty("paused", True)
+            th = self._throttles.pop(key, None)
+            if th:
+                th.stop()
+            p.terminate()
+            QTimer.singleShot(8000, lambda: p.state() != QProcess.NotRunning and p.kill())
+
+    @Slot(str)
+    def resumeDownload(self, key):
+        item = self._paused.pop(key, None)
+        if not item:
+            return
+        g, kind, _progress = item
+        self.model.jobs.pop(key, None)
+        store = self.stores.get(g.store)
+        try:
+            with runner.using(self._options_for(g)):
+                cmd = store.update(g) if kind == "update" else store.install(g)
+        except StoreError as e:
+            self._paused[key] = item
+            self.model.jobs[key] = {"kind": "paused", "progress": item[2]}
+            self.toast.emit(str(e))
+            self._touch(key)
+            return
+        self._start_job(g, kind, cmd)
+        self._touch(key)
+
+    @Slot(str, int)
+    def moveDownload(self, key, step):
+        """Move a waiting download up (-1) or down (+1) the line; -99 puts it first."""
+        i = next((n for n, q in enumerate(self._queue) if q[0].key == key), -1)
+        if i < 0:
+            return
+        j = 0 if step <= -99 else max(0, min(len(self._queue) - 1, i + step))
+        self._queue.insert(j, self._queue.pop(i))
+        self.downloadsChanged.emit()
 
     def _start_job(self, g, kind, cmd):
         """Downloads go one at a time (all at once only made each slower); the rest wait in line."""
@@ -2990,7 +3075,15 @@ class AioLaunch(QObject):
         p.finished.connect(lambda code, status: self._job_done(g, kind, code))
         p.errorOccurred.connect(lambda err: err == QProcess.FailedToStart and self._job_done(g, kind, -1))
         self._touch(key)
+        if kind in ("install", "update", "dlc"):
+            p.started.connect(lambda: self._throttle(key, p))
         p.start(cmd.argv[0], cmd.argv[1:])
+
+    def _throttle(self, key, p):
+        from . import throttle
+        if p.processId() > 0:
+            self._throttles[key] = throttle.Throttle(
+                p.processId(), lambda: max(0.0, float(settings.get("download_limit") or 0)) * 1_000_000, self)
 
     def _job_output(self, key):
         p = self.procs.get(key)
@@ -3006,8 +3099,11 @@ class AioLaunch(QObject):
         told_eta = False
         for line in lines:
             sp = SPEED.search(line)
-            if sp and "/s" in line:
+            if sp and "/s" in line and "Disk" not in line:  # legendary also prints the disk's write speed
                 job["speed"] = float(sp.group(1)) * _UNITS.get(sp.group(2).lower(), 1)
+                th = self._throttles.get(key)
+                if th:
+                    th.reported(job["speed"])
             et = ETA.search(line)
             if et:
                 h, mi, se = (int(x) for x in et.groups())
@@ -3035,10 +3131,18 @@ class AioLaunch(QObject):
         p = self.procs.pop(key, None)
         if p is None:
             return
+        th = self._throttles.pop(key, None)
+        if th:
+            th.stop()
+        last = (self.model.jobs.get(key) or {}).get("progress", -1.0)
         self.model.jobs.pop(key, None)
         lines = self.logs.pop(key, [])
         (LOG_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", key) + f".{kind}.log")).write_text("\n".join(lines))
-        if p.property("cancelled"):
+        if p.property("paused"):
+            self._paused[key] = (g, kind, last)
+            self.model.jobs[key] = {"kind": "paused", "progress": last}
+            self.toast.emit(f"Paused: {g.title}")
+        elif p.property("cancelled"):
             self._moves.pop(key, None)
             self.toast.emit(f"Cancelled: {g.title}")
         elif code == 0 and kind == "move":
@@ -3065,6 +3169,7 @@ class AioLaunch(QObject):
     def _touch(self, key):
         self.model.touch(key)
         self.gameChanged.emit(key)
+        self.downloadsChanged.emit()
 
     def _notify(self, title, body=""):
         """A desktop notification, only while Cornerplay is not in front (a game, another app)."""
@@ -3123,6 +3228,8 @@ class AioLaunch(QObject):
 
     def shutdown(self):
         self._quitting = True  # stops the background details fetch
+        for th in list(self._throttles.values()):
+            th.stop()  # a download frozen by the speed limit would not see the request to end
         for p in list(self.procs.values()):
             p.terminate()
             p.waitForFinished(3000)

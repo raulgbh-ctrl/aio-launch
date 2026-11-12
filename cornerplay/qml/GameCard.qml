@@ -290,6 +290,7 @@ Item {
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         text: card.job === "uninstall" ? qsTr("Removing…") : card.job === "queued" ? qsTr("Queued")
+                              : card.job === "paused" ? qsTr("Paused") + (card.progress >= 0 ? " · " + Math.floor(card.progress) + "%" : "")
                               : card.progress < 0 ? "Starting…"
                               : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : card.job === "verify" ? "Checking " : card.job === "fix" ? "Fixing " : "Installing ") + Math.floor(card.progress) + "%"
                     }
@@ -305,7 +306,7 @@ Item {
                         Behavior on width { NumberAnimation { duration: 300 } }
                         // No percentage yet: a short bar slides back and forth.
                         SequentialAnimation on x {
-                            running: card.job !== "" && card.progress < 0 && !app.light
+                            running: card.job !== "" && card.job !== "paused" && card.job !== "queued" && card.progress < 0 && !app.light
                             loops: Animation.Infinite
                             NumberAnimation { from: 0; to: card.width * 0.6; duration: 900; easing.type: Easing.InOutQuad }
                             NumberAnimation { from: card.width * 0.6; to: 0; duration: 900; easing.type: Easing.InOutQuad }

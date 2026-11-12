@@ -614,7 +614,7 @@ FocusScope {
                     visible: !!tv.cur.key
                     Rectangle {
                         id: playBtn
-                        readonly property string label: tv.cur.job ? ({ install: qsTr("Installing"), update: qsTr("Updating"), dlc: qsTr("Installing DLC"), move: qsTr("Moving"), verify: qsTr("Checking files"), fix: qsTr("Fixing"), queued: qsTr("Queued") }[tv.cur.job] || qsTr("Removing"))
+                        readonly property string label: tv.cur.job ? ({ install: qsTr("Installing"), update: qsTr("Updating"), dlc: qsTr("Installing DLC"), move: qsTr("Moving"), verify: qsTr("Checking files"), fix: qsTr("Fixing"), queued: qsTr("Queued"), paused: qsTr("Paused") }[tv.cur.job] || qsTr("Removing"))
                                                                        + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
                                                         : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
                         height: 56; radius: 28

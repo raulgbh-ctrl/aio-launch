@@ -111,3 +111,14 @@ def test_stats_weeks_and_year():
     assert y["hours"] == 2.5 and y["months"][0] == 1.0  # only the part of the session inside the year
     assert y["newGames"] == ["Gwent"] and y["finished"] == ["Gwent"]
     assert statsdata.backlog({"want": 3, "finished": 1}) == {"total": 4, "done": 1, "percent": 25}
+
+
+def test_throttle_steers_towards_the_limit():
+    import os
+    from cornerplay import throttle
+    assert os.getpid() in throttle.tree(os.getpid())
+    t = throttle.Throttle.__new__(throttle.Throttle)  # no timer: only the steering
+    t.share, t.limit = 1.0, (lambda: 10.0)
+    for _ in range(12):
+        t.reported(50.0 * t.share)  # a tool that does 50 at full speed
+    assert abs(50.0 * t.share - 10.0) < 0.5

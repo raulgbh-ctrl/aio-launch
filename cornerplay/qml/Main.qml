@@ -617,6 +617,23 @@ ApplicationWindow {
                     iconName: "plus"
                     onClicked: addBox.show()
                 }
+                // Downloads: only while something downloads, waits or is paused.
+                Rectangle {
+                    visible: app.downloads.length > 0
+                    width: 38; height: 38; radius: 19
+                    color: dlHover.hovered || downloadsBox.opened ? theme.surfaceContainerHigh : "transparent"
+                    Icon { anchors.centerIn: parent; name: "download"; size: 17; color: theme.primary }
+                    Rectangle {
+                        anchors { right: parent.right; top: parent.top; rightMargin: 2; topMargin: 2 }
+                        width: Math.max(16, dlCount.implicitWidth + 8); height: 16; radius: 8
+                        color: theme.primary
+                        Text { id: dlCount; anchors.centerIn: parent; text: app.downloads.length; color: theme.onPrimary
+                               font.pixelSize: 10; font.weight: Font.Bold }
+                    }
+                    HoverHandler { id: dlHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: downloadsBox.open() }
+                    ToolTip.visible: dlHover.hovered; ToolTip.text: qsTr("Downloads"); ToolTip.delay: 300
+                }
                 // Refresh: Cornerplay refreshes on its own at start and when you come back to it.
                 Rectangle {
                     width: 38; height: 38; radius: 19
@@ -3064,6 +3081,112 @@ ApplicationWindow {
         }
     }
 
+    // -------------------------------------------------------------------- downloads
+    // What is downloading, what waits its turn, and what is paused: reorder, pause, resume, cancel,
+    // and a speed limit (throttle.py) so a big download leaves room for everything else.
+    KDialog {
+        id: downloadsBox
+        objectName: "downloadsBox"
+        theme: win.theme
+        heading: qsTr("Downloads")
+        headingIcon: "download"
+        width: Math.min(win.width - 60, 640)
+        height: Math.min(win.height - 60, 560)
+        function nice(secs) { return secs < 60 ? qsTr("under a minute left") : secs < 3600 ? Math.round(secs / 60) + qsTr(" min left")
+                                     : Math.floor(secs / 3600) + " h " + Math.round((secs % 3600) / 60) + qsTr(" min left") }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                Layout.fillWidth: true
+                visible: app.downloads.length === 0
+                wrapMode: Text.WordWrap
+                text: qsTr("Nothing is downloading.")
+                color: theme.onSurfaceVariant; font.pixelSize: 13
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 8
+                model: app.downloads
+                ScrollBar.vertical: KScrollBar { }
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    width: ListView.view.width
+                    height: 76; radius: 12
+                    color: theme.surfaceContainerHigh
+                    border.width: modelData.state === "running" ? 1 : 0; border.color: theme.primary
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 8 }
+                        spacing: 12
+                        RoundedArt {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 56
+                            radius: 6
+                            ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 80 }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 5
+                            Text { Layout.fillWidth: true; text: modelData.title; color: theme.onSurface; font.pixelSize: 14
+                                   font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                color: theme.onSurfaceVariant; font.pixelSize: 12
+                                text: {
+                                    const d = modelData
+                                    const what = ({ install: qsTr("Installing"), update: qsTr("Updating"), dlc: qsTr("Installing DLC"),
+                                                    verify: qsTr("Checking files"), move: qsTr("Moving"), fix: qsTr("Fixing") })[d.kind] || d.kind
+                                    if (d.state === "queued") return qsTr("Waiting its turn  ·  ") + what
+                                    if (d.state === "paused") return qsTr("Paused") + (d.progress >= 0 ? "  ·  " + Math.floor(d.progress) + "%" : "")
+                                    const parts = [what + (d.progress >= 0 ? " " + Math.floor(d.progress) + "%" : "…")]
+                                    if (d.speed > 0) parts.push(d.speed >= 1e6 ? (d.speed / 1e6).toFixed(1) + " MB/s" : Math.round(d.speed / 1e3) + " kB/s")
+                                    if (d.eta >= 0) parts.push(downloadsBox.nice(d.eta))
+                                    return parts.join("  ·  ")
+                                }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 5; radius: 3
+                                color: theme.surfaceContainerHighest
+                                Rectangle { height: parent.height; radius: 3; width: parent.width * Math.max(0, modelData.progress) / 100
+                                            color: modelData.state === "running" ? theme.primary : theme.outline }
+                            }
+                        }
+                        KButton { theme: win.theme; visible: modelData.state === "queued"; iconName: "chevron-up"; text: ""
+                                  enabled: index > 0 && app.downloads[index - 1].state === "queued"
+                                  ToolTip.visible: hovered; ToolTip.text: qsTr("Earlier"); onClicked: app.moveDownload(modelData.key, -1) }
+                        KButton { theme: win.theme; visible: modelData.state === "queued"; iconName: "chevron-down"; text: ""
+                                  enabled: index + 1 < app.downloads.length && app.downloads[index + 1].state === "queued"
+                                  ToolTip.visible: hovered; ToolTip.text: qsTr("Later"); onClicked: app.moveDownload(modelData.key, 1) }
+                        KButton { theme: win.theme; visible: modelData.pausable && modelData.state !== "paused"; text: qsTr("Pause")
+                                  onClicked: app.pauseDownload(modelData.key) }
+                        KButton { theme: win.theme; primary: true; visible: modelData.state === "paused"; text: qsTr("Resume"); iconName: "download"
+                                  onClicked: app.resumeDownload(modelData.key) }
+                        KButton { theme: win.theme; iconName: "x"; text: ""; ToolTip.visible: hovered; ToolTip.text: qsTr("Cancel")
+                                  onClicked: app.cancel(modelData.key) }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                Text { text: qsTr("Speed limit"); color: theme.onSurface; font.pixelSize: 13 }
+                KField {
+                    theme: win.theme
+                    Layout.preferredWidth: 90
+                    placeholderText: qsTr("none")
+                    text: app.settingsMap.download_limit > 0 ? String(app.settingsMap.download_limit) : ""
+                    validator: DoubleValidator { bottom: 0; top: 10000; decimals: 1; notation: DoubleValidator.StandardNotation }
+                    onEditingFinished: app.setSetting("download_limit", parseFloat(text.replace(",", ".")) || 0)
+                }
+                Text { Layout.fillWidth: true; text: qsTr("MB/s for Epic, GOG and Amazon (empty: as fast as it goes)")
+                       color: theme.onSurfaceVariant; font.pixelSize: 12; elide: Text.ElideRight }
+            }
+        }
+    }
+
     // -------------------------------------------------------------------- collections
     // Which collections a game is in: one row per collection, tap to add or remove.
     KDialog {
@@ -4285,6 +4408,22 @@ ApplicationWindow {
                         // ---- Library
                         ColumnLayout {
                             spacing: 16
+                            Row2 {
+                                label: qsTr("Download speed limit")
+                                hint: qsTr("For Epic, GOG and Amazon downloads, so a big game leaves room for everything else on your internet. Empty: as fast as it goes. Steam has its own limit in its Downloads settings.")
+                                RowLayout {
+                                    spacing: 8
+                                    KField {
+                                        theme: win.theme
+                                        Layout.preferredWidth: 100
+                                        placeholderText: qsTr("none")
+                                        text: app.settingsMap.download_limit > 0 ? String(app.settingsMap.download_limit) : ""
+                                        validator: DoubleValidator { bottom: 0; top: 10000; decimals: 1; notation: DoubleValidator.StandardNotation }
+                                        onEditingFinished: app.setSetting("download_limit", parseFloat(text.replace(",", ".")) || 0)
+                                    }
+                                    Text { text: "MB/s"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                }
+                            }
                             Row2 {
                                 label: qsTr("Games folder")
                                 hint: qsTr("Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries.")
