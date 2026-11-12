@@ -1549,22 +1549,39 @@ class AioLaunch(QObject):
         gog = self.stores["gog"]
         token_fn = gog._token if gog.logged_in() else None
 
+        key = str(settings.get("itad_key") or "").strip()
+        cut = int(settings.get("deal_alert_cut") or 50)
+
         def work():
-            res = wishlist.get(steamid, token_fn, force)
+            res = wishlist.get(steamid, token_fn, force, key, cut)
 
             def done():
                 self._wishlist = res["items"]
                 self.wishlistChanged.emit()
-                if res["new_sales"]:
+                deals = res.get("deals") or []
+                if deals:
+                    self._announce_deals(deals)
+                elif res["new_sales"]:
                     names = res["new_sales"]
                     self.toast.emit(f"On sale from your wishlist: {names[0]}"
                                     + (f" and {len(names) - 1} more" if len(names) > 1 else ""))
             return done
         self._bg(work)
 
+    def _announce_deals(self, deals):
+        """A desktop notification (it reaches you in a game or with Cornerplay in the tray), and a toast."""
+        def line(d):
+            return f"{d['title']}: {d['price']} on {d['shop']} (-{d['cut']}%{', lowest ever' if d['low'] else ''})"
+        title = "Wishlist deal" if len(deals) == 1 else f"{len(deals)} wishlist deals"
+        body = "\n".join(line(d) for d in deals[:5]) + (f"\nand {len(deals) - 5} more" if len(deals) > 5 else "")
+        self.toast.emit(f"{title}: {line(deals[0])}" + (f" and {len(deals) - 1} more" if len(deals) > 1 else ""))
+        if shutil.which("notify-send"):
+            QProcess.startDetached("notify-send", ["--app-name=Cornerplay", "--icon=cornerplay", title, body])
+
     def _wishlist_sales(self):
         owned = {covers.norm(g.title) for g in self.model.games}
-        return [w for w in self._wishlist if w.get("discount") and covers.norm(w["title"]) not in owned]
+        return [w for w in self._wishlist
+                if (w.get("discount") or (w.get("best") or {}).get("cut")) and covers.norm(w["title"]) not in owned]
 
     wishlistSales = Property("QVariantList", _wishlist_sales, notify=wishlistChanged)
 

@@ -1310,6 +1310,8 @@ ApplicationWindow {
                                 delegate: Rectangle {
                                     id: saleTile
                                     required property var modelData
+                                    // IsThereAnyDeal's cheapest deal, when it is deeper than the wishlist store's own sale.
+                                    readonly property var best: modelData.best && modelData.best.cut > (modelData.discount || 0) ? modelData.best : null
                                     width: 300; height: 132
                                     radius: 12
                                     color: theme.surfaceContainerHigh
@@ -1343,19 +1345,26 @@ ApplicationWindow {
                                             Rectangle {
                                                 width: pct.implicitWidth + 12; height: 20; radius: 6
                                                 color: theme.primary
-                                                Text { id: pct; anchors.centerIn: parent; text: "-" + saleTile.modelData.discount + "%"
+                                                Text { id: pct; anchors.centerIn: parent; text: "-" + (saleTile.best ? saleTile.best.cut : saleTile.modelData.discount) + "%"
                                                        color: theme.onPrimary; font.pixelSize: 11; font.weight: Font.Bold }
                                             }
-                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.modelData.price
+                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.price : saleTile.modelData.price
                                                    textFormat: Text.PlainText; color: theme.onSurface; font.pixelSize: 13 }
-                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.modelData.was
+                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.was : saleTile.modelData.was
                                                    textFormat: Text.PlainText; color: theme.outline; font.pixelSize: 11; font.strikeout: true }
+                                        }
+                                        Text {
+                                            visible: !!(saleTile.best && saleTile.best.low)
+                                            text: qsTr("Lowest price ever")
+                                            color: theme.primary; font.pixelSize: 11; font.weight: Font.DemiBold
                                         }
                                         KButton {
                                             theme: win.theme
-                                            text: saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
+                                            width: Math.min(implicitWidth, parent.width)
+                                            text: saleTile.best ? saleTile.best.shop
+                                                  : saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
                                             iconName: "external-link"
-                                            onClicked: app.openUrl(saleTile.modelData.url)
+                                            onClicked: app.openUrl(saleTile.best ? saleTile.best.url : saleTile.modelData.url)
                                         }
                                     }
                                     HoverHandler { id: saleHover; cursorShape: Qt.PointingHandCursor }
@@ -4168,6 +4177,36 @@ ApplicationWindow {
                                 maximumLength: 2
                                 text: app.settingsMap.store_country
                                 onEditingFinished: { app.setSetting("store_country", text.trim().toUpperCase()); app.refresh() }
+                            }
+                        }
+                        Row2 {
+                            visible: !!app.settingsMap.wishlist_sales
+                            label: qsTr("Best price on any store (IsThereAnyDeal)")
+                            hint: qsTr("With a free IsThereAnyDeal API key, each wishlist game shows its cheapest deal on any store (Steam, GOG, Epic, Humble, Fanatical and more) and Cornerplay tells you when one is at least as much off as you choose here, or at its lowest price ever. Get one free: sign in at isthereanydeal.com and register an app (the Get a key button).")
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                KField {
+                                    theme: win.theme; Layout.fillWidth: true
+                                    placeholderText: qsTr("API key")
+                                    echoMode: TextInput.Password
+                                    text: app.settingsMap.itad_key
+                                    onEditingFinished: if (text.trim() !== app.settingsMap.itad_key) { app.setSetting("itad_key", text.trim()); app.refresh() }
+                                }
+                                KButton { theme: win.theme; text: qsTr("Get a key"); iconName: "external-link"
+                                          onClicked: app.openUrl("https://isthereanydeal.com/apps/my/") }
+                            }
+                            RowLayout {
+                                visible: !!app.settingsMap.itad_key
+                                spacing: 8
+                                Text { text: qsTr("Tell me at"); color: theme.onSurface; font.pixelSize: 13 }
+                                KField {
+                                    theme: win.theme; Layout.preferredWidth: 60
+                                    text: String(app.settingsMap.deal_alert_cut)
+                                    validator: IntValidator { bottom: 1; top: 100 }
+                                    onEditingFinished: app.setSetting("deal_alert_cut", parseInt(text) || 50)
+                                }
+                                Text { text: qsTr("% off, or at the lowest price ever"); color: theme.onSurface; font.pixelSize: 13 }
                             }
                         }
                         }

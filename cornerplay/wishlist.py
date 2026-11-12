@@ -97,11 +97,14 @@ def _gog(token, cc):
     return out
 
 
-def get(steamid="", gog_token_fn=None, force=False):
-    """{"items": [...], "new_sales": [...titles on sale since the last check...], "error": ""}."""
+def get(steamid="", gog_token_fn=None, force=False, itad_key="", alert_cut=50):
+    """{"items": [...], "new_sales": [...titles on sale since the last check...], "deals": [...],
+    "error": ""}. With an IsThereAnyDeal key each item also gets "best" (itad.py), and "deals"
+    lists the ones to announce."""
     saved = read_json(FILE) or {}
-    if not force and time.time() - saved.get("t", 0) < TTL and "items" in saved:
-        return {"items": saved["items"], "new_sales": [], "error": saved.get("error", "")}
+    if not force and time.time() - saved.get("t", 0) < TTL and "items" in saved \
+            and bool(saved.get("itad")) == bool(itad_key):
+        return {"items": saved["items"], "new_sales": [], "deals": [], "error": saved.get("error", "")}
     cc = country()
     items, errors = [], []
     if steamid:
@@ -119,8 +122,14 @@ def get(steamid="", gog_token_fn=None, force=False):
     seen = set(saved.get("announced") or [])
     on_sale = {f"{i['store']}:{i['id']}:{i['discount']}" for i in items if i["discount"]}
     new_sales = [i["title"] for i in items if i["discount"] and f"{i['store']}:{i['id']}:{i['discount']}" not in seen]
+    deals = []
+    if itad_key and items:
+        from . import itad
+        deals, err = itad.enrich(items, itad_key, cc, alert_cut)
+        if err:
+            errors.append(err)
     if errors and not items:
         items = saved.get("items") or []  # keep showing the last good list
     write_json(FILE, {"t": time.time(), "items": items, "announced": sorted(on_sale | seen)[-2000:],
-                      "error": "; ".join(errors)})
-    return {"items": items, "new_sales": new_sales if saved else [], "error": "; ".join(errors)}
+                      "error": "; ".join(errors), "itad": bool(itad_key)})
+    return {"items": items, "new_sales": new_sales if saved else [], "deals": deals, "error": "; ".join(errors)}

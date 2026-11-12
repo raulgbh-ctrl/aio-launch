@@ -16,7 +16,7 @@ from .config import CONFIG_DIR, DATA_DIR, write_private
 
 SKIP = {"gog_auth.json"}           # tokens
 SKIP_SETTINGS = {"machine_id"}     # this PC only
-SECRETS = ("steam_api_key", "steamgriddb_key", "igdb_client_id", "igdb_client_secret")  # kept out, kept on restore
+SECRETS = ("steam_api_key", "steamgriddb_key", "igdb_client_id", "igdb_client_secret", "itad_key")  # kept out, kept on restore
 VERSION = 1
 
 

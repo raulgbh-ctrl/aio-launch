@@ -82,6 +82,8 @@ DEFAULTS = {
     "language": "",             # interface language: "" = the system's, "en", "ro" (after a restart)
     "rom_dirs": [],             # folders with ROMs for Retro games (stores/retro.py)
     "wishlist_sales": True,
+    "itad_key": "",             # IsThereAnyDeal API key: the best price on any store for the wishlist (itad.py)
+    "deal_alert_cut": 50,       # announce a wishlist deal at least this much off (or a new lowest price)
     "store_country": "",        # two letters for store prices (AU, RO, ...); empty: your GOG account's, else the system's     # "On sale from your wishlist" on the home page (Steam and GOG wishlists)
     "discord_presence": False,  # "Playing <game>" on Discord for Epic / GOG / Amazon games (discord.py)
     "discord_app_id": "",       # the Application ID of a Discord application named "Cornerplay"
