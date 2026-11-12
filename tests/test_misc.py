@@ -141,3 +141,9 @@ def test_screenshots_from_steam_and_from_play_sessions(tmp_path, monkeypatch):
     rows = screenshots.for_game({"steam:730"}, sessions, screenshots.steam_folder(tmp_path, 42, "730"))
     assert [(os.path.basename(r["path"]), r["source"]) for r in rows] == \
         [("20261010_1.jpg", "steam"), ("late.jpg", "session"), ("during.png", "session")]
+
+
+def test_couch_local_multiplayer(monkeypatch):
+    from cornerplay import couch
+    monkeypatch.setattr(couch, "_apps", {"620": {"cat": [1, 2, 9, 24, 39]}, "730": {"cat": [1, 49]}})
+    assert couch.local("620") and not couch.local("730") and not couch.local("") and not couch.local("999")

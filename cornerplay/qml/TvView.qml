@@ -676,7 +676,7 @@ FocusScope {
                             Icon { visible: !pad.connected; anchors.verticalCenter: parent.verticalCenter; name: "ellipsis"; size: 22; color: theme.onSurface }
                             Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("More"); color: theme.onSurface; font.pixelSize: 21; font.weight: Font.Medium }
                         }
-                        TapHandler { onTapped: panel.show() }
+                        TapHandler { onTapped: tv.openPage() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                     Text {  // download speed and time left, beside the progress in the button
@@ -787,7 +787,7 @@ FocusScope {
                 current: GridView.isCurrentItem
                 // Pointing at a cover focuses it, so its artwork fills the screen.
                 onHoveredChanged: if (hovered && grid.currentIndex !== index) grid.currentIndex = index
-                onOpened: { grid.currentIndex = index; tv.sync(); panel.show() }
+                onOpened: { grid.currentIndex = index; tv.sync(); tv.openPage() }
                 onActivated: { grid.currentIndex = index; tv.sync(); tv.accept() }
                 // A soft reflection on the shelf below (Settings > Appearance).
                 Item {
@@ -847,7 +847,7 @@ FocusScope {
                 }
                 else if (event.key === Qt.Key_Home) { grid.jump(0); event.accepted = true }
                 else if (event.key === Qt.Key_End) { grid.jump(count - 1); event.accepted = true }
-                else if (event.key === Qt.Key_F2) { panel.show(); event.accepted = true }
+                else if (event.key === Qt.Key_F2) { tv.openPage(); event.accepted = true }
                 else if (event.key === Qt.Key_F10) { mainMenu.show(); event.accepted = true }
                 else if (event.key === Qt.Key_F9) { quickMenu.show(); event.accepted = true }
                 else if (event.key === Qt.Key_F4 || event.key === Qt.Key_Slash) { tv.openSearch(""); event.accepted = true }
@@ -921,13 +921,13 @@ FocusScope {
                     const play = tv.cur.key && !tv.cur.installed ? "Install" : "Play"
                     const jump = grid.count > grid.page + 1, stores = tv.storeIds.length > 2, shelves = tv.shelfList.length > 1
                     const all = pad.connected
-                        ? [{ b: ["a"], t: play }, { b: ["start"], t: "Options" }, { b: ["guide"], t: "Menu" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                        ? [{ b: ["a"], t: play }, { b: ["start"], t: "More" }, { b: ["guide"], t: "Menu" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
                            shelves ? { b: ["\u2195"], t: "Shelf", pad: true } : null, jump ? { b: ["lt", "rt"], t: "Jump" } : null,
                            stores ? { b: ["lb", "rb"], t: "Store" } : null, { b: ["back"], t: "Search" },
                            { b: ["b"], t: tvLibrary.search ? "Clear search" : "Back" }]
                         : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
-                        ? [{ b: ["a"], t: play }, { k: "F2", t: "Options" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
-                        : [{ k: "Enter", t: play }, { k: "F2", t: "Options" }, { k: "F10", t: "Menu" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
+                        ? [{ b: ["a"], t: play }, { k: "F2", t: "More" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
+                        : [{ k: "Enter", t: play }, { k: "F2", t: "More" }, { k: "F10", t: "Menu" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
                            shelves ? { k: "\u2191 \u2193", t: "Shelf" } : null, jump ? { k: "Shift \u2190/\u2192", t: "Jump" } : null,
                            stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
                            { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
@@ -1226,9 +1226,24 @@ FocusScope {
         }
     }
 
+    // The game's own page (X / More): TvPage.qml. Its Options opens the action panel below, on top of it.
+    function openPage() { if (!cur.key) return; app.uiSound("select"); gamePage.show(cur, app.gameDetails(cur.key), app.achievements(cur.key)) }
+    TvDownloads { id: tvDownloads; anchors.fill: parent; z: 42; theme: tv.theme; tint: tv.tint; onClosed: grid.forceActiveFocus() }
+    TvStats { id: tvStats; anchors.fill: parent; z: 42; theme: tv.theme; tint: tv.tint; onClosed: grid.forceActiveFocus() }
+    TvPage {
+        id: gamePage
+        anchors.fill: parent
+        z: 40
+        theme: tv.theme
+        tint: tv.tint
+        onOptions: panel.show()
+        onClosed: grid.forceActiveFocus()
+    }
+
     // Action panel: every choice for the focused game, one press each.
     Rectangle {
         anchors.fill: parent
+        z: 45
         visible: panel.visible
         color: "#b0000000"
         // A MouseArea, not a TapHandler: it takes the click (and the hover), so the cover
@@ -1243,10 +1258,11 @@ FocusScope {
     }
     Rectangle {
         id: panel
+        z: 46
         property var rows: []
         property int armed: -1
         function show() { if (!tv.cur.key) return; app.uiSound("select"); rows = tv.buildActions(); armed = -1; list.currentIndex = 0; visible = true; list.forceActiveFocus() }
-        function hide() { app.uiSound("back"); visible = false; grid.forceActiveFocus() }
+        function hide() { app.uiSound("back"); visible = false; if (gamePage.visible) gamePage.forceActiveFocus(); else grid.forceActiveFocus() }
         // Swallow clicks and hover on the panel's empty parts too (its rows sit on top of this).
         MouseArea {
             anchors.fill: parent
@@ -1461,6 +1477,8 @@ FocusScope {
             { label: qsTr("Next store"), icon: "layout-grid", act: "store",
               value: (app.storesInfo.find(x => x.id === tvLibrary.storeFilter) || { name: qsTr("All games") }).name },
             { label: qsTr("Quick access"), icon: "ellipsis", act: "quick" },
+            { label: qsTr("Downloads"), icon: "download", act: "downloads", value: app.downloads.length ? String(app.downloads.length) : "" },
+            { label: qsTr("Your stats"), icon: "trophy", act: "stats" },
             { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
             { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true },
             { label: tv.powerArmed === "suspend" ? qsTr("Sleep?") : qsTr("Sleep"), icon: "battery", act: "power", what: "suspend", group: qsTr("Power") },
@@ -1504,6 +1522,8 @@ FocusScope {
             else if (row.act === "installed") { tvLibrary.installedOnly = !tvLibrary.installedOnly; refresh() }
             else if (row.act === "store") { tv.cycleStore(1); refresh() }
             else if (row.act === "quick") { hide(); quickMenu.show() }
+            else if (row.act === "downloads") { hide(); tvDownloads.show() }
+            else if (row.act === "stats") { hide(); tvStats.show() }
             else if (row.act === "exit") { hide(); tv.exit() }
             else if (row.act === "quit") Qt.quit()
             else if (row.act === "power") tv.pressPower(row.what)

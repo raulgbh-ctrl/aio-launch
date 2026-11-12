@@ -678,7 +678,7 @@ ApplicationWindow {
                 }
                 Repeater {
                     model: [{ t: "unplayed", l: "Never played", i: "sparkles" }, { t: "linux", l: "Linux version", i: "" },
-                            { t: "controller", l: "Full controller support", i: "gamepad-2" }, { t: "protondb", l: "Runs well (ProtonDB Gold+)", i: "check" }]
+                            { t: "controller", l: "Full controller support", i: "gamepad-2" }, { t: "couch", l: "Play together (same screen)", i: "user-round" }, { t: "protondb", l: "Runs well (ProtonDB Gold+)", i: "check" }]
                     Chip2 { required property var modelData; label: modelData.l; icon: modelData.i
                             on: (library.tags || []).indexOf(modelData.t) !== -1; onPicked: chips.toggle(modelData.t) }
                 }

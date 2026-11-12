@@ -16,7 +16,7 @@ from .config import CACHE_DIR, read_json, write_json
 CACHE = CACHE_DIR / "steam_appinfo.json"
 PACKAGES_CACHE = CACHE_DIR / "steam_free_weekends.json"
 MAGICS = {0x07564427: 27, 0x07564428: 28, 0x07564429: 29}
-VERSION = 2  # bump when the remembered fields change
+VERSION = 3  # bump when the remembered fields change
 
 
 def _parse(data):
@@ -76,8 +76,11 @@ def _parse(data):
         # Regional editions ("Borderlands 2 RU") point their manual at the main game's id.
         manual = re.search(r"/manual/(\d+)", str(extended.get("GameManualURL", "")))
         variant_of = manual.group(1) if manual and manual.group(1) != str(appid) else ""
+        cats = common.get("category") if isinstance(common.get("category"), dict) else {}
         apps[str(appid)] = {"name": str(common.get("name", "")), "type": str(common.get("type", "")).lower(),
-                            "variant_of": variant_of}
+                            "variant_of": variant_of,
+                            # Steam's store categories (24/37/39: shared or split screen, 44: Remote Play Together, ...)
+                            "cat": sorted(int(k[9:]) for k in cats if k.startswith("category_") and k[9:].isdigit())}
         pos += size
     return apps
 

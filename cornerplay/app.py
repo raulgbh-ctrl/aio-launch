@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -393,6 +393,8 @@ class LibraryProxy(QSortFilterProxyModel):
             return any(g.extra.get("linux") or g.extra.get("platform") == "linux" for g in group)
         if tag == "controller":
             return any((details.cached(g.key) or {}).get("controller") == "full" for g in group)
+        if tag == "couch":
+            return any(couch.local(_appid(g)) for g in group)
         if tag == "protondb":
             return any(protondb.rating(_appid(g)).get("tier") in ("platinum", "gold", "native") for g in group)
         if tag.startswith("genre:"):
@@ -410,12 +412,14 @@ class LibraryProxy(QSortFilterProxyModel):
             return model.group_value(group, "lastPlayed") > 0
         if s == "added":
             return shelves.is_recent(group)
+        if s == "together":
+            return any(couch.local(_appid(g)) for g in group)
         if s.startswith("s:"):
             return shelves.meta(group, "status") == s[2:]
         return True
 
     def _sort_mode(self):
-        return {"playing": "recent", "added": "added"}.get(self._shelf, self._sort)
+        return {"playing": "recent", "added": "added", "together": "recent"}.get(self._shelf, self._sort)
 
     def _key(self, row):
         """Sort key for a source row, worked out once per library change (a sort compares
@@ -592,6 +596,7 @@ class AioLaunch(QObject):
         if not demo:
             self._steam_watch.start()
             QTimer.singleShot(3000, self._check_steam_running)
+            QTimer.singleShot(2500, self._load_couch)
 
         if demo:
             self._load_demo()
@@ -1780,12 +1785,26 @@ class AioLaunch(QObject):
         self.storesChanged.emit()
         write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
 
+    def _load_couch(self):
+        """Which games have local or split-screen multiplayer (couch.py), off the main thread."""
+        st = self.stores.get("steam")
+        if not st or self.demo:
+            return
+
+        def work():
+            couch.load(st.root())
+            return lambda: (self.proxy.invalidate(), self.tvProxy.invalidate(), self.tvNextProxy.invalidate(),
+                            self.storesChanged.emit())
+        self._bg(work)
+
     def _on_fetched(self, store_id, games, error):
         self._pending.discard(store_id)
         if games:
             shelves.note(store_id, [g.key for g in games])
         if store_id == "epic":
             self.epicFreeChanged.emit()  # "In your library" marks
+        if store_id == "steam":
+            self._load_couch()
         if games is not None and self.model.replace_store(store_id, games):
             write_json(LIBRARY_CACHE, [g.to_dict() for g in self.model.games])
         if error:
@@ -2136,7 +2155,12 @@ class AioLaunch(QObject):
             add("c:" + c, c, lambda g, c=c: shelves.in_group(g, c))
         add("added", _t("Recently added"), shelves.is_recent)
         add("s:finished", _t("Finished"), lambda g: shelves.meta(g, "status") == "finished")
+        add("together", _t("Play together"), lambda g: any(couch.local(_appid(x)) for x in g))
         out.append({"id": "", "name": _t("Library"), "count": len(groups)})
+        # Two or more controllers: friends are on the sofa, so games to play together come first.
+        pads = len(getattr(getattr(self, "gamepad", None), "_pads", None) or {})
+        if pads >= 2:
+            out.sort(key=lambda s: s["id"] != "together")
         return out
 
     def _sidebar_shelves(self):
