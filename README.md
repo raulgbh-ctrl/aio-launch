@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://raulgbh-ctrl.github.io/cornerplay/"><b>Website</b></a> ·
   <a href="https://github.com/raulgbh-ctrl/cornerplay/releases/latest"><b>Download</b></a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#setting-up-each-store">Store setup</a> ·
