@@ -24,6 +24,7 @@ finish-args:
   # changes to its settings, and checks whether it is running (flatpak-spawn --host).
   - --talk-name=org.freedesktop.Flatpak
   - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher   # the tray icon (while a game runs, or started with the PC)
   - --talk-name=com.feralinteractive.GameMode
   - --system-talk-name=org.freedesktop.UPower   # battery level in TV mode, overnight updates only on mains
   # Steam's files: the library, its artwork cache, its Proton builds, non-Steam shortcuts.
@@ -39,6 +40,8 @@ finish-args:
   - --filesystem=~/.var/app/com.heroicgameslauncher.hgl:ro
   - --filesystem=xdg-data/lutris:ro
   - --filesystem=xdg-config/MangoHud:ro
+  # Your screenshots of a game: the ones taken while it ran show on its page (read only).
+  - --filesystem=xdg-pictures:ro
   # RetroArch from Flathub keeps its cores here (retro games; RetroArch itself runs on the host).
   - --filesystem=~/.var/app/org.libretro.RetroArch:ro
   # Discord Rich Presence: the desktop Discord app's local socket (native, Flatpak Discord, Vesktop).
