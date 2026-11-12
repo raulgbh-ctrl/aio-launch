@@ -12,13 +12,16 @@ ApplicationWindow {
     height: 840
     minimumWidth: 760
     minimumHeight: 480
-    visible: true
     title: qsTr("Cornerplay")
+    // With "Keep running in the tray" closing only hides the window; otherwise it quits (the
+    // app no longer quits by itself when its last window closes: it may be sitting in the tray).
+    onClosing: (close) => { if (app.keepInTray()) { close.accepted = false; win.hide() } else Qt.quit() }
     color: theme.background
 
     readonly property var theme: app.theme
     property bool tv: startTv
-    visibility: tv ? Window.FullScreen : Window.Windowed
+    property bool hiddenAtStart: startHidden  // started with the PC: in the tray until opened (tray.py)
+    visibility: hiddenAtStart ? Window.Hidden : tv ? Window.FullScreen : Window.Windowed
     onTvChanged: { if (tv) tvUsed = true; else grid.forceActiveFocus() }
     property string selectedKey: ""
     property var selected: ({})
@@ -3388,6 +3391,7 @@ ApplicationWindow {
         readonly property var theme: app.theme
         property string label
         property string settingKey
+        property var act: null  // set: called with the new state instead of saving settingKey
         readonly property bool hit: prefs.query !== "" && label.toLowerCase().indexOf(prefs.query) !== -1
         Layout.fillWidth: true
         implicitHeight: 48
@@ -3402,7 +3406,7 @@ ApplicationWindow {
             anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
             id: sw
             checked: app.settingsMap[tg.settingKey] === true
-            onToggled: app.setSetting(tg.settingKey, checked)
+            onToggled: tg.act ? tg.act(checked) : app.setSetting(tg.settingKey, checked)
             indicator: Rectangle {
                 implicitWidth: 40; implicitHeight: 22; radius: 11
                 y: parent.height / 2 - height / 2
@@ -4319,6 +4323,10 @@ ApplicationWindow {
                                 }
                             }
                             Toggle { label: qsTr("Check for new Cornerplay versions (once a day)"); settingKey: "update_check" }
+                            Toggle { visible: app.trayAvailable; label: qsTr("Step aside into the tray while a game runs"); settingKey: "tray_while_playing" }
+                            Toggle { visible: app.trayAvailable; label: qsTr("Keep running in the tray when the window is closed"); settingKey: "close_to_tray" }
+                            Toggle { label: qsTr("Start with the PC (in the tray)"); settingKey: "start_with_pc"
+                                     act: (on) => app.setStartWithPc(on) }
                         }
 
                     }

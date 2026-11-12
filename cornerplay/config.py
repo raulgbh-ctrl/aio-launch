@@ -41,6 +41,9 @@ def _migrate_from_kura():
 DEFAULTS = {
     "library_dirs": [],  # folders games were moved to (Storage > Move); GOG installs are found there too
     "update_check": True,  # look for a new Cornerplay release once a day
+    "tray_while_playing": True,  # the window steps aside into the tray while a game runs (tray.py)
+    "close_to_tray": False,      # closing the window keeps Cornerplay running in the tray
+    "start_with_pc": False,      # an autostart entry that opens Cornerplay in the tray
     "profiles": [],        # people using this PC (personal.py); empty: one profile, "Me"
     "profile": "",
     "sync_dir": "",        # a folder another tool syncs between PCs; Cornerplay keeps personal data there

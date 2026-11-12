@@ -194,6 +194,8 @@ def main():
                     help="start a game and wait for it to close (used by the shortcuts added to Steam)")
     ap.add_argument("--add-to-steam", action="store_true",
                     help="add Cornerplay to Steam (Game Mode) with artwork; closes and reopens Steam if needed")
+    ap.add_argument("--background", action="store_true",
+                    help="start in the tray, without the window (used when starting with the PC)")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
     ap.add_argument("--check", action="store_true", help="compile every QML file and report errors, then exit")
     args = ap.parse_args()
@@ -232,7 +234,7 @@ def main():
 
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
     from PySide6.QtCore import QUrl
-    from PySide6.QtGui import QGuiApplication, QIcon
+    from PySide6.QtGui import QIcon
     from PySide6.QtNetwork import QNetworkAccessManager, QNetworkDiskCache
     from PySide6.QtQml import QQmlApplicationEngine, QQmlNetworkAccessManagerFactory
 
@@ -276,7 +278,11 @@ def main():
     # The window class must say "cornerplay" so desktops (KDE on the Steam Deck, X11 docks)
     # match the window to cornerplay.desktop and show its icon. Qt builds the class from
     # argv[0] and the application name; started as "python3 -m cornerplay" both were wrong.
-    app = QGuiApplication(["cornerplay"])
+    from PySide6.QtWidgets import QApplication  # QApplication, not QGuiApplication: the tray menu is a widget
+    app = QApplication(["cornerplay"])
+    from . import tray
+    if not args.demo and tray.hand_over("tv" if args.tv else "show"):
+        return 0  # Cornerplay was already running (perhaps in the tray): it shows its window instead
     _note_screen_size(app)
     _load_translation(app)
     app.setApplicationName("cornerplay")
@@ -305,6 +311,7 @@ def main():
     ctx.setContextProperty("pad", gamepad)
     cornerplay.gamepad = gamepad  # asked at check time: SDL only loads a moment after start-up
     ctx.setContextProperty("startTv", args.tv)
+    ctx.setContextProperty("startHidden", bool(args.background))
     ctx.setContextProperty("webLogin", web_login)
     # TV-mode trailers need Qt Multimedia's QML module; without it they are simply left out.
     ctx.setContextProperty("canPlayVideo", (qml_dir / "QtMultimedia" / "qmldir").is_file())
@@ -314,6 +321,12 @@ def main():
     if not engine.rootObjects():
         print("Cornerplay could not open its window (see the QML errors above).", file=sys.stderr)
         return 1
+    window = engine.rootObjects()[0]
+    the_tray = tray.Tray(app, window, cornerplay, start_hidden=args.background)
+    if not args.demo:
+        instance = tray.Instance(lambda msg: the_tray.show_window(tv=msg == "tv"), app)  # noqa: F841 (kept alive)
+    elif args.background:
+        window.setProperty("hiddenAtStart", False)
     app.aboutToQuit.connect(cornerplay.shutdown)
     code = app.exec()
     del engine

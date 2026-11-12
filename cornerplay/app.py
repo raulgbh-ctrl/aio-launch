@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, host, hostimport, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, host, hostimport, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -585,6 +585,13 @@ class AioLaunch(QObject):
         self._sessions.directoryChanged.connect(lambda _: QTimer.singleShot(300, self._check_sessions))
         self._sessions_seen = {}
         self._check_sessions()
+        # Steam games run outside Cornerplay's sessions: look for them every so often, so they
+        # show as playing (and in the tray), and their sessions reach the weekly stats.
+        self._steam_watch = QTimer(self, interval=15000)
+        self._steam_watch.timeout.connect(self._check_steam_running)
+        if not demo:
+            self._steam_watch.start()
+            QTimer.singleShot(3000, self._check_steam_running)
 
         if demo:
             self._load_demo()
@@ -1341,6 +1348,27 @@ class AioLaunch(QObject):
         else:
             QProcess.startDetached(sys.executable, ["-m", "cornerplay"] + args)
         QGuiApplication.quit()
+
+    # --- the tray and starting with the PC (tray.py) ---------------------------------
+    tray = None  # set by tray.Tray
+
+    trayAvailable = Property(bool, lambda s: bool(s.tray and s.tray.available), constant=True)
+
+    @Slot(result=bool)
+    def keepInTray(self):
+        """Closing the window: stay in the tray instead of quitting."""
+        return bool(self.tray and self.tray.keep_on_close())
+
+    @Slot(bool)
+    def setStartWithPc(self, on):
+        from . import tray as tray_mod
+        err = tray_mod.set_autostart(on)
+        if err:
+            self.toast.emit(f"Could not change starting with the PC: {err}")
+            return
+        settings.set("start_with_pc", bool(on))
+        self.settingsChanged.emit()
+        self.toast.emit("Cornerplay starts in the tray when you log in" if on else "Cornerplay no longer starts with the PC")
 
     @Slot()
     def dismissUpdate(self):
@@ -2660,8 +2688,46 @@ class AioLaunch(QObject):
     nowPlayingChanged = Signal()
     _playing = {}  # key -> {"title", "since", "pid"}
 
+    _steam_playing = {}  # "steam:<appid>" -> {"title", "since", "steam": True}
+    _steam_checking = False
+
     def _now_playing(self):
-        return [dict(v, key=k) for k, v in self._playing.items()]
+        return [dict(v, key=k) for k, v in self._playing.items()] + \
+               [dict(v, key=k) for k, v in self._steam_playing.items() if k not in self._playing]
+
+    def _check_steam_running(self):
+        if self._steam_checking or "steam" not in self.stores:
+            return
+        self._steam_checking = True
+
+        def work():
+            try:
+                ids = steamrun.running()
+            except Exception:
+                ids = None
+
+            def apply():
+                self._steam_checking = False
+                if ids is None:
+                    return
+                now = time.time()
+                keys = {f"steam:{i}" for i in ids}
+                changed = False
+                for key in keys - set(self._steam_playing):
+                    g = self.model.find(key)
+                    self._steam_playing[key] = {"title": g.title if g else "A Steam game", "since": now, "steam": True}
+                    changed = True
+                for key in set(self._steam_playing) - keys:
+                    info = self._steam_playing.pop(key)
+                    changed = True
+                    try:
+                        playtime.record(key, info["since"], now, log_only=True)
+                    except OSError:
+                        pass
+                if changed:
+                    self.nowPlayingChanged.emit()
+            return apply
+        self._bg(work)
 
     nowPlaying = Property("QVariantList", _now_playing, notify=nowPlayingChanged)
 
@@ -2677,6 +2743,17 @@ class AioLaunch(QObject):
     def quitGame(self, key, force):
         """Ask the game to close (SIGTERM to its process group), or end it now (SIGKILL)."""
         import signal
+        if key in self._steam_playing and key not in self._playing:
+            title = self._steam_playing[key].get("title", "the game")
+            appid = key.split(":", 1)[1]
+
+            def work():
+                ok = steamrun.quit(appid, force)
+                return lambda: (self.toast.emit(f"{'Closed' if force else 'Asked to close'} {title}" if ok
+                                                else f"Could not close {title}: close it from the game or Steam"),
+                                QTimer.singleShot(2000, self._check_steam_running))
+            self._bg(work)
+            return
         info = self._playing.get(key)
         if not info or not info.get("pid"):
             self.toast.emit("Cornerplay cannot reach this game: close it from the game itself")

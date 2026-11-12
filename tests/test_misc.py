@@ -84,3 +84,13 @@ def test_auto_scale_from_last_start(monkeypatch):
     monkeypatch.setitem(settings.data, "screen_size", [2560, 1440])
     monkeypatch.setitem(settings.data, "screen_dpr", 1.0)
     assert m.auto_scale() == 1.0          # 1440p at 100 % is meant to look like that
+
+
+def test_steam_running_only_counts_steams_reaper():
+    from cornerplay.steamrun import _from_cmdlines
+    lines = ["/home/u/.local/share/Steam/ubuntu12_32/reaper SteamLaunch AppId=1145360 -- /x/proton waitforexitandrun",
+             "reaper SteamLaunch AppId=220 --",
+             "/usr/bin/zsh -c pgrep -f 'reaper SteamLaunch AppId=999 '",   # only mentions it
+             "vim notes about SteamLaunch AppId=5",
+             "/s/reaper SteamLaunch AppId=0 --"]
+    assert _from_cmdlines(lines) == {"1145360", "220"}

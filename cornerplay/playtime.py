@@ -1,7 +1,8 @@
 """How long, and how recently, each game was played.
 
 Epic, GOG and Amazon games are timed by the play session (cornerplay.session), which
-waits for the game to close. Steam keeps its own record, which the Steam store reads.
+waits for the game to close. Steam keeps its own record, which the Steam store reads; while Cornerplay runs, Steam
+games' sessions are also logged (steamrun.py) so the weekly stats include them.
 Battle.net is not timed: its app stays open after the game closes.
 """
 import fcntl
@@ -32,8 +33,10 @@ def load() -> dict:
     return total
 
 
-def record(key: str, started: float, ended: float | None = None):
-    """Add one play session. Safe when two sessions end at once (separate processes)."""
+def record(key: str, started: float, ended: float | None = None, log_only: bool = False):
+    """Add one play session. Safe when two sessions end at once (separate processes).
+    log_only: only add it to the session log (Steam games: Steam keeps their totals itself,
+    and adding them here as well would count them twice)."""
     ended = ended or time.time()
     seconds = int(ended - started)
     if seconds < MIN_SECONDS:
@@ -43,10 +46,11 @@ def record(key: str, started: float, ended: float | None = None):
     own.parent.mkdir(parents=True, exist_ok=True)
     with open(own.with_suffix(".lock"), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        data = read_json(own) or {}
-        entry = data.get(key) or {}
-        data[key] = {"seconds": int(entry.get("seconds", 0)) + seconds, "last": int(ended)}
-        write_json(own, data)
+        if not log_only:
+            data = read_json(own) or {}
+            entry = data.get(key) or {}
+            data[key] = {"seconds": int(entry.get("seconds", 0)) + seconds, "last": int(ended)}
+            write_json(own, data)
         log = read_json(log_path) or []
         log.append([key, int(started), int(ended)])
         write_json(log_path, log[-5000:])
