@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cornerplay: your games, in one cozy place</title>
+<meta name="description" content="Steam, Epic Games, GOG, Amazon Games, Battle.net and itch.io in one cosy library on Linux, with a couch-friendly TV mode for your controller. Free and open source.">
+<meta name="theme-color" content="#1a1020">
+<link rel="icon" type="image/png" sizes="64x64" href="img/icon-64.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cornerplay: your games, in one cozy place">
+<meta property="og:description" content="Every store in one cosy library on Linux, with a TV mode for your controller.">
+<meta property="og:image" content="https://raulgbh-ctrl.github.io/cornerplay/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+@font-face{font-family:Nunito;font-weight:400;font-display:swap;src:url(fonts/nunito-400.woff) format("woff")}
+@font-face{font-family:Nunito;font-weight:700;font-display:swap;src:url(fonts/nunito-700.woff) format("woff")}
+@font-face{font-family:Nunito;font-weight:800;font-display:swap;src:url(fonts/nunito-800.woff) format("woff")}
+:root{
+  --bg:#1a1020; --bg2:#22152b; --card:#2a1b34; --line:#3d2a4a;
+  --text:#f6ead8; --muted:#c3b2c4; --dim:#9583a0;
+  --amber:#ff9a3c; --amber2:#ffb768; --glow:rgba(255,154,60,.35);
+  --radius:18px; --max:1140px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:400 17px/1.6 Nunito,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--amber2);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:8px}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 20px}
+h1,h2,h3{line-height:1.15;margin:0;font-weight:800;letter-spacing:-.01em}
+h2{font-size:clamp(28px,4vw,40px)}
+.eyebrow{display:inline-block;font-weight:800;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.lead{color:var(--muted);font-size:clamp(17px,2vw,20px);max-width:640px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:10;background:rgba(26,16,32,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(61,42,74,.6)}
+nav .wrap{display:flex;align-items:center;gap:24px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px;color:var(--text)}
+.brand:hover{text-decoration:none}
+.brand img{width:34px;height:34px;border-radius:9px}
+.brand b{color:var(--amber);font-weight:800}
+nav ul{display:flex;gap:22px;list-style:none;margin:0 0 0 auto;padding:0}
+nav ul a{color:var(--muted);font-weight:700;font-size:15px}
+nav ul a:hover{color:var(--text);text-decoration:none}
+.btn{display:inline-flex;align-items:center;gap:10px;font:800 16px Nunito,sans-serif;padding:14px 24px;border-radius:999px;border:0;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.btn svg{width:20px;height:20px}
+.btn-primary{background:linear-gradient(180deg,var(--amber2),var(--amber));color:#2a1306;box-shadow:0 8px 30px var(--glow)}
+.btn-primary:hover{box-shadow:0 10px 40px rgba(255,154,60,.55)}
+.btn-ghost{background:rgba(246,234,216,.07);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.btn-ghost:hover{background:rgba(246,234,216,.12)}
+.btn-sm{padding:9px 16px;font-size:14px}
+
+/* hero */
+.hero{position:relative;padding:72px 0 40px;text-align:center;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:-120px 0 auto;height:720px;z-index:-1;
+  background:radial-gradient(600px 340px at 50% 30%,rgba(255,154,60,.20),transparent 70%),radial-gradient(800px 500px at 15% 0%,rgba(122,60,170,.35),transparent 70%),radial-gradient(700px 500px at 90% 10%,rgba(90,40,130,.35),transparent 70%)}
+.hero .icon{width:112px;height:112px;margin:0 auto 26px;border-radius:28px;box-shadow:0 18px 50px rgba(0,0,0,.45),0 0 60px var(--glow)}
+.hero h1{font-size:clamp(38px,6.4vw,72px)}
+.hero h1 .cozy{color:var(--amber);position:relative;white-space:nowrap}
+.hero h1 .cozy::after{content:"";position:absolute;left:4%;right:4%;bottom:-.08em;height:.09em;border-radius:99px;background:var(--amber);opacity:.85;transform:rotate(-1.5deg)}
+.hero .lead{margin:22px auto 34px}
+.cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.meta{margin-top:18px;color:var(--dim);font-size:14px}
+.meta span+span::before{content:"·";margin:0 8px}
+.shot{margin:56px auto 0;width:100%;max-width:1060px;border-radius:20px;overflow:hidden;border:1px solid var(--line);box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 0 8px rgba(255,255,255,.02)}
+
+/* stores */
+.stores{padding:36px 0 10px;text-align:center}
+.stores p{color:var(--dim);font-weight:700;font-size:14px;margin:0 0 16px}
+.pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;list-style:none;padding:0;margin:0}
+.pills li{padding:8px 16px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-weight:700;font-size:15px;color:var(--muted)}
+
+section{padding:96px 0}
+.head{max-width:720px;margin-bottom:44px}
+.head h2{margin:10px 0 14px}
+
+/* features */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+.card .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,154,60,.13);color:var(--amber);margin-bottom:16px}
+.card .ic svg{width:22px;height:22px}
+.card h3{font-size:19px;margin-bottom:8px}
+.card p{margin:0;color:var(--muted);font-size:15.5px}
+
+/* tv */
+.tv{background:linear-gradient(180deg,transparent,var(--bg2) 18%,var(--bg2) 82%,transparent)}
+.split{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.split .media{border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.keys{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:12px}
+.keys li{display:flex;gap:14px;align-items:baseline;color:var(--muted)}
+.keys kbd{flex:none;min-width:94px;text-align:center;font:800 13px Nunito,sans-serif;padding:5px 10px;border-radius:8px;background:var(--card);border:1px solid var(--line);border-bottom-width:3px;color:var(--text)}
+.split.rev{grid-template-columns:.95fr 1.05fr;margin-top:96px}
+.split.rev .media{order:2}
+
+/* install */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tab{font:800 15px Nunito,sans-serif;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.tab[aria-selected=true]{background:var(--amber);border-color:var(--amber);color:#2a1306}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+.panel[hidden]{display:none}
+.panel p{margin:0 0 14px;color:var(--muted)}
+.panel p:last-child{margin-bottom:0}
+.code{position:relative;margin:0 0 14px}
+.code pre{margin:0;background:#140b19;border:1px solid var(--line);border-radius:12px;padding:16px 92px 16px 18px;overflow-x:auto;font:500 14.5px/1.55 ui-monospace,"JetBrains Mono",Menlo,monospace;color:#f3dcc0}
+.copy{position:absolute;top:9px;right:9px;font:800 13px Nunito,sans-serif;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer}
+.copy:hover{border-color:var(--amber)}
+.reqs{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:38px}
+.reqs div{border-top:2px solid var(--line);padding-top:14px}
+.reqs b{display:block;margin-bottom:4px}
+.reqs span{color:var(--muted);font-size:15px}
+
+/* closing */
+.closing{text-align:center;padding:90px 0 110px;position:relative;isolation:isolate}
+.closing::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(520px 260px at 50% 60%,rgba(255,154,60,.16),transparent 70%)}
+.closing h2{margin-bottom:14px}
+.closing .lead{margin:0 auto 30px}
+footer{border-top:1px solid var(--line);padding:30px 0 40px;color:var(--dim);font-size:14px}
+footer .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
+footer a{color:var(--muted)}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr 1fr}
+  .split,.split.rev{grid-template-columns:1fr;gap:34px}
+  .split.rev .media{order:0}
+  .split.rev{margin-top:70px}
+  .reqs{grid-template-columns:1fr 1fr}
+  nav ul{display:none}
+  nav .btn{margin-left:auto}
+}
+@media (max-width:600px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  .grid,.reqs{grid-template-columns:1fr}
+  section{padding:70px 0}
+  .hero{padding-top:48px}
+  .hero .icon{width:88px;height:88px;border-radius:22px}
+  .btn{width:100%;justify-content:center}
+  nav .btn{width:auto}
+  .keys kbd{min-width:80px}
+  .code pre{white-space:pre-wrap;word-break:break-all;padding-right:18px;padding-top:46px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}.btn:hover{transform:none}}
+</style>
+</head>
+<body>
+
+<nav aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/icon-64.png" alt="" width="34" height="34"><span>Corner<b>Play</b></span></a>
+    <ul>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#tv">TV mode</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="https://github.com/raulgbh-ctrl/cornerplay">GitHub</a></li>
+    </ul>
+    <a class="btn btn-primary btn-sm" href="#install">Download</a>
+  </div>
+</nav>
+
+<main id="top">
+  <header class="hero">
+    <div class="wrap">
+      <img class="icon" src="img/icon-256.png" alt="Cornerplay icon" width="112" height="112">
+      <h1>Your games. In one <span class="cozy">cozy</span> place.</h1>
+      <p class="lead">Steam, Epic Games, GOG, Amazon Games, Battle.net and itch.io in one warm library on Linux, with a couch-friendly TV mode for your controller and Proton sorted out behind the scenes.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Download for Linux
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/raulgbh-ctrl/cornerplay">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.11.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.68.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <p class="meta"><span id="ver">Version 0.9.0</span><span>Free and open source (MIT)</span><span>1.7 MB installer</span></p>
+      <img class="shot" src="img/screenshot-library.jpg" width="1502" height="899" alt="The Cornerplay library: the game you played last up front, Continue playing, and your whole collection">
+    </div>
+  </header>
+
+  <div class="stores">
+    <div class="wrap">
+      <p>One library for</p>
+      <ul class="pills">
+        <li>Steam</li><li>Epic Games</li><li>GOG</li><li>Amazon Games</li><li>Battle.net</li><li>itch.io</li><li>Retro games</li><li>Your own games</li>
+      </ul>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">Pull up a chair</span>
+        <h2>No more hopping between five launchers</h2>
+        <p class="lead">Every game you own, gathered into one quiet place, so the one you want is always right there.</p>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+          <h3>Every store, one shelf</h3>
+          <p>Sign in once per store and your whole collection shows up. A game you own twice is one tile, and Cornerplay remembers which launcher you prefer for it.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></div>
+          <h3>Proton, sorted</h3>
+          <p>Windows games run through Proton without any fiddling. Pick from every Proton build on your PC, download GE-Proton or Proton-CachyOS, and set any of it per game.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8M12 18v3"/></svg></div>
+          <h3>TV mode for the couch</h3>
+          <p>Laid out like SteamOS Game Mode: big covers, trailers playing behind the text, and a controller-first layout with a proper on-screen keyboard.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
+          <h3>Sales you'll actually see</h3>
+          <p>Steam and GOG wishlist games on sale sit right above your library, with a heads-up when a new one drops, plus this week's free games on Epic.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <h3>Playtime, backlog, stats</h3>
+          <p>Hours played on every store, Continue playing, achievements, star ratings, notes, collections, and a "What should I play?" button for undecided evenings.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h3>Save backups and Health check</h3>
+          <p>Saves are backed up before every launch. When a game closes straight away, Cornerplay reads the log and tells you why, with a button that fixes it.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>
+          <h3>Covers that keep up</h3>
+          <p>Art from the stores, Steam and SteamGridDB, refreshed when it changes. Animated covers in TV mode, and a look that can follow your wallpaper's colours.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg></div>
+          <h3>Steam and Game Mode friendly</h3>
+          <p>Add your Epic, GOG and Amazon games to Steam with full artwork, so they show up in Game Mode on a Steam Deck too.</p>
+        </article>
+        <article class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3>Private by design</h3>
+          <p>Sign-ins and keys stay readable only by you, backups leave secrets out, and every download is checked against its publisher's checksum.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="tv" class="tv">
+    <div class="wrap">
+      <div class="split">
+        <div class="media"><img src="img/tv-mode.gif" width="800" height="450" loading="lazy" alt="TV mode with a controller: moving along a shelf, opening the main menu, typing on the on-screen keyboard"></div>
+        <div>
+          <span class="eyebrow">TV mode</span>
+          <h2 style="margin:10px 0 14px">Made for the sofa and a controller</h2>
+          <p class="lead">Press F11, or the Guide button on your pad. Xbox, PlayStation, Nintendo and Steam Deck controllers all work, and the on-screen hints match your pad's own buttons.</p>
+          <ul class="keys">
+            <li><kbd>Guide</kbd>The main menu slides in from the left</li>
+            <li><kbd>Guide + A</kbd>Quick access: now playing, downloads, quick switches</li>
+            <li><kbd>Start</kbd>The selected game's options</li>
+            <li><kbd>B</kbd>Steps back, never out of TV mode by surprise</li>
+          </ul>
+        </div>
+      </div>
+      <div class="split rev">
+        <div class="media"><img src="img/screenshot-game.jpg" loading="lazy" alt="A game's page with Play, DLC, favourites, status, a note and its description"></div>
+        <div>
+          <span class="eyebrow">Every game's page</span>
+          <h2 style="margin:10px 0 14px">Everything about a game, in one place</h2>
+          <p class="lead">Play or install, DLC with prices, achievements, ProtonDB rating, time to beat, screenshots and trailers. Add your own status, stars and a note like "stuck on boss 3".</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">Install</span>
+        <h2>Up and running in a minute</h2>
+        <p class="lead">The installer checks what your PC still needs, asks once, and puts Cornerplay in your app menu. No root needed for Cornerplay itself.</p>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Ways to install">
+        <button class="tab" role="tab" id="t-run" aria-controls="p-run" aria-selected="true">Any Linux</button>
+        <button class="tab" role="tab" id="t-arch" aria-controls="p-arch" aria-selected="false" tabindex="-1">Arch / CachyOS</button>
+        <button class="tab" role="tab" id="t-flat" aria-controls="p-flat" aria-selected="false" tabindex="-1">Flatpak</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="p-run" aria-labelledby="t-run">
+        <div class="code"><pre><code>curl -fLO https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run && sh cornerplay.run</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>Or <a href="https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run">download cornerplay.run</a> and run it. Already installed? Cornerplay offers new versions by itself.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" hidden>
+        <div class="code"><pre><code>git clone https://github.com/raulgbh-ctrl/cornerplay && cd cornerplay/packaging/aur && makepkg -si</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>Builds a proper pacman package, so updates come through your system like everything else. An AUR package is on the way.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-flat" aria-labelledby="t-flat" hidden>
+        <div class="code"><pre><code>curl -fLO https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.flatpak
+flatpak install --user cornerplay.flatpak
+flatpak install --user flathub org.freedesktop.Platform.Compat.i386//25.08 org.freedesktop.Platform.GL32.default//25.08</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>For Steam Deck, Bazzite, Fedora Silverblue or any distribution. The last line adds the 32-bit support Proton needs (the Health check tells you if it's missing). A Flathub listing is on the way.</p>
+      </div>
+
+      <div class="reqs">
+        <div><b>Linux, 64-bit</b><span>Made on CachyOS; Debian, Ubuntu, Fedora, openSUSE and Steam Deck work too</span></div>
+        <div><b>Vulkan GPU driver</b><span>For games running through Proton</span></div>
+        <div><b>Python 3.10+ and Qt 6</b><span>The installer brings a private copy if needed</span></div>
+        <div><b>Steam (optional)</b><span>Only for Steam games; the installer offers it</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="closing">
+    <div class="wrap">
+      <h2>Something to play tonight?</h2>
+      <p class="lead">Free, open source, and made with love for Linux gaming.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/raulgbh-ctrl/cornerplay/releases/latest/download/cornerplay.run">Download for Linux</a>
+        <a class="btn btn-ghost" href="https://github.com/raulgbh-ctrl/cornerplay/releases">Release notes</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Cornerplay is MIT licensed. Store names are trademarks of their owners.</span>
+    <span><a href="https://github.com/raulgbh-ctrl/cornerplay">Source</a> · <a href="https://github.com/raulgbh-ctrl/cornerplay/issues">Report a problem</a> · <a href="https://github.com/raulgbh-ctrl/cornerplay#all-the-features">All features</a></span>
+  </div>
+</footer>
+
+<script>
+// Tabs (arrow keys move between them)
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function pick(t){tabs.forEach(x=>{const on=x===t;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1;document.getElementById(x.getAttribute('aria-controls')).hidden=!on});}
+tabs.forEach((t,i)=>{t.addEventListener('click',()=>pick(t));t.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(d){const n=tabs[(i+d+tabs.length)%tabs.length];pick(n);n.focus();}});});
+// Copy buttons
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',async()=>{
+  const text=b.previousElementSibling.innerText;
+  try{await navigator.clipboard.writeText(text);b.textContent='Copied';}catch(e){b.textContent='Select & copy';}
+  setTimeout(()=>b.textContent='Copy',1600);
+}));
+// Show the newest release's version
+fetch('https://api.github.com/repos/raulgbh-ctrl/cornerplay/releases/latest').then(r=>r.ok?r.json():null).then(j=>{
+  if(j&&j.tag_name)document.getElementById('ver').textContent='Version '+j.tag_name.replace(/^v/,'');
+}).catch(()=>{});
+</script>
+</body>
+</html>
