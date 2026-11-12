@@ -56,3 +56,32 @@ def test_itad_best_price_and_alerts(monkeypatch):
     assert itad.enrich([dict(i) for i in items], "k", "AU", 50)[0] == []   # announced once
     assert sum(1 for c in calls if c[0].startswith("/lookup")) == 2       # ids are looked up once
     assert itad.money({"amount": 5, "currency": "RON"}) == "5.00 lei"
+
+
+def test_itad_giveaways_keep_only_current_games_off_epic(monkeypatch):
+    from cornerplay import itad
+    (CACHE_DIR / "itad.json").unlink(missing_ok=True)
+
+    def game(title, kind="game", mature=False):
+        return {"id": "x", "slug": "x", "title": title, "type": kind, "mature": mature,
+                "assets": {"banner400": "https://a/b.jpg", "boxart": "https://a/c.jpg"}, "drmFree": False, "keys": [], "platforms": []}
+    rows = [
+        {"id": 1, "title": "Free on GOG", "shop": {"id": 35, "name": "GOG"}, "url": "https://itad.link/1", "details": "",
+         "isMature": False, "publish": "", "expiry": "2999-01-01T00:00:00+00:00", "note": None, "games": [game("Gwent"), game("A DLC", "dlc")]},
+        {"id": 2, "title": "Epic", "shop": {"id": 16, "name": "Epic Game Store"}, "url": "https://itad.link/2", "details": "",
+         "isMature": False, "publish": "", "expiry": None, "note": None, "games": [game("Hades")]},
+        {"id": 3, "title": "Old", "shop": {"id": 61, "name": "Steam"}, "url": "https://itad.link/3", "details": "",
+         "isMature": False, "publish": "", "expiry": "2001-01-01T00:00:00+00:00", "note": None, "games": [game("Gone")]},
+        {"id": 4, "title": "Odd link", "shop": {"id": 61, "name": "Steam"}, "url": "javascript:x", "details": "",
+         "isMature": False, "publish": "", "expiry": None, "note": None, "games": [game("Nope")]},
+    ]
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self): return rows
+    seen = {}
+    monkeypatch.setattr(itad.requests, "get", lambda url, **kw: (seen.update(kw), R())[1])
+    got = itad.giveaways("k")
+    assert [(g["title"], g["shop"]) for g in got] == [("Gwent", "GOG")]
+    assert seen["headers"] == {"ITAD-API-Key": "k"} and got[0]["ends"] > 0
+    assert itad.giveaways("") == []

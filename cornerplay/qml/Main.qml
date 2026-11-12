@@ -1363,6 +1363,69 @@ ApplicationWindow {
                             }
                         }
 
+                        // Free to keep on other stores (IsThereAnyDeal's giveaways; needs its key).
+                        Column {
+                            visible: app.otherFree.length > 0 && !library.search
+                            x: 8
+                            width: parent.width - 16
+                            spacing: 10
+                            bottomPadding: 18
+                            SectionHead {
+                                sid: "otherfree"; icon: "gift"
+                                title: qsTr("Free on other stores  \u00B7  ") + app.otherFree.length
+                            }
+                            ListView {
+                                visible: !win.homeFolded("otherfree")
+                                width: parent.width
+                                height: 132
+                                orientation: ListView.Horizontal
+                                spacing: 12
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: app.otherFree
+                                delegate: Rectangle {
+                                    id: giftTile
+                                    required property var modelData
+                                    width: 300; height: 132
+                                    radius: 12
+                                    color: theme.surfaceContainerHigh
+                                    RoundedArt {
+                                        anchors.fill: parent
+                                        radius: giftTile.radius
+                                        ArtImage {
+                                            width: 94; height: parent.height
+                                            sources: [giftTile.modelData.tall, giftTile.modelData.wide].filter(u => !!u)
+                                            sourceSize.width: 188
+                                        }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent; radius: giftTile.radius; color: "transparent"; z: 1
+                                        border.width: giftHover.hovered ? 2 : 0; border.color: theme.primary
+                                    }
+                                    Column {
+                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                        spacing: 6
+                                        Text { width: parent.width; text: giftTile.modelData.title; font.family: app.titleFamily
+                                               color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
+                                               wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                        Text { width: parent.width; elide: Text.ElideRight
+                                               text: giftTile.modelData.shop + (giftTile.modelData.when ? qsTr("  \u00B7  until ") + giftTile.modelData.when : "")
+                                               color: theme.primary; font.pixelSize: 12 }
+                                        KButton {
+                                            theme: win.theme
+                                            primary: !giftTile.modelData.owned
+                                            enabled: !giftTile.modelData.owned
+                                            width: Math.min(implicitWidth, parent.width)
+                                            text: giftTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
+                                            iconName: giftTile.modelData.owned ? "check" : "external-link"
+                                            onClicked: app.openUrl(giftTile.modelData.url)
+                                        }
+                                    }
+                                    HoverHandler { id: giftHover; cursorShape: Qt.PointingHandCursor }
+                                }
+                            }
+                        }
+
                         // Games on your Steam / GOG wishlist that are on sale right now.
                         Column {
                             visible: app.wishlistSales.length > 0 && !library.search

@@ -1016,6 +1016,7 @@ class AioLaunch(QObject):
         if not store_id:
             self._load_epic_free(force)
             self._load_wishlist(force)
+            self._load_other_free(force)
             self._check_update()
             self._check_host_import()
             self.syncPersonal()
@@ -1630,6 +1631,35 @@ class AioLaunch(QObject):
                                     + (f" and {len(names) - 1} more" if len(names) > 1 else ""))
             return done
         self._bg(work)
+
+    # --- free to keep on other stores (IsThereAnyDeal giveaways, itad.py) -----------------
+    _other_free = []
+    otherFreeChanged = Signal()
+
+    def _load_other_free(self, force=False):
+        key = str(settings.get("itad_key") or "").strip()
+        if self.demo or not key:
+            if self._other_free:
+                self._other_free = []
+                self.otherFreeChanged.emit()
+            return
+
+        def work():
+            from . import itad
+            rows = itad.giveaways(key, force)
+            return lambda: (setattr(self, "_other_free", rows), self.otherFreeChanged.emit())
+        self._bg(work)
+
+    def _other_free_info(self):
+        owned = {covers.norm(g.title) for g in self.model.games}
+        out = []
+        for r in self._other_free:
+            ends = r.get("ends") or 0
+            out.append(dict(r, owned=covers.norm(r["title"]) in owned,
+                            when=(lambda t: f"{t.tm_mday} {statsdata.MONTHS[t.tm_mon - 1][:3]}")(time.localtime(ends)) if ends else ""))
+        return out
+
+    otherFree = Property("QVariantList", _other_free_info, notify=otherFreeChanged)
 
     def _announce_deals(self, deals):
         """A desktop notification (it reaches you in a game or with Cornerplay in the tray), and a toast."""

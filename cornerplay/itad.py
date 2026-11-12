@@ -116,3 +116,52 @@ def enrich(items, key, country, alert_cut=50):
     cache["announced"] = sorted(announced)[-3000:]
     write_json(FILE, cache)
     return ([] if first else news), ""
+
+
+GIVEAWAY_TTL = 6 * 3600
+
+
+def giveaways(key, force=False):
+    """Games free to keep on other stores right now (GOG, Prime Gaming, Steam, Fanatical, ...),
+    from IsThereAnyDeal's giveaways list; Epic's are left out (Free on Epic shows them).
+    [{"title", "shop", "url", "ends" (unix time or 0), "wide", "tall"}], cached for 6 hours."""
+    if not key:
+        return []
+    import time
+    from datetime import datetime
+    cache = read_json(FILE) or {}
+    saved = cache.get("giveaways") or {}
+    if not force and time.time() - saved.get("t", 0) < GIVEAWAY_TTL and "items" in saved:
+        return saved["items"]
+    try:
+        r = requests.get(API + "/giveaways/v1", params={"limit": 50}, headers={"ITAD-API-Key": key}, timeout=30)
+        r.raise_for_status()
+        rows = r.json()
+    except (requests.RequestException, ValueError):
+        return saved.get("items") or []
+    out, now = [], time.time()
+    for g in rows if isinstance(rows, list) else []:
+        shop = (g.get("shop") or {}).get("name") or ""
+        if not shop or "epic" in shop.lower() or g.get("isMature"):
+            continue
+        ends = 0
+        if g.get("expiry"):
+            try:
+                ends = datetime.fromisoformat(str(g["expiry"]).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                ends = 0
+        if ends and ends < now:
+            continue
+        for game in g.get("games") or []:
+            if game.get("type") not in (None, "game") or game.get("mature"):
+                continue
+            assets = game.get("assets") or {}
+            url = str(g.get("url") or "")
+            if not url.startswith("https://"):
+                continue
+            out.append({"title": game.get("title") or g.get("title") or "", "shop": shop, "url": url, "ends": ends,
+                        "wide": assets.get("banner400") or assets.get("banner300") or "", "tall": assets.get("boxart") or ""})
+    out = [o for o in out if o["title"]][:30]
+    cache["giveaways"] = {"t": time.time(), "items": out}
+    write_json(FILE, cache)
+    return out
