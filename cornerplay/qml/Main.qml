@@ -629,7 +629,7 @@ ApplicationWindow {
                 // View: covers or list, sort, installed only, cover size.
                 TopButton {
                     id: viewButton
-                    icon: (app.settingsMap.view || "grid") === "list" ? "list" : "layout-grid"; label: qsTr("View")
+                    icon: ({ list: "list", logos: "tv", boxes: "library", shelves: "bookmark" })[app.settingsMap.view] || "layout-grid"; label: qsTr("View")
                     badge: library.installedOnly ? 1 : 0
                     onPicked: viewMenu.opened ? viewMenu.close() : viewMenu.open()
                     Popup {
@@ -642,10 +642,13 @@ ApplicationWindow {
                         contentItem: ColumnLayout {
                             spacing: 10
                             Text { text: qsTr("Show as"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
-                            RowLayout {
+                            Flow {
+                                Layout.fillWidth: true
                                 spacing: 6
                                 Repeater {
-                                    model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "list", i: "list", t: "List" }]
+                                    model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "logos", i: "tv", t: "Logos" },
+                                            { v: "boxes", i: "library", t: "Boxes" }, { v: "shelves", i: "bookmark", t: "Shelves" },
+                                            { v: "list", i: "list", t: "List" }]
                                     Chip2 { required property var modelData; label: modelData.t; icon: modelData.i
                                             on: (app.settingsMap.view || "grid") === modelData.v; onPicked: app.setSetting("view", modelData.v) }
                                 }
@@ -665,8 +668,8 @@ ApplicationWindow {
                                 Text { Layout.fillWidth: true; text: qsTr("Installed only"); color: theme.onSurface; font.pixelSize: 13 }
                                 Switch { checked: library.installedOnly; onToggled: library.installedOnly = checked }
                             }
-                            Text { visible: (app.settingsMap.view || "grid") !== "list"; text: qsTr("Cover size"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
-                            KSlider { visible: (app.settingsMap.view || "grid") !== "list"; theme: win.theme; Layout.fillWidth: true
+                            Text { visible: ["list", "shelves"].indexOf(app.settingsMap.view || "grid") === -1; text: qsTr("Cover size"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold }
+                            KSlider { visible: ["list", "shelves"].indexOf(app.settingsMap.view || "grid") === -1; theme: win.theme; Layout.fillWidth: true
                                       from: 130; to: 320; stepSize: 2; value: app.settingsMap.card_size
                                       onMoved: app.setSetting("card_size", value) }
                         }
@@ -871,20 +874,22 @@ ApplicationWindow {
                     id: grid
                     objectName: "libraryGrid"
                     transform: Translate { id: gridSlide }
-                    visible: (app.settingsMap.view || "grid") !== "list"
+                    visible: ["grid", "logos", "boxes"].indexOf(app.settingsMap.view || "grid") !== -1
+                    readonly property string cardStyle: ({ logos: "logo", boxes: "box" })[app.settingsMap.view] || "cover"
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     clip: true
                     focus: true
                     model: library
-                    readonly property int columns: Math.max(2, Math.floor(width / app.settingsMap.card_size))
+                    readonly property int columns: Math.max(cardStyle === "logo" ? 1 : 2,
+                                                            Math.floor(width / (app.settingsMap.card_size * (cardStyle === "logo" ? 1.8 : 1))))
                     property int hoverIndex: -1
                     // Only show the keyboard selection once the keys (or a controller) are used.
                     property bool keyed: false
                     Keys.onPressed: (event) => { keyed = true; event.accepted = false }
                     cellWidth: Math.floor(width / columns)
-                    cellHeight: Math.round(cellWidth * 1.46)
+                    cellHeight: cardStyle === "logo" ? Math.round(cellWidth * 0.52) : Math.round(cellWidth * 1.46) + (cardStyle === "box" ? 18 : 0)
                     cacheBuffer: app.light ? 0 : cellHeight * 2
                     keyNavigationEnabled: true
                     // Follow the selection only when it moves (keys, controller). Following it always made
@@ -1458,6 +1463,7 @@ ApplicationWindow {
                         showTitle: app.settingsMap.show_titles
                         dim: app.settingsMap.dim_uninstalled
                         gap: ({ compact: 4, roomy: 14 })[app.settingsMap.density] || 8
+                        style: grid.cardStyle
                         // One highlight at a time: while the pointer is over a card, the keyboard
                         // selection steps back.
                         interactive: win.cardsLive
@@ -1479,6 +1485,81 @@ ApplicationWindow {
                         if (key) win.activate(key)
                     }
                     Keys.onSpacePressed: { const key = library.keyAt(currentIndex); if (key) win.select(key) }
+                }
+
+                // Shelves: rows like TV mode's (Continue playing, your lists, Play together, your
+                // biggest genres), on the desktop. A row's name opens it as covers.
+                ListView {
+                    id: shelvesView
+                    visible: (app.settingsMap.view || "grid") === "shelves"
+                    anchors.fill: parent
+                    anchors.leftMargin: 20; anchors.rightMargin: 8
+                    clip: true
+                    spacing: 22
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: KScrollBar { }
+                    property var rows: []
+                    function load() { if (visible) rows = app.shelfRows() }
+                    onVisibleChanged: load()
+                    Connections { target: app; function onStoresChanged() { shelfReload.restart() } function onCollectionsChanged() { shelfReload.restart() } }
+                    Timer { id: shelfReload; interval: 400; onTriggered: shelvesView.load() }
+                    model: rows
+                    header: Item { width: 1; height: 14 }
+                    delegate: Column {
+                        id: shelfRow
+                        required property var modelData
+                        width: shelvesView.width - 12
+                        spacing: 10
+                        Row {
+                            spacing: 10
+                            Text {
+                                text: shelfRow.modelData.name
+                                color: theme.onSurface; font.pixelSize: 16; font.weight: Font.DemiBold
+                                HoverHandler { id: rowHead; cursorShape: Qt.PointingHandCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        if (shelfRow.modelData.tag) { library.shelf = ""; library.tags = [shelfRow.modelData.tag] }
+                                        else { library.tags = []; library.storeFilter = ""; library.shelf = shelfRow.modelData.id }
+                                        app.setSetting("view", "grid")
+                                    }
+                                }
+                                font.underline: rowHead.hovered
+                            }
+                            Text { anchors.baseline: parent.children[0].baseline; text: shelfRow.modelData.count; color: theme.outline; font.pixelSize: 13 }
+                            Icon { anchors.verticalCenter: parent.children[0].verticalCenter; name: "chevron-right"; size: 15; color: theme.onSurfaceVariant }
+                        }
+                        ListView {
+                            width: parent.width
+                            height: 236
+                            orientation: ListView.Horizontal
+                            spacing: 14
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: shelfRow.modelData.games
+                            delegate: Item {
+                                id: shelfCard
+                                required property var modelData
+                                width: 150; height: 236
+                                RoundedArt {
+                                    id: shelfArt
+                                    width: 150; height: 210
+                                    radius: app.settingsMap.card_radius
+                                    y: shelfHover.hovered && !app.light ? -4 : 0
+                                    Behavior on y { NumberAnimation { duration: 120 } }
+                                    Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                                    ArtImage { anchors.fill: parent; sources: shelfCard.modelData.covers || []; sourceSize.width: 300
+                                               opacity: shelfCard.modelData.installed || !app.settingsMap.dim_uninstalled ? 1 : 0.78 }
+                                }
+                                Rectangle { anchors.fill: shelfArt; anchors.topMargin: shelfArt.y; radius: app.settingsMap.card_radius
+                                            color: "transparent"; border.width: shelfHover.hovered ? 2 : 0; border.color: theme.primary }
+                                Text { y: 216; width: parent.width; text: shelfCard.modelData.title; color: theme.onSurfaceVariant
+                                       font.family: app.titleFamily; font.pixelSize: 12; elide: Text.ElideRight }
+                                HoverHandler { id: shelfHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: win.select(shelfCard.modelData.key) }
+                                TapHandler { acceptedButtons: Qt.LeftButton; onDoubleTapped: win.activate(shelfCard.modelData.key) }
+                            }
+                        }
+                    }
                 }
 
                 // The library as a table: click a column to sort by it.

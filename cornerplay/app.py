@@ -2191,6 +2191,53 @@ class AioLaunch(QObject):
         self._refilter_all()
 
     @Slot(result="QVariantList")
+    def shelfRows(self):
+        """The desktop's Shelves view: TV mode's shelves (Continue playing, your lists, Play
+        together, ...) and your biggest genres, each with its first games."""
+        m = self.model
+        groups = [g for g in m.groups if not m.is_hidden(g)]
+        tests = {
+            "playing": lambda g: m.group_value(g, "lastPlayed") > 0,
+            "s:playing": lambda g: shelves.meta(g, "status") == "playing",
+            "fav": lambda g: shelves.in_group(g, shelves.FAV),
+            "s:want": lambda g: shelves.meta(g, "status") == "want",
+            "added": shelves.is_recent,
+            "s:finished": lambda g: shelves.meta(g, "status") == "finished",
+            "together": lambda g: any(couch.local(_appid(x)) for x in g),
+        }
+        genres = {}
+        for grp in groups:
+            for name in {x for g in grp for x in ((details.cached(g.key) or {}).get("genres") or [])}:
+                genres[name] = genres.get(name, 0) + 1
+        rows = []
+        for shelf in self.shelfList():
+            sid = shelf["id"]
+            if not sid:
+                continue
+            test = tests.get(sid) or (lambda g, c=sid[2:]: shelves.in_group(g, c))
+            rows.append((sid, shelf["name"], "", test))
+        for name, n in sorted(genres.items(), key=lambda kv: -kv[1])[:4]:
+            if n >= 4:
+                rows.append(("", name, "genre:" + name,
+                             lambda g, name=name: any(name in ((details.cached(x.key) or {}).get("genres") or []) for x in g)))
+        out = []
+        for sid, name, tag, test in rows:
+            hits = [g for g in groups if test(g)]
+            if sid == "playing" or sid == "together":
+                hits.sort(key=lambda g: -m.group_value(g, "lastPlayed"))
+            elif sid == "added":
+                hits.sort(key=lambda g: -shelves.installed_at(g))
+            else:
+                hits.sort(key=lambda g: m.rep(g).title.lower())
+            games = []
+            for grp in hits[:24]:
+                g = m.rep(grp)
+                games.append({"key": g.key, "title": g.title, "covers": _covers(g), "installed": any(x.installed for x in grp)})
+            if games:
+                out.append({"id": sid, "tag": tag, "name": name, "count": len(hits), "games": games})
+        return out
+
+    @Slot(result="QVariantList")
     def shelfList(self):
         """TV mode's rows, in order; empty ones are left out. Library is always there."""
         groups = [g for g in self.model.groups if not self.model.is_hidden(g)]

@@ -24,6 +24,12 @@ Item {
     required property string protondb
     required property bool favourite
     required property real achieved   // 0..1 of the game's achievements earned; -1 when unknown
+    required property var heroes
+    required property var logos
+    // "cover" (the box art), "logo" (wide art with the game's logo: the logo wall) or "box"
+    // (a game case with a spine, standing on a shelf). View menu, desktop library only.
+    property string style: "cover"
+    readonly property real spine: style === "box" ? Math.round(width * 0.075) : 0
     property bool showProtonDb: true
     property int cornerRadius: 14
     property bool showBadge: true
@@ -86,10 +92,30 @@ Item {
         offset.y: deep ? 12 : 5
         color: Qt.alpha("black", deep ? 0.6 : 0.4)
     }
+    // Box view: a wooden shelf under each row; the cells sit edge to edge, so the planks join up.
+    Rectangle {
+        visible: card.style === "box"
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; bottomMargin: card.gap - 2 }
+        height: 16
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#a87a4f" }
+            GradientStop { position: 0.18; color: "#8a6038" }
+            GradientStop { position: 1.0; color: "#5a3c22" }
+        }
+        Rectangle {  // its shadow on the wall
+            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.bottom
+            height: 10
+            gradient: Gradient {
+                GradientStop { position: 0; color: Qt.alpha("black", 0.35) }
+                GradientStop { position: 1; color: "transparent" }
+            }
+        }
+    }
     Rectangle {
         id: frame
         anchors.fill: parent
         anchors.margins: card.gap
+        anchors.bottomMargin: card.style === "box" ? card.gap + 18 : card.gap
         radius: card.cornerRadius
         color: theme.surfaceContainerHigh
         scale: card.lit && !app.light ? 1.03 : 1.0
@@ -109,9 +135,29 @@ Item {
             }
         ]
 
+        // Box view: the case's spine, with the title running up it.
+        Rectangle {
+            visible: card.style === "box"
+            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+            width: card.spine + 6
+            radius: 3
+            color: Qt.darker(card.storeColor || theme.primary, 2.6)
+            Text {
+                anchors.centerIn: parent
+                width: parent.height - 16
+                rotation: -90
+                text: card.title
+                color: Qt.alpha("white", 0.85)
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+                font.family: app.titleFamily
+                font.pixelSize: Math.max(8, Math.round(card.spine * 0.55)); font.weight: Font.DemiBold
+            }
+        }
         Item {
             id: art
             anchors.fill: parent
+            anchors.leftMargin: card.spine
             layer.enabled: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
             layer.effect: MultiEffect {
                 maskEnabled: true
@@ -165,7 +211,7 @@ Item {
 
             // Only wide art for this game: show all of it, centred, over a blurred, enlarged
             // copy that fills the card (rather than cropping a slice out of the middle).
-            readonly property bool wideArt: img.status === Image.Ready && img.implicitWidth > img.implicitHeight * 1.1
+            readonly property bool wideArt: card.style === "cover" && img.status === Image.Ready && img.implicitWidth > img.implicitHeight * 1.1
             Image {
                 id: wideBack
                 anchors.fill: parent
@@ -186,11 +232,53 @@ Item {
             ArtImage {
                 id: img
                 anchors.fill: parent
-                sources: card.covers
+                sources: card.style === "logo" ? (card.heroes || []).concat(card.covers) : card.covers
                 fillMode: parent.wideArt ? Image.PreserveAspectFit : Image.PreserveAspectCrop
                 sourceSize.width: Math.min(app.light ? 280 : 600, Math.max(160, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
                 opacity: status === Image.Ready ? (card.installed || !card.dim ? 1 : 0.78) : 0
                 Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 200 } }
+            }
+
+            // Logo wall: the game's logo over its wide art (its title when there is no logo).
+            Rectangle {
+                visible: card.style === "logo"
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.35; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.alpha("black", 0.75) }
+                }
+            }
+            Image {
+                id: logoImg
+                visible: card.style === "logo"
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: parent.width * 0.07 }
+                height: parent.height * 0.38
+                source: card.style === "logo" ? ((card.logos || [])[0] || "") : ""
+                fillMode: Image.PreserveAspectFit
+                horizontalAlignment: Image.AlignLeft
+                verticalAlignment: Image.AlignBottom
+                asynchronous: true
+                sourceSize.height: 160
+            }
+            Text {
+                visible: card.style === "logo" && logoImg.status !== Image.Ready
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: parent.width * 0.07 }
+                text: card.title
+                color: "white"
+                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                font.family: app.titleFamily
+                font.pixelSize: Math.round(parent.height * 0.13); font.weight: Font.Bold
+            }
+            // Box view: the case's plastic catches the light along its hinge.
+            Rectangle {
+                visible: card.style === "box"
+                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                width: parent.width * 0.12
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.alpha("white", 0.22) }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
             }
 
             // The trailer, muted, inside the cover (fades in once it plays).
