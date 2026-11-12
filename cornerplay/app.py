@@ -760,6 +760,8 @@ class AioLaunch(QObject):
             self._load_theme()
 
     theme = Property("QVariantMap", lambda s: s._theme, notify=themeChanged)
+    TITLE_FONTS = {"": "Nunito", "condensed": "Barlow Condensed", "serif": "Lora", "pixel": "Silkscreen"}
+    titleFamily = Property(str, lambda s: s.TITLE_FONTS.get(settings.get("title_font") or "", "Nunito"), notify=settingsChanged)
     themePresets = Property("QVariantList", lambda s: list(themes.PRESETS), constant=True)
     lightPresets = Property("QVariantList", lambda s: [n for n, (bg, _a) in themes.PRESETS.items() if themes.luminance(bg) >= 0.5], constant=True)
     darkPresets = Property("QVariantList", lambda s: [n for n, (bg, _a) in themes.PRESETS.items() if themes.luminance(bg) < 0.5], constant=True)

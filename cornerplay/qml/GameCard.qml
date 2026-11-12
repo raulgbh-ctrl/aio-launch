@@ -28,6 +28,7 @@ Item {
     property int cornerRadius: 14
     property bool showBadge: true
     property bool showTitle: false
+    property int gap: 8   // around the cover (Settings > Appearance > Density)
     property bool dim: true
     property string trailer: ""   // a trailer to play inside the cover (the main window sets it while pointed at)
     signal opened()
@@ -88,7 +89,7 @@ Item {
     Rectangle {
         id: frame
         anchors.fill: parent
-        anchors.margins: 8
+        anchors.margins: card.gap
         radius: card.cornerRadius
         color: theme.surfaceContainerHigh
         scale: card.lit && !app.light ? 1.03 : 1.0
@@ -132,6 +133,7 @@ Item {
                     text: card.title
                     color: theme.onSurface
                     font.pixelSize: 17
+                    font.family: app.titleFamily
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
@@ -256,6 +258,7 @@ Item {
                     text: card.title
                     color: "white"
                     font.pixelSize: 14
+                    font.family: app.titleFamily
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }

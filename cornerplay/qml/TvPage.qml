@@ -121,7 +121,7 @@ Rectangle {
                 text: page.game.title || ""
                 color: page.theme.onSurface
                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                font.pixelSize: Math.round(page.height * 0.06); font.weight: Font.Bold
+                font.pixelSize: Math.round(page.height * 0.06); font.weight: Font.Bold; font.family: app.titleFamily
             }
         }
         Text {

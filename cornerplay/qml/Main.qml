@@ -1236,6 +1236,7 @@ ApplicationWindow {
                                     Text {
                                         width: parent.width
                                         text: recentTile.modelData.title
+                                        font.family: app.titleFamily
                                         color: theme.onSurface
                                         font.pixelSize: 15; font.weight: Font.DemiBold
                                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
@@ -1322,6 +1323,7 @@ ApplicationWindow {
                                         Text {
                                             width: parent.width
                                             text: freeTile.modelData.title
+                                            font.family: app.titleFamily
                                             color: theme.onSurface
                                             font.pixelSize: 14; font.weight: Font.DemiBold
                                             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
@@ -1396,6 +1398,7 @@ ApplicationWindow {
                                         Text {
                                             width: parent.width
                                             text: saleTile.modelData.title
+                                            font.family: app.titleFamily
                                             textFormat: Text.PlainText
                                             color: theme.onSurface
                                             font.pixelSize: 14; font.weight: Font.DemiBold
@@ -1454,6 +1457,7 @@ ApplicationWindow {
                         showProtonDb: app.settingsMap.show_protondb
                         showTitle: app.settingsMap.show_titles
                         dim: app.settingsMap.dim_uninstalled
+                        gap: ({ compact: 4, roomy: 14 })[app.settingsMap.density] || 8
                         // One highlight at a time: while the pointer is over a card, the keyboard
                         // selection steps back.
                         interactive: win.cardsLive
@@ -1758,6 +1762,7 @@ ApplicationWindow {
                     width: parent.width - 24
                     text: win.selected.title || ""
                     color: theme.onSurfaceVariant
+                    font.family: app.titleFamily
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
                     visible: detailArt.status !== Image.Ready
@@ -4259,6 +4264,42 @@ ApplicationWindow {
                                     choices: app.backgroundChoices
                                     value: win.theme.background
                                     onPicked: colour => app.setCustomColor("theme_bg", colour)
+                                }
+                            }
+                            Row2 {
+                                label: qsTr("Spacing")
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Repeater {
+                                        model: [{ id: "compact", name: qsTr("Compact") }, { id: "comfortable", name: qsTr("Comfortable") }, { id: "roomy", name: qsTr("Roomy") }]
+                                        Chip { required property var modelData; label: modelData.name
+                                               active: (app.settingsMap.density || "comfortable") === modelData.id
+                                               onPicked: app.setSetting("density", modelData.id) }
+                                    }
+                                }
+                            }
+                            Row2 {
+                                label: qsTr("Font for game titles")
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Repeater {
+                                        model: [{ id: "", name: qsTr("Rounded"), family: "Nunito" }, { id: "condensed", name: qsTr("Condensed"), family: "Barlow Condensed" },
+                                                { id: "serif", name: qsTr("Serif"), family: "Lora" }, { id: "pixel", name: qsTr("Pixel"), family: "Silkscreen" }]
+                                        Rectangle {  // each choice shown in its own font
+                                            required property var modelData
+                                            readonly property bool on: (app.settingsMap.title_font || "") === modelData.id
+                                            width: fontName.implicitWidth + 28; height: 34; radius: 17
+                                            color: on ? theme.primaryContainer : fontHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
+                                            border.width: 1; border.color: on ? theme.primary : theme.outlineVariant
+                                            Text { id: fontName; anchors.centerIn: parent; text: modelData.name; font.family: modelData.family
+                                                   font.pixelSize: 14; font.weight: Font.DemiBold
+                                                   color: parent.on ? theme.onPrimaryContainer : theme.onSurface }
+                                            HoverHandler { id: fontHover; cursorShape: Qt.PointingHandCursor }
+                                            TapHandler { onTapped: app.setSetting("title_font", modelData.id) }
+                                        }
+                                    }
                                 }
                             }
                             Row2 {

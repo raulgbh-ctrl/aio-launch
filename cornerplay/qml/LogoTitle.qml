@@ -45,6 +45,7 @@ Item {
         text: lt.title
         color: lt.color
         font.pixelSize: lt.pixelSize
+        font.family: app.titleFamily
         font.weight: Font.Black
         wrapMode: Text.WordWrap
         maximumLineCount: 2

@@ -101,6 +101,8 @@ DEFAULTS = {
     "theme_bg": "#141218",
     "theme_accent": "#d2bcfd",
     "card_size": 196,
+    "density": "comfortable",  # space between covers: "compact", "comfortable", "roomy"
+    "title_font": "",          # game titles: "" (rounded, Nunito), "condensed", "serif", "pixel"
     "card_radius": 14,
     "show_badges": True,
     "show_titles": False,

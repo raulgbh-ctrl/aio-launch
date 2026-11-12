@@ -95,7 +95,7 @@ Rectangle {
         Text {
             text: saver.game.title || ""
             color: "white"
-            font.pixelSize: Math.round(saver.height * 0.045); font.weight: Font.DemiBold
+            font.pixelSize: Math.round(saver.height * 0.045); font.weight: Font.DemiBold; font.family: app.titleFamily
         }
         Text {
             visible: !!saver.game.lastPlayed
