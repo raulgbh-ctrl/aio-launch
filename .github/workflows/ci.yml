@@ -26,16 +26,3 @@ jobs:
           QT_QPA_PLATFORM: offscreen
       - name: Installer builds
         run: ./make-installer.sh
-
-  flatpak:
-    runs-on: ubuntu-24.04
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
-      options: --privileged
-    steps:
-      - uses: actions/checkout@v4
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: cornerplay.flatpak
-          manifest-path: packaging/flatpak/io.github.raulgbh_ctrl.Cornerplay.yml
-          cache-key: flatpak-builder-${{ github.sha }}

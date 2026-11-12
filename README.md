@@ -48,21 +48,6 @@ themselves, and the old `aiolaunch` command keeps working.*
 
        git clone https://github.com/raulgbh-ctrl/cornerplay && cd cornerplay/packaging/aur && makepkg -si
 
-   **Flatpak** (Steam Deck, Fedora Silverblue, Bazzite, any distribution): download
-   `cornerplay.flatpak` from the same release and open it, or:
-
-       flatpak install --user cornerplay.flatpak
-       flatpak install --user flathub org.freedesktop.Platform.Compat.i386//25.08 org.freedesktop.Platform.GL32.default//25.08
-
-   (the second line adds the 32-bit support Proton needs; the Health check says so if it is missing)
-
-   Used the regular install on this PC before? On its first start the Flatpak offers to bring over
-   its library, settings and store sign-ins (also in Settings > Advanced). A Flatpak installed
-   from this file is offered new releases in the app, like the `.run` copy.
-
-   It brings its own Proton runner and store tools; Steam stays the one on your PC (Flathub
-   submission is on the way).
-
    The installer looks at what your PC still needs, shows it as one list and asks once (press
    Enter for all of it; system packages go in with a single password prompt). Controller support
    is always set up: your system's SDL2, or a private copy when there is none.
@@ -207,7 +192,7 @@ To remove it:
 - **TV mode, more of it**: Who's playing? at start when several people use the PC; X / More opens a game's own page (art, playtime, achievements, time to beat, your screenshots and the store's, Play, Options, Favourite); the Guide menu has Downloads (pause, resume, reorder, cancel), Your stats (the year in big type), Sleep / Restart / Shut down (a second press confirms) and Play on your gaming PC; a Play together shelf for local and split-screen multiplayer (first when two or more controllers are connected; `couch.py`, from Steam's own app cache); a screensaver of your recently played games after a few quiet minutes; optional calm background music and controller rumble.
 - **Boot into TV mode**: `./install.sh --session` (or the AUR package) adds "Cornerplay (TV)" to the login screen: TV mode as the whole session, full screen in gamescope, like SteamOS Game Mode (`cornerplay/session/`). Switch to desktop in its menu ends the session.
 - **Play on another screen** (Settings > Advanced): Add Cornerplay to Sunshine puts TV mode and your favourites in Sunshine's app list for Moonlight on a TV, laptop or Deck; on the screen's side, set your gaming PC (and its MAC address) and TV mode can wake it (Wake-on-LAN) and stream its TV mode through Moonlight (`stream.py`).
-- **Tray and starting with the PC**: while a game runs Cornerplay steps aside into the tray and comes back when it closes; the tray menu quits the running game or starts a recent one. Settings > Advanced: keep running in the tray when the window is closed, and start with the PC (in the tray; the Background portal in the Flatpak). Starting Cornerplay again shows the window that is already running (`tray.py`).
+- **Tray and starting with the PC**: while a game runs Cornerplay steps aside into the tray and comes back when it closes; the tray menu quits the running game or starts a recent one. Settings > Advanced: keep running in the tray when the window is closed, and start with the PC (in the tray). Starting Cornerplay again shows the window that is already running (`tray.py`).
 - **What should I play?** (sidebar): a pick from your backlog, by how long you have; never finished or dropped games.
 - **Now playing**: a bar (and a TV chip) while a game started from Cornerplay runs, with Quit and Force close.
 - **People**: Settings > People & sync: each person has their own favourites, collections, statuses, stars, notes and stats; switch at the top of the sidebar.
@@ -249,9 +234,6 @@ glue, `cornerplay/qml` is the interface.
     ./make-installer.sh          # build dist/cornerplay-<version>.run (the one-file installer)
 
 An Arch package recipe is in `packaging/aur/PKGBUILD` (`makepkg -si` there builds and installs it).
-The Flatpak manifest is in `packaging/flatpak/` (`packaging/flatpak/build.sh --bundle` builds,
-installs and writes `dist/cornerplay.flatpak`; needs `flatpak install flathub org.flatpak.Builder`).
-In the Flatpak, Steam is reached on the host through `flatpak-spawn --host` (`cornerplay/host.py`).
 
 Tests and the lint check (CI runs both, plus the QML check, on every push):
 
