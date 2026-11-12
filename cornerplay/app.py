@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, host, hostimport, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -2174,12 +2174,18 @@ class AioLaunch(QObject):
             lo = now - (d + 1) * 86400
             hi = now - d * 86400
             days.append(round(sum(max(0, min(e, hi) - max(s, lo)) for _, s, e in log) / 3600, 2))
-        statuses = {}
+        statuses, by_id = {}, {}
         for grp in groups:
             st = shelves.meta(grp, "status")
             if st:
                 statuses[shelves.STATUS_NAMES[st]] = statuses.get(shelves.STATUS_NAMES[st], 0) + 1
+                by_id[st] = by_id.get(st, 0) + 1
+        years = sorted(set(statsdata.years(log)) | {time.localtime(now).tm_year}, reverse=True)
         return {
+            "weeks": statsdata.weekly(log, now),
+            "backlog": statsdata.backlog(by_id),
+            "years": years,
+            "year": self.yearStats(years[0]),
             "totalHours": round(sum(r[0] for r in played) / 3600),
             "games": len(groups), "played": len(played), "neverPlayed": len(groups) - len(played),
             "installed": sum(1 for g in groups if any(x.installed for x in g)),
@@ -2190,6 +2196,35 @@ class AioLaunch(QObject):
                      "cover": _cover(r[2]), "covers": _covers(r[2])} for r in top],
             "statuses": [{"name": n, "count": c} for n, c in statuses.items()],
         }
+
+    @Slot(int, result="QVariantMap")
+    def yearStats(self, year):
+        """Your year in Cornerplay. Hours come from the session log; for the current year the
+        games played also count those whose last-played date (Steam's too) is this year."""
+        titles = {}
+
+        def title_of(key):
+            if key not in titles:
+                grp = self.model.group_of(key)
+                g = self.model.find(key)
+                titles[key] = self.model.rep(grp).title if grp else (g.title if g else "")
+            return titles[key]
+        finished_at, played_now = {}, set()
+        lo = time.mktime((year, 1, 1, 0, 0, 0, 0, 0, -1))
+        hi = time.mktime((year + 1, 1, 1, 0, 0, 0, 0, 0, -1))
+        for grp in self.model.groups:
+            if self.model.is_hidden(grp):
+                continue
+            if shelves.meta(grp, "status") == "finished":
+                when = next((personal.get(g.key, "finished_at") for g in grp if personal.get(g.key, "finished_at")), 0)
+                if isinstance(when, (int, float)) and when:
+                    finished_at[self.model.rep(grp).key] = when
+            if year == time.localtime().tm_year and lo <= self.model.group_value(grp, "lastPlayed") < hi:
+                played_now.add(self.model.rep(grp).title)
+        out = statsdata.year_summary(playtime.sessions(), year, title_of, finished_at)
+        if played_now:
+            out["games"] = len(played_now | {t["title"] for t in out["top"]} | set(out["newGames"]))
+        return out
 
     sidebarShelves = Property("QVariantList", lambda s: s._once_per_change("shelves", s._sidebar_shelves), notify=storesChanged)
 

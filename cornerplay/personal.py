@@ -152,6 +152,8 @@ def put(key, field, value):
             entry.pop(field, None)
         else:
             entry[field] = value
+        if field == "status" and value == "finished" and entry.get("finished_at") is None:
+            entry["finished_at"] = int(time.time())  # for "finished this year" in the stats
         entry["t"] = time.time()  # kept even when empty, so a removal syncs too
         games[key] = entry
     save()

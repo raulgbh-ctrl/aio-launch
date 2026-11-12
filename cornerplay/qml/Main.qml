@@ -2777,7 +2777,9 @@ ApplicationWindow {
         heading: qsTr("Your games in numbers")
         headingIcon: "trophy"
         property var d: ({})
-        function show() { d = app.stats(); open() }
+        property var yr: ({})
+        property int page: 0
+        function show() { d = app.stats(); yr = d.year || {}; page = 0; open() }
         width: Math.min(win.width - 60, 760)
         height: Math.min(win.height - 60, 720)
         component Tile: Rectangle {
@@ -2802,93 +2804,260 @@ ApplicationWindow {
                 id: statsCol
                 width: parent.width
                 spacing: 16
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    Tile { big: (statsBox.d.totalHours || 0) + " h"; small: "played in total" }
-                    Tile { big: String(statsBox.d.played || 0); small: "of " + (statsBox.d.games || 0) + " games played" }
-                    Tile { big: String(statsBox.d.neverPlayed || 0); small: "never started" }
-                    Tile { big: String(statsBox.d.installed || 0); small: "installed" }
-                }
-                // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
-                Text { text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
-                       color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
-                Item {
-                    Layout.fillWidth: true
-                    height: 110
-                    readonly property real peak: Math.max(1, ...(statsBox.d.days || [0]))
-                    Row {
-                        anchors.fill: parent
-                        spacing: 6
-                        Repeater {
-                            model: statsBox.d.days || []
-                            Item {
-                                required property real modelData
-                                width: (parent.width - 13 * 6) / 14
-                                height: parent.height
-                                Rectangle {
-                                    anchors.bottom: parent.bottom
-                                    width: parent.width
-                                    height: Math.max(3, (parent.height - 4) * parent.modelData / parent.parent.parent.peak)
-                                    radius: 4
-                                    color: parent.modelData > 0 ? theme.primary : theme.surfaceContainerHighest
-                                }
-                            }
-                        }
-                    }
-                }
-                Text {
-                    Layout.fillWidth: true
-                    visible: (statsBox.d.sessions || 0) === 0
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals.")
-                    color: theme.outline; font.pixelSize: 12
-                }
-                Text { text: qsTr("Most played"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
-                Repeater {
-                    model: statsBox.d.top || []
-                    RowLayout {
-                        required property var modelData
-                        required property int index
-                        Layout.fillWidth: true
-                        spacing: 12
-                        RoundedArt {
-                            Layout.preferredWidth: 34; Layout.preferredHeight: 48
-                            radius: 6
-                            ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 68 }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text { Layout.fillWidth: true; text: modelData.title; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
-                                Text { text: modelData.hours + " h"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
-                            }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 6; radius: 3
-                                color: theme.surfaceContainerHighest
-                                Rectangle {
-                                    height: parent.height; radius: 3
-                                    width: parent.width * modelData.hours / Math.max(1, (statsBox.d.top[0] || {}).hours || 1)
-                                    color: theme.primary
-                                }
-                            }
-                        }
-                    }
-                }
-                Text { text: qsTr("By store"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; visible: (statsBox.d.perStore || []).length > 0 }
-                Flow {
-                    Layout.fillWidth: true
+                Row {
                     spacing: 8
-                    Repeater {
-                        model: statsBox.d.perStore || []
-                        Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.hours + " h" }
+                    Chip { label: qsTr("Overview"); icon: "trophy"; active: statsBox.page === 0; onPicked: statsBox.page = 0 }
+                    Chip { label: qsTr("Your year"); icon: "sparkles"; active: statsBox.page === 1; onPicked: statsBox.page = 1 }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: statsBox.page === 0
+                    spacing: 16
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Tile { big: (statsBox.d.totalHours || 0) + " h"; small: "played in total" }
+                        Tile { big: String(statsBox.d.played || 0); small: "of " + (statsBox.d.games || 0) + " games played" }
+                        Tile { big: String(statsBox.d.neverPlayed || 0); small: "never started" }
+                        Tile { big: String(statsBox.d.installed || 0); small: "installed" }
                     }
+                    // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
+                    Text { text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
+                           color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Item {
+                        Layout.fillWidth: true
+                        height: 110
+                        readonly property real peak: Math.max(1, ...(statsBox.d.days || [0]))
+                        Row {
+                            anchors.fill: parent
+                            spacing: 6
+                            Repeater {
+                                model: statsBox.d.days || []
+                                Item {
+                                    required property real modelData
+                                    width: (parent.width - 13 * 6) / 14
+                                    height: parent.height
+                                    Rectangle {
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width
+                                        height: Math.max(3, (parent.height - 4) * parent.modelData / parent.parent.parent.peak)
+                                        radius: 4
+                                        color: parent.modelData > 0 ? theme.primary : theme.surfaceContainerHighest
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: (statsBox.d.sessions || 0) === 0
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals.")
+                        color: theme.outline; font.pixelSize: 12
+                    }
+                    // The last 12 weeks (sessions Cornerplay saw: its own games, and Steam's while it runs).
+                    Text { text: qsTr("Last 12 weeks"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold
+                           visible: (statsBox.d.sessions || 0) > 0 }
+                    Item {
+                        Layout.fillWidth: true
+                        visible: (statsBox.d.sessions || 0) > 0
+                        height: 130
+                        readonly property real peak: Math.max(1, ...((statsBox.d.weeks || []).map(w => w.hours)))
+                        Row {
+                            anchors.fill: parent
+                            spacing: 6
+                            Repeater {
+                                model: statsBox.d.weeks || []
+                                Item {
+                                    required property var modelData
+                                    width: (parent.width - 11 * 6) / 12
+                                    height: parent.height
+                                    Text { id: wkHours; anchors.horizontalCenter: parent.horizontalCenter; y: wkBar.y - height - 2
+                                           visible: modelData.hours > 0; text: modelData.hours; color: theme.onSurfaceVariant; font.pixelSize: 10 }
+                                    Rectangle {
+                                        id: wkBar
+                                        anchors.bottom: wkLabel.top; anchors.bottomMargin: 4
+                                        width: parent.width
+                                        height: Math.max(3, (parent.height - 36) * modelData.hours / parent.parent.parent.peak)
+                                        radius: 4
+                                        color: modelData.hours > 0 ? theme.primary : theme.surfaceContainerHighest
+                                    }
+                                    Text { id: wkLabel; anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+                                           text: modelData.label; color: theme.outline; font.pixelSize: 10 }
+                                }
+                            }
+                        }
+                    }
+                    // Backlog: of the games you meant to play (Playing, Want to play, Finished), how many are done.
+                    Text { text: qsTr("Backlog"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !(statsBox.d.backlog || {}).total
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Mark games as Playing, Want to play or Finished (a game's page, or right-click a cover) to see how far through your backlog you are.")
+                        color: theme.outline; font.pixelSize: 12
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: !!(statsBox.d.backlog || {}).total
+                        spacing: 6
+                        Text { text: (statsBox.d.backlog || {}).done + qsTr(" of ") + (statsBox.d.backlog || {}).total
+                                     + qsTr(" finished  ·  ") + (statsBox.d.backlog || {}).percent + "%"
+                               color: theme.onSurface; font.pixelSize: 14 }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 10; radius: 5
+                            color: theme.surfaceContainerHighest
+                            Rectangle { height: parent.height; radius: 5; color: theme.primary
+                                        width: parent.width * ((statsBox.d.backlog || {}).percent || 0) / 100 }
+                        }
+                    }
+                    Text { text: qsTr("Most played"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
                     Repeater {
-                        model: statsBox.d.statuses || []
-                        Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.count; accent: true }
+                        model: statsBox.d.top || []
+                        RowLayout {
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 12
+                            RoundedArt {
+                                Layout.preferredWidth: 34; Layout.preferredHeight: 48
+                                radius: 6
+                                ArtImage { anchors.fill: parent; sources: modelData.covers || []; sourceSize.width: 68 }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { Layout.fillWidth: true; text: modelData.title; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
+                                    Text { text: modelData.hours + " h"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 6; radius: 3
+                                    color: theme.surfaceContainerHighest
+                                    Rectangle {
+                                        height: parent.height; radius: 3
+                                        width: parent.width * modelData.hours / Math.max(1, (statsBox.d.top[0] || {}).hours || 1)
+                                        color: theme.primary
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text { text: qsTr("By store"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; visible: (statsBox.d.perStore || []).length > 0 }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Repeater {
+                            model: statsBox.d.perStore || []
+                            Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.hours + " h" }
+                        }
+                        Repeater {
+                            model: statsBox.d.statuses || []
+                            Pill { required property var modelData; label: modelData.name + "  ·  " + modelData.count; accent: true }
+                        }
+                    }
+                }
+                // ---- Your year
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: statsBox.page === 1
+                    spacing: 16
+                    readonly property var yr: statsBox.yr
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        visible: (statsBox.d.years || []).length > 1
+                        Repeater {
+                            model: statsBox.d.years || []
+                            Chip { required property int modelData; label: String(modelData); active: statsBox.yr.year === modelData
+                                   onPicked: statsBox.yr = app.yearStats(modelData) }
+                        }
+                    }
+                    Text { text: qsTr("Your ") + (parent.yr.year || "") + qsTr(" in Cornerplay"); color: theme.onSurface
+                           font.pixelSize: 22; font.weight: Font.Bold }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Tile { big: (parent.parent.yr.hours || 0) + " h"; small: qsTr("played") }
+                        Tile { big: String(parent.parent.yr.games || 0); small: qsTr("games played") }
+                        Tile { big: String(parent.parent.yr.newCount || 0); small: qsTr("started for the first time") }
+                        Tile { big: String(parent.parent.yr.finishedCount || 0); small: qsTr("finished") }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !(parent.yr.hours > 0)
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Hours fill in from the play sessions Cornerplay sees: the games it starts, and Steam games while Cornerplay is running (start it with the PC in Settings > Advanced to catch them all).")
+                        color: theme.outline; font.pixelSize: 12
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !!parent.yr.busiestMonth
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Busiest month: ") + parent.yr.busiestMonth + " (" + parent.yr.busiestHours + " h)"
+                              + ((parent.yr.longest || {}).title ? qsTr("  ·  Longest session: ") + parent.yr.longest.title + ", "
+                                 + parent.yr.longest.hours + " h on " + parent.yr.longest.date : "")
+                        color: theme.onSurface; font.pixelSize: 14
+                    }
+                    // Hours per month
+                    Item {
+                        Layout.fillWidth: true
+                        visible: parent.yr.hours > 0
+                        height: 120
+                        readonly property real peak: Math.max(1, ...((statsBox.yr.months || [0])))
+                        Row {
+                            anchors.fill: parent
+                            spacing: 6
+                            Repeater {
+                                model: statsBox.yr.months || []
+                                Item {
+                                    required property real modelData
+                                    required property int index
+                                    width: (parent.width - 11 * 6) / 12
+                                    height: parent.height
+                                    Rectangle {
+                                        anchors.bottom: mLabel.top; anchors.bottomMargin: 4
+                                        width: parent.width
+                                        height: Math.max(3, (parent.height - 22) * modelData / parent.parent.parent.peak)
+                                        radius: 4
+                                        color: modelData > 0 ? theme.primary : theme.surfaceContainerHighest
+                                    }
+                                    Text { id: mLabel; anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+                                           text: "JFMAMJJASOND"[index]; color: theme.outline; font.pixelSize: 10 }
+                                }
+                            }
+                        }
+                    }
+                    Text { text: qsTr("Most played"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold
+                           visible: (parent.yr.top || []).length > 0 }
+                    Repeater {
+                        model: statsBox.yr.top || []
+                        RowLayout {
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 12
+                            Text { text: (index + 1) + "."; color: theme.outline; font.pixelSize: 14; Layout.preferredWidth: 22 }
+                            Text { Layout.fillWidth: true; text: modelData.title; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
+                            Text { text: modelData.hours + " h"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                        }
+                    }
+                    Text { text: qsTr("Finished"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold
+                           visible: (parent.yr.finished || []).length > 0 }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Repeater { model: statsBox.yr.finished || []; Pill { required property string modelData; label: modelData; accent: true } }
+                    }
+                    Text { text: qsTr("Started for the first time"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold
+                           visible: (parent.yr.newGames || []).length > 0 }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Repeater { model: statsBox.yr.newGames || []; Pill { required property string modelData; label: modelData } }
                     }
                 }
             }

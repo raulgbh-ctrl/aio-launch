@@ -94,3 +94,20 @@ def test_steam_running_only_counts_steams_reaper():
              "vim notes about SteamLaunch AppId=5",
              "/s/reaper SteamLaunch AppId=0 --"]
     assert _from_cmdlines(lines) == {"1145360", "220"}
+
+
+def test_stats_weeks_and_year():
+    from datetime import datetime
+    from cornerplay import statsdata
+    now = datetime(2026, 11, 12, 20, 0).timestamp()  # a Thursday
+    mon = datetime(2026, 11, 9, 10, 0).timestamp()
+    log = [["gog:1", mon, mon + 3600], ["steam:2", mon - 7 * 86400, mon - 7 * 86400 + 1800],
+           ["epic:3", datetime(2025, 12, 31, 23, 0).timestamp(), datetime(2026, 1, 1, 1, 0).timestamp()]]
+    weeks = statsdata.weekly(log, now, weeks=2)
+    assert [w["hours"] for w in weeks] == [0.5, 1.0] and weeks[-1]["label"] == "9 Nov"
+    titles = {"gog:1": "Gwent", "steam:2": "Gwent", "epic:3": "Hades"}.get
+    y = statsdata.year_summary(log, 2026, titles, {"gog:1": now})
+    assert y["games"] == 2 and y["top"][0]["title"] == "Gwent" and y["top"][0]["hours"] == 1.5
+    assert y["hours"] == 2.5 and y["months"][0] == 1.0  # only the part of the session inside the year
+    assert y["newGames"] == ["Gwent"] and y["finished"] == ["Gwent"]
+    assert statsdata.backlog({"want": 3, "finished": 1}) == {"total": 4, "done": 1, "percent": 25}
