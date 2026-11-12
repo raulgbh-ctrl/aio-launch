@@ -2243,6 +2243,46 @@ class AioLaunch(QObject):
             out["games"] = len(played_now | {t["title"] for t in out["top"]} | set(out["newGames"]))
         return out
 
+    # --- your screenshots of a game (screenshots.py) ------------------------------------
+    screenshotsReady = Signal(str, "QVariantList")  # key, [{"thumb", "full", "path", "time", "source"}]
+
+    @Slot(str)
+    def loadScreenshots(self, key):
+        group = self.model.group_of(key) or ([self.model.find(key)] if self.model.find(key) else [])
+        if not group or self.demo:
+            return
+        keys = {g.key for g in group}
+        steam = next((g for g in group if g.store == "steam"), None)
+        st = self.stores.get("steam")
+
+        def work():
+            from . import screenshots
+            steam_dir = None
+            if steam and st:
+                try:
+                    sid = settings.get("steam_id").strip() or st._recent_user()[0]
+                    steam_dir = screenshots.steam_folder(st.root(), int(sid) - 76561197960265728, steam.id)
+                except (TypeError, ValueError):
+                    steam_dir = None
+            rows = screenshots.for_game(keys, playtime.sessions(), steam_dir)
+            out = [{"thumb": QUrl.fromLocalFile(r["path"]).toString(), "full": QUrl.fromLocalFile(r["path"]).toString(),
+                    "path": r["path"], "time": r["time"], "source": r["source"]} for r in rows]
+            return lambda: self.screenshotsReady.emit(key, out)
+        self._bg(work)
+
+    @Slot(str)
+    def showInFolder(self, path):
+        """The folder a screenshot is in (the file manager selects it where it can)."""
+        if not path or not os.path.isfile(path):
+            return
+        from PySide6.QtDBus import QDBusConnection, QDBusMessage
+        msg = QDBusMessage.createMethodCall("org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
+                                            "org.freedesktop.FileManager1", "ShowItems")
+        msg.setArguments([[QUrl.fromLocalFile(path).toString()], ""])
+        reply = QDBusConnection.sessionBus().call(msg, timeout=3000)
+        if reply.type() == QDBusMessage.ErrorMessage:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+
     sidebarShelves = Property("QVariantList", lambda s: s._once_per_change("shelves", s._sidebar_shelves), notify=storesChanged)
 
     @Slot(str, bool, str, result="QVariantMap")

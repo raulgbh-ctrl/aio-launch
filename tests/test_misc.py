@@ -122,3 +122,22 @@ def test_throttle_steers_towards_the_limit():
     for _ in range(12):
         t.reported(50.0 * t.share)  # a tool that does 50 at full speed
     assert abs(50.0 * t.share - 10.0) < 0.5
+
+
+def test_screenshots_from_steam_and_from_play_sessions(tmp_path, monkeypatch):
+    import os
+    from cornerplay import screenshots
+    shots = tmp_path / "Screenshots"
+    shots.mkdir()
+    for name, t in (("during.png", 1000), ("before.png", 500), ("notes.txt", 1000), ("late.jpg", 2025)):
+        (shots / name).write_bytes(b"x")
+        os.utime(shots / name, (t, t))
+    steam = tmp_path / "userdata/42/760/remote/730/screenshots"
+    steam.mkdir(parents=True)
+    (steam / "20261010_1.jpg").write_bytes(b"x")
+    os.utime(steam / "20261010_1.jpg", (3000, 3000))
+    monkeypatch.setattr(screenshots, "folders", lambda: [shots])
+    sessions = [["steam:730", 900, 2000], ["gog:1", 400, 600]]
+    rows = screenshots.for_game({"steam:730"}, sessions, screenshots.steam_folder(tmp_path, 42, "730"))
+    assert [(os.path.basename(r["path"]), r["source"]) for r in rows] == \
+        [("20261010_1.jpg", "steam"), ("late.jpg", "session"), ("during.png", "session")]

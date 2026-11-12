@@ -1580,11 +1580,13 @@ ApplicationWindow {
             target: app
             function onGameColourReady(key, colour) { if (key === win.selectedKey) detail.accent = colour }
             function onDetailsReady(key, d) { if (key === win.selectedKey) detail.info = d }
+            function onScreenshotsReady(key, rows) { if (key === win.selectedKey) detail.shots = rows }
             function onAchievementsReady(key, d) { if (key === win.selectedKey) detail.ach = d }
             function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
         property var info: ({})
+        property var shots: []      // your own screenshots of it (screenshots.py)
         property var ach: ({})      // Steam achievements: {done, total}
         property int dlcCount: -1   // -1 until known
         onOpened: {
@@ -1592,6 +1594,8 @@ ApplicationWindow {
             ach = app.achievements(win.selectedKey)
             noteField.text = win.selected.note || ""
             dlcCount = -1
+            shots = []
+            app.loadScreenshots(win.selectedKey)
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
             similar = app.similarGames(win.selectedKey)
             detailFlick.contentY = 0
@@ -1991,6 +1995,52 @@ ApplicationWindow {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: app.openUrl("https://www.protondb.com/app/" + win.selected.steamAppId) }
                     }
+                }
+                // Your screenshots of it: Steam's (F12), and any taken while it ran. Click for full size.
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    visible: detail.shots.length > 0
+                    Text { text: qsTr("Your screenshots  ·  ") + detail.shots.length; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 107
+                    visible: detail.shots.length > 0
+                    orientation: ListView.Horizontal
+                    spacing: 8
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: detail.shots
+                    delegate: Item {
+                        required property var modelData
+                        required property int index
+                        width: 176; height: 99
+                        RoundedArt {
+                            anchors.fill: parent
+                            radius: 10
+                            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                            Image {
+                                anchors.fill: parent
+                                source: modelData.thumb
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 352
+                            }
+                        }
+                        Rectangle {
+                            anchors.fill: parent; radius: 10; color: "transparent"
+                            border.width: ownShotHover.hovered ? 2 : 1
+                            border.color: ownShotHover.hovered ? detail.tint.primary : Qt.alpha("white", 0.1)
+                        }
+                        HoverHandler { id: ownShotHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: viewer.show(detail.shots, index) }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: detail.shots.length > 0 && (detail.info.screenshots || []).length > 0
+                    text: qsTr("From the store"); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold
                 }
                 // Screenshots: click one to see it full size.
                 ListView {
@@ -5199,6 +5249,8 @@ ApplicationWindow {
             Round { anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter; icon: "play"; rotation: 180; visible: viewer.shots.length > 1; onTapped: viewer.step(-1) }
             Round { anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; icon: "play"; visible: viewer.shots.length > 1; onTapped: viewer.step(1) }
             Round { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; icon: "x"; onTapped: viewer.close() }
+            Round { anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 14; anchors.rightMargin: 70
+                    visible: !!parent.shot.path; icon: "folder-open"; onTapped: app.showInFolder(parent.shot.path) }
             Text {
                 anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 26 }
                 text: (viewer.at + 1) + " / " + viewer.shots.length

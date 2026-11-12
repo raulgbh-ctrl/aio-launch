@@ -81,6 +81,7 @@ DEFAULTS = {
     "steamgriddb_key": "",
     "language": "",             # interface language: "" = the system's, "en", "ro" (after a restart)
     "rom_dirs": [],             # folders with ROMs for Retro games (stores/retro.py)
+    "screenshot_dirs": [],      # more folders to find your screenshots in (screenshots.py)
     "wishlist_sales": True,
     "itad_key": "",             # IsThereAnyDeal API key: the best price on any store for the wishlist (itad.py)
     "deal_alert_cut": 50,       # announce a wishlist deal at least this much off (or a new lowest price)
