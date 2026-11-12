@@ -541,13 +541,16 @@ class AioLaunch(QObject):
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         personal.on_change(self._personal_changed)
+        self._scheme_timer = QTimer(self, interval=20000)  # light/dark following the desktop or the clock
+        self._scheme_timer.timeout.connect(self._check_scheme)
+        self._scheme_timer.start()
         self._night = QTimer(self, interval=10 * 60 * 1000)
         self._night.timeout.connect(self._night_tick)
         self._night.start()
         self._worker_toast.connect(self.toast)
         self._after.connect(lambda fn: fn())
 
-        self._theme = themes.current()
+        self._theme = themes.current(self._dark_now())
         if settings.get("evening_warmth") is not False:  # the same as _load_theme, from the first frame
             _now = time.localtime()
             self._theme = themes.warmed(self._theme, themes.evening_amount(_now.tm_hour + _now.tm_min / 60))
@@ -647,7 +650,7 @@ class AioLaunch(QObject):
             self._palette_tries += 1
             self._palette_timer.start()
             return
-        new = themes.current()
+        new = themes.current(self._dark_now())
         if settings.get("evening_warmth") is not False:
             now = time.localtime()
             new = themes.warmed(new, themes.evening_amount(now.tm_hour + now.tm_min / 60))
@@ -656,6 +659,52 @@ class AioLaunch(QObject):
             self.themeChanged.emit()
         self._find_wallpaper()
         self._arm_wall_poll()
+
+    # --- light and dark that follow the desktop or the clock (theme.auto_mode) -------------
+    _scheme_dark = None
+
+    def _dark_now(self):
+        mode = settings.get("theme_auto")
+        if mode == "sunset":
+            now = time.localtime()
+            return themes.sunset_dark(now.tm_hour)
+        if mode == "system":
+            if self._scheme_dark is None:
+                self._scheme_dark = self._read_scheme()
+            return self._scheme_dark
+        return None
+
+    @staticmethod
+    def _read_scheme():
+        """The desktop's light/dark choice: Qt's, else the portal's (org.freedesktop.appearance
+        color-scheme: 1 dark, 2 light), else None (no preference: the chosen look stays)."""
+        scheme = QGuiApplication.styleHints().colorScheme()
+        if scheme == Qt.ColorScheme.Dark:
+            return True
+        if scheme == Qt.ColorScheme.Light:
+            return False
+        try:
+            from PySide6.QtDBus import QDBusConnection, QDBusMessage
+            msg = QDBusMessage.createMethodCall("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
+                                                "org.freedesktop.portal.Settings", "ReadOne")
+            msg.setArguments(["org.freedesktop.appearance", "color-scheme"])
+            reply = QDBusConnection.sessionBus().call(msg, timeout=1500)
+            args = reply.arguments() if reply.type() != QDBusMessage.ErrorMessage else []
+            value = args[0] if args else None
+            value = getattr(value, "variant", lambda: value)() if not isinstance(value, int) else value
+            return {1: True, 2: False}.get(int(value)) if value is not None else None
+        except Exception:
+            return None
+
+    def _check_scheme(self):
+        mode = settings.get("theme_auto")
+        if mode == "system":
+            now = self._read_scheme()
+            if now != self._scheme_dark:
+                self._scheme_dark = now
+                self._load_theme()
+        elif mode == "sunset":
+            self._load_theme()  # cheap when nothing changed (same theme: no signal)
 
     # The wallpaper image itself (Follow wallpaper): shown blurred behind the main window.
     wallpaperChanged = Signal()
@@ -712,6 +761,8 @@ class AioLaunch(QObject):
 
     theme = Property("QVariantMap", lambda s: s._theme, notify=themeChanged)
     themePresets = Property("QVariantList", lambda s: list(themes.PRESETS), constant=True)
+    lightPresets = Property("QVariantList", lambda s: [n for n, (bg, _a) in themes.PRESETS.items() if themes.luminance(bg) >= 0.5], constant=True)
+    darkPresets = Property("QVariantList", lambda s: [n for n, (bg, _a) in themes.PRESETS.items() if themes.luminance(bg) < 0.5], constant=True)
     accentChoices = Property("QVariantList", lambda s: themes.ACCENTS, constant=True)
     backgroundChoices = Property("QVariantList", lambda s: themes.BACKGROUNDS, constant=True)
 
@@ -3280,6 +3331,26 @@ class AioLaunch(QObject):
     settingsMap = Property("QVariantMap", lambda s: s._per_settings.setdefault("map", {k: settings.get(k) for k in DEFAULTS})
                            if "map" not in s._per_settings else s._per_settings["map"], notify=settingsChanged)
 
+    @Slot(str, str)
+    def setShelfBackground(self, shelf, path):
+        """A collection's own background picture ("" clears it)."""
+        path = QUrl(path).toLocalFile() if path.startswith("file:") else path
+        bgs = dict(settings.get("shelf_backgrounds") or {})
+        if path and os.path.isfile(path):
+            bgs[shelf] = path
+        else:
+            bgs.pop(shelf, None)
+        settings.set("shelf_backgrounds", bgs)
+        self.settingsChanged.emit()
+
+    @Slot(str)
+    def setBackgroundPicture(self, path):
+        path = QUrl(path).toLocalFile() if path.startswith("file:") else path
+        if path and os.path.isfile(path):
+            settings.set("bg_picture", path)
+            settings.set("bg_mode", "picture")
+            self.settingsChanged.emit()
+
     @Slot(str, "QVariant")
     def setSetting(self, key, value):
         if key not in DEFAULTS:
@@ -3293,6 +3364,7 @@ class AioLaunch(QObject):
             settings.set(key, value)
             self.settingsChanged.emit()
             if key.startswith("theme_"):
+                self._scheme_dark = None
                 self._load_theme()
             if key == "evening_warmth":
                 self._load_theme()

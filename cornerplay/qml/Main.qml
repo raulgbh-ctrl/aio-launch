@@ -193,23 +193,84 @@ ApplicationWindow {
     // Follow wallpaper: the wallpaper itself, blurred and dimmed, behind the window, so Cornerplay
     // sits in the desktop like a pane of frosted glass. app.wallpaperPath is already a small,
     // blurred copy (made once, in the background), so this is a plain picture: no GPU effect.
-    readonly property bool backdropOn: app.settingsMap.theme_mode === "ryoku" && app.settingsMap.wallpaper_backdrop !== false
-                                       && app.wallpaperPath !== ""
+    readonly property bool wallOn: app.settingsMap.theme_mode === "ryoku" && app.settingsMap.wallpaper_backdrop !== false
+                                   && app.wallpaperPath !== ""
+    // Your own background (Settings > Appearance, or a collection's own picture): a picture or
+    // the last played game's art, loaded tiny and stretched (a blur for free), or a slow gradient.
+    readonly property string bgMode: app.settingsMap.bg_mode || ""
+    readonly property string shelfPicture: (app.settingsMap.shelf_backgrounds || {})[library.shelf] || ""
+    readonly property string bgPicture: shelfPicture || (bgMode === "picture" ? (app.settingsMap.bg_picture || "")
+                                                         : bgMode === "game" ? ((win.heroInfo.heroes || [])[0] || "") : "")
+    readonly property bool bgOn: bgPicture !== "" || bgMode === "gradient"
+    readonly property bool backdropOn: wallOn || bgOn
+    function fileUrl(path) { return path.startsWith("http") || path.startsWith("file:") ? path : "file://" + path.split("/").map(encodeURIComponent).join("/") }
     Item {
         id: backdrop
         anchors.fill: parent
         visible: win.backdropOn && !win.tv
-        opacity: wallImage.status === Image.Ready ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 400 } }
         Image {
             id: wallImage
             anchors.fill: parent
-            source: win.backdropOn ? "file://" + app.wallpaperPath.split("/").map(encodeURIComponent).join("/") : ""
+            source: win.wallOn && !win.bgOn ? win.fileUrl(app.wallpaperPath) : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             smooth: true
+            opacity: status === Image.Ready ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 400 } }
         }
-        Rectangle { anchors.fill: parent; color: Qt.alpha(theme.background, 0.78) }
+        Image {
+            id: bgImage
+            anchors.fill: parent
+            source: win.bgPicture !== "" ? win.fileUrl(win.bgPicture) : ""
+            sourceSize.width: 96   // tiny, then stretched smoothly: soft as a blur, at no cost
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            smooth: true
+            opacity: status === Image.Ready ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 600 } }
+        }
+        // The moving gradient: drawn once, small (160 x 100), in the theme's colours, then
+        // stretched smoothly over the window; it drifts slowly.
+        Canvas {
+            id: bgCanvas
+            width: 160; height: 100
+            visible: false
+            property color a: theme.primary
+            property color b: theme.primaryContainer
+            property color c: theme.background
+            onAChanged: requestPaint()
+            onBChanged: requestPaint()
+            onCChanged: requestPaint()
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.fillStyle = c; ctx.fillRect(0, 0, 160, 100)
+                const blob = (x, y, r, col, alpha) => {
+                    const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+                    g.addColorStop(0, Qt.alpha(col, alpha)); g.addColorStop(1, Qt.alpha(col, 0))
+                    ctx.fillStyle = g; ctx.fillRect(0, 0, 160, 100)
+                }
+                blob(40, 30, 70, a, 0.55); blob(125, 75, 65, b, 0.6); blob(95, 15, 45, a, 0.25)
+            }
+        }
+        ShaderEffectSource {
+            id: bgGradient
+            visible: win.bgMode === "gradient" && win.bgPicture === ""
+            sourceItem: visible ? bgCanvas : null
+            width: parent.width * 1.4; height: parent.height * 1.4
+            smooth: true
+            live: true
+            SequentialAnimation on x {
+                running: bgGradient.visible && !app.light && !win.tv; loops: Animation.Infinite
+                NumberAnimation { from: 0; to: -backdrop.width * 0.35; duration: 60000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: -backdrop.width * 0.35; to: 0; duration: 60000; easing.type: Easing.InOutSine }
+            }
+            SequentialAnimation on y {
+                running: bgGradient.visible && !app.light && !win.tv; loops: Animation.Infinite
+                NumberAnimation { from: 0; to: -backdrop.height * 0.3; duration: 47000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: -backdrop.height * 0.3; to: 0; duration: 47000; easing.type: Easing.InOutSine }
+            }
+        }
+        Rectangle { anchors.fill: parent; color: Qt.alpha(theme.background, win.bgOn ? (win.bgMode === "gradient" && win.bgPicture === "" ? 0.35 : 0.72) : 0.78) }
     }
 
     // What pop-ups blur behind them (KDialog).
@@ -3328,15 +3389,40 @@ ApplicationWindow {
         id: removeColl
         theme: win.theme
         property string name: ""
-        heading: qsTr("Delete \u201c") + name + "\u201d?"
+        readonly property string shelfId: "c:" + name
+        heading: name
+        headingIcon: "bookmark"
         width: Math.min(win.width - 60, 420)
         contentItem: ColumnLayout {
             spacing: 14
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
-                   text: qsTr("The collection goes away; the games stay in your library.") }
+                   text: qsTr("Its own background picture shows behind the library while you look at this collection.") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                KButton { theme: win.theme; Layout.fillWidth: true; text: qsTr("Background picture…"); iconName: "folder-open"
+                          onClicked: collBgFile.open() }
+                KButton { theme: win.theme; visible: !!(app.settingsMap.shelf_backgrounds || {})[removeColl.shelfId]; text: qsTr("Clear")
+                          onClicked: app.setShelfBackground(removeColl.shelfId, "") }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                   text: qsTr("Deleting it takes the collection away; the games stay in your library.") }
             KButton { theme: win.theme; danger: true; Layout.fillWidth: true; text: qsTr("Delete collection"); iconName: "trash-2"
                       onClicked: { app.deleteCollection(removeColl.name); removeColl.close() } }
         }
+    }
+    FileDialog {
+        id: collBgFile
+        title: qsTr("A background picture for this collection")
+        nameFilters: ["Pictures (*.png *.jpg *.jpeg *.webp)"]
+        onAccepted: app.setShelfBackground(removeColl.shelfId, selectedFile.toString())
+    }
+    FileDialog {
+        id: bgFile
+        title: qsTr("A background picture")
+        nameFilters: ["Pictures (*.png *.jpg *.jpeg *.webp)"]
+        onAccepted: app.setBackgroundPicture(selectedFile.toString())
     }
 
     // -------------------------------------------------------------------- DLC
@@ -4109,6 +4195,49 @@ ApplicationWindow {
                                         active: app.settingsMap.theme_mode === "custom"
                                         onPicked: app.setCustomColor("theme_accent", win.theme.primary)
                                     }
+                                }
+                            }
+                            Row2 {
+                                label: qsTr("Light and dark")
+                                hint: app.settingsMap.theme_auto === "system" ? qsTr("Switches when your desktop switches between light and dark.")
+                                      : app.settingsMap.theme_auto === "sunset" ? qsTr("Dark from 7 in the evening to 7 in the morning.")
+                                      : qsTr("Keep the theme above, or switch between a light and a dark one with your desktop or the time of day.")
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Chip { label: qsTr("As chosen above"); active: !app.settingsMap.theme_auto; onPicked: app.setSetting("theme_auto", "") }
+                                    Chip { label: qsTr("Follow the desktop"); active: app.settingsMap.theme_auto === "system"; onPicked: app.setSetting("theme_auto", "system") }
+                                    Chip { label: qsTr("Dark after sunset"); active: app.settingsMap.theme_auto === "sunset"; onPicked: app.setSetting("theme_auto", "sunset") }
+                                }
+                                RowLayout {
+                                    visible: !!app.settingsMap.theme_auto
+                                    spacing: 10
+                                    Text { text: qsTr("Light"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                    KCombo {
+                                        theme: win.theme; Layout.preferredWidth: 150
+                                        model: app.lightPresets.map(n => ({ label: n, value: n }))
+                                        Component.onCompleted: select(app.settingsMap.theme_light)
+                                        onActivated: app.setSetting("theme_light", currentValue)
+                                    }
+                                    Text { text: qsTr("Dark"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                    KCombo {
+                                        theme: win.theme; Layout.preferredWidth: 150
+                                        model: app.darkPresets.map(n => ({ label: n, value: n }))
+                                        Component.onCompleted: select(app.settingsMap.theme_dark)
+                                        onActivated: app.setSetting("theme_dark", currentValue)
+                                    }
+                                }
+                            }
+                            Row2 {
+                                label: qsTr("Background")
+                                hint: qsTr("Behind the library. A collection can have its own picture too (the \u00D7 next to it in the sidebar).")
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Chip { label: qsTr("Plain"); active: !app.settingsMap.bg_mode; onPicked: app.setSetting("bg_mode", "") }
+                                    Chip { label: qsTr("Moving gradient"); active: app.settingsMap.bg_mode === "gradient"; onPicked: app.setSetting("bg_mode", "gradient") }
+                                    Chip { label: qsTr("Last played game"); active: app.settingsMap.bg_mode === "game"; onPicked: app.setSetting("bg_mode", "game") }
+                                    Chip { label: qsTr("Picture…"); active: app.settingsMap.bg_mode === "picture"; onPicked: bgFile.open() }
                                 }
                             }
                             Row2 {

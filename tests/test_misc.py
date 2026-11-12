@@ -147,3 +147,17 @@ def test_couch_local_multiplayer(monkeypatch):
     from cornerplay import couch
     monkeypatch.setattr(couch, "_apps", {"620": {"cat": [1, 2, 9, 24, 39]}, "730": {"cat": [1, 49]}})
     assert couch.local("620") and not couch.local("730") and not couch.local("") and not couch.local("999")
+
+
+def test_light_and_dark_follow_the_desktop_or_the_clock(monkeypatch):
+    from cornerplay import theme
+    from cornerplay.config import settings
+    monkeypatch.setitem(settings.data, "theme_auto", "system")
+    monkeypatch.setitem(settings.data, "theme_light", "Mint")
+    monkeypatch.setitem(settings.data, "theme_dark", "Ocean")
+    assert theme.auto_mode(True) == "Ocean" and theme.auto_mode(False) == "Mint"
+    assert theme.auto_mode(None) == ""                    # no preference from the desktop: as chosen
+    assert theme.current(True)["background"].lower() == "#0f1620"
+    monkeypatch.setitem(settings.data, "theme_auto", "")
+    assert theme.auto_mode(True) == ""
+    assert theme.sunset_dark(20) and theme.sunset_dark(3) and not theme.sunset_dark(12)

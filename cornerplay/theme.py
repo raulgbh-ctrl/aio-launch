@@ -133,8 +133,22 @@ def from_wallpaper():
     return theme
 
 
-def current():
-    mode = settings.get("theme_mode")
+def auto_mode(dark):
+    """Light and dark follow the desktop or the clock (Settings > Appearance): the preset to use,
+    or "" when the chosen look stays as it is."""
+    if settings.get("theme_auto") not in ("system", "sunset") or dark is None:
+        return ""
+    name = settings.get("theme_dark" if dark else "theme_light") or ("Cornerplay" if dark else "Paper")
+    return name if name in PRESETS else ""
+
+
+def sunset_dark(hour):
+    """Dark from 7 in the evening to 7 in the morning."""
+    return hour >= 19 or hour < 7
+
+
+def current(dark=None):
+    mode = auto_mode(dark) or settings.get("theme_mode")
     if mode == "custom":
         bg, accent = settings.get("theme_bg"), settings.get("theme_accent")
         if valid(bg) and valid(accent):

@@ -63,6 +63,9 @@ DEFAULTS = {
     "card_shadow": "soft",   # cover shadows: "none", "soft", "deep"
     "evening_warmth": True,  # surfaces turn a little warmer in the evening and at night
     "wallpaper_backdrop": True,  # Follow wallpaper: the wallpaper, blurred, behind the main window
+    "bg_mode": "",           # behind the library: "" (plain), "picture" (bg_picture), "gradient" (slowly moving), "game" (the last played game's art)
+    "bg_picture": "",
+    "shelf_backgrounds": {}, # a collection's own picture: {"c:<name>": path}
     "tv_reflection": True,   # TV mode: covers reflected on the shelf below
     "tv_intro": False,       # TV mode: a short start-up animation and chime
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
@@ -91,6 +94,9 @@ DEFAULTS = {
     "igdb_client_id": "",      # a Twitch developer app, for IGDB's time-to-beat (timetobeat.py)
     "igdb_client_secret": "",
     "env": "",                 # extra environment for every game: KEY=VALUE KEY2=VALUE2
+    "theme_auto": "",           # "" (as chosen), "system" (follow the desktop's light/dark), "sunset" (dark from 7 pm)
+    "theme_light": "Paper",     # the light and dark presets for theme_auto
+    "theme_dark": "Cornerplay",
     "theme_mode": "Cornerplay",  # "Cornerplay" (amber, the signature look), "ryoku" (wallpaper), a preset, or "custom"
     "theme_bg": "#141218",
     "theme_accent": "#d2bcfd",
