@@ -59,6 +59,7 @@ class Gamepad(QObject):
     availableChanged = Signal()
     _sdlFetched = Signal()  # from the download thread; queued to the main thread
     styleChanged = Signal()
+    activity = Signal()  # any button or stick, while Cornerplay has the focus
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -143,6 +144,12 @@ class Gamepad(QObject):
             self._get_type = sdl.SDL_GameControllerGetType
         except AttributeError:
             self._get_type = None
+        try:  # SDL 2.0.9 and newer
+            sdl.SDL_GameControllerRumble.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_uint16, ctypes.c_uint32]
+            sdl.SDL_GameControllerRumble.restype = ctypes.c_int
+            self._rumble = sdl.SDL_GameControllerRumble
+        except AttributeError:
+            self._rumble = None
         sdl.SDL_SetHint(b"SDL_NO_SIGNAL_HANDLERS", b"1")
         sdl.SDL_SetHint(b"SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", b"1")
         if sdl.SDL_Init(INIT_GAMECONTROLLER) != 0:
@@ -208,6 +215,19 @@ class Gamepad(QObject):
                 self._held[held] = (now + _repeat_gap(now - since), since)
                 self._send(*held, repeat=True)
 
+    _rumble = None
+
+    def rumble(self, low: float, high: float, ms: int):
+        """A short buzz on every connected pad (strengths 0..1). Pads without motors ignore it."""
+        if not self._rumble or not getattr(self, "_pads", None):
+            return
+        lo, hi = int(max(0.0, min(1.0, low)) * 0xFFFF), int(max(0.0, min(1.0, high)) * 0xFFFF)
+        for handle in list(self._pads.values()):
+            try:
+                self._rumble(handle, lo, hi, int(ms))
+            except (OSError, ctypes.ArgumentError):
+                pass
+
     def _button(self, button, down):
         # Guide opens the main menu when let go, unless it was held for Guide + A (quick access),
         # the way Steam treats its own button.
@@ -272,5 +292,6 @@ class Gamepad(QObject):
         if window is None:  # a game (or anything else) has focus: stay out of the way
             self._held.clear()
             return
+        self.activity.emit()  # TV mode's screensaver waits for a quiet controller
         for kind in (QEvent.KeyPress, QEvent.KeyRelease):
             QGuiApplication.postEvent(window, QKeyEvent(kind, key, mods, "", repeat))

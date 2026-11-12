@@ -125,7 +125,7 @@ FocusScope {
     // Calm: after 30 s without input the moving art and the trailer stop (they redraw the
     // whole screen 60 times a second: a drained Steam Deck battery while you look at a menu).
     property bool calm: false
-    function wake() { calm = false; calmTimer.restart() }
+    function wake() { calm = false; calmTimer.restart(); lastInput = Date.now() }
     Timer { id: calmTimer; interval: 30000; running: tv.visible; onTriggered: tv.calm = true }
     function cycleStore(step) {
         app.uiSound("move")
@@ -172,7 +172,30 @@ FocusScope {
     }
 
     function grab() { loadShelves(); grid.forceActiveFocus(); sync() }
-    onVisibleChanged: if (visible) { grab(); maybeIntro() }
+    onVisibleChanged: if (visible) { grab(); maybeIntro(); if (!intro.visible) Qt.callLater(maybeAskWho) }
+    // "Who's playing?" once per start, when several people use this PC (TvWho.qml).
+    property bool whoAsked: false
+    function maybeAskWho() {
+        if (whoAsked || !tv.visible || intro.visible || !app.settingsMap.tv_who || app.profiles.length < 2) return
+        whoAsked = true
+        whoPicker.show()
+    }
+    // Screensaver (TvScreensaver.qml): after tv_screensaver quiet minutes, while nothing runs.
+    property real lastInput: Date.now()
+    Connections { target: pad; function onActivity() { tv.lastInput = Date.now() } }
+    Timer {
+        interval: 5000; repeat: true
+        running: tv.visible && (app.settingsMap.tv_screensaver || 0) > 0
+        onTriggered: {
+            if (saver.visible || intro.visible || whoPicker.visible || app.nowPlaying.length > 0
+                    || Qt.application.state !== Qt.ApplicationActive) { tv.lastInput = Date.now(); return }
+            if (Date.now() - tv.lastInput > app.settingsMap.tv_screensaver * 60000) {
+                tv.focusBeforeSaver = tv.Window.activeFocusItem
+                saver.start()
+            }
+        }
+    }
+    property Item focusBeforeSaver: null
     Component.onCompleted: if (visible) { Qt.callLater(grab); Qt.callLater(maybeIntro) }
     Connections {
         target: app
@@ -288,6 +311,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: 450 } }
         }
         Loader {
+            id: trailerLoader
             anchors.fill: parent
             active: typeof canPlayVideo !== "undefined" && canPlayVideo && app.settingsMap.tv_trailers
                     && !app.light && tv.visible && tv.trailerUrl !== "" && !tv.frosted
@@ -953,6 +977,7 @@ FocusScope {
     }
     function skipIntro() {
         app.startupAnimationDone()
+        Qt.callLater(tv.maybeAskWho)
         introGone.stop()
         introAnim.stop()
         introIcon.opacity = 0; introIcon.scale = 0.8; introName.opacity = 0
@@ -1437,8 +1462,20 @@ FocusScope {
               value: (app.storesInfo.find(x => x.id === tvLibrary.storeFilter) || { name: qsTr("All games") }).name },
             { label: qsTr("Quick access"), icon: "ellipsis", act: "quick" },
             { label: qsTr("Exit TV mode"), icon: "log-out", act: "exit", group: qsTr("Power") },
-            { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true }
+            { label: qsTr("Quit Cornerplay"), icon: "x", act: "quit", group: qsTr("Power"), danger: true },
+            { label: tv.powerArmed === "suspend" ? qsTr("Sleep?") : qsTr("Sleep"), icon: "battery", act: "power", what: "suspend", group: qsTr("Power") },
+            { label: tv.powerArmed === "restart" ? qsTr("Restart?") : qsTr("Restart"), icon: "refresh-cw", act: "power", what: "restart", group: qsTr("Power"), danger: true },
+            { label: tv.powerArmed === "shutdown" ? qsTr("Shut down?") : qsTr("Shut down"), icon: "log-out", act: "power", what: "shutdown", group: qsTr("Power"), danger: true }
         ]
+    }
+    // The power rows ask for a second press (a slip of the thumb should not turn the PC off).
+    property string powerArmed: ""
+    Timer { id: powerDisarm; interval: 4000; onTriggered: { tv.powerArmed = ""; mainMenu.refresh() } }
+    function pressPower(what) {
+        if (powerArmed !== what) { powerArmed = what; powerDisarm.restart(); mainMenu.refresh(); return }
+        powerArmed = ""
+        mainMenu.hide()
+        app.power(what)
     }
     function quickRows() {
         const out = []
@@ -1451,6 +1488,8 @@ FocusScope {
         out.push({ group: "Quick settings", label: qsTr("Sounds"), icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
         out.push({ group: "Quick settings", label: qsTr("Trailers"), icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
         out.push({ group: "Quick settings", label: qsTr("Animated art"), icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
+        out.push({ group: "Quick settings", label: qsTr("Music"), icon: "sparkles", act: "set", setting: "tv_music", on: !!app.settingsMap.tv_music })
+        out.push({ group: "Quick settings", label: qsTr("Rumble"), icon: "gamepad-2", act: "set", setting: "tv_rumble", on: !!app.settingsMap.tv_rumble })
         return out
     }
     SideSheet {
@@ -1467,6 +1506,7 @@ FocusScope {
             else if (row.act === "quick") { hide(); quickMenu.show() }
             else if (row.act === "exit") { hide(); tv.exit() }
             else if (row.act === "quit") Qt.quit()
+            else if (row.act === "power") tv.pressPower(row.what)
         }
     }
     SideSheet {
@@ -1668,5 +1708,31 @@ FocusScope {
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------ music, screensaver, who's playing
+    Loader {
+        active: typeof canPlayVideo !== "undefined" && canPlayVideo && !!app.settingsMap.tv_music
+        source: "TvMusic.qml"
+        onLoaded: item.playing = Qt.binding(() => tv.visible && Qt.application.state === Qt.ApplicationActive
+                                                   && app.nowPlaying.length === 0 && !trailerLoader.active)
+    }
+    TvScreensaver {
+        id: saver
+        anchors.fill: parent
+        z: 200
+        theme: tv.theme
+        onWoke: {
+            tv.lastInput = Date.now()
+            if (tv.focusBeforeSaver && tv.focusBeforeSaver.visible) tv.focusBeforeSaver.forceActiveFocus()
+            else grid.forceActiveFocus()
+        }
+    }
+    TvWho {
+        id: whoPicker
+        anchors.fill: parent
+        z: 150
+        theme: tv.theme
+        onDone: grid.forceActiveFocus()
     }
 }

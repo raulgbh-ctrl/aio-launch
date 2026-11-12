@@ -765,10 +765,15 @@ class AioLaunch(QObject):
                  for p in (Path(__file__).parent / "icons" / "ui").glob("*.svg")}
     uiIcons = Property("QVariantMap", lambda s: s._ui_icons, constant=True)
 
+    RUMBLE = {"move": (0.0, 0.12, 28), "select": (0.25, 0.35, 60), "back": (0.15, 0.0, 45)}  # low, high, ms
+
     @Slot(str)
     def uiSound(self, name):
         """A soft click in TV mode ("move", "select" or "back"), when turned on in Settings;
-        "intro" is the TV intro's chime (its own setting)."""
+        "intro" is the TV intro's chime (its own setting). With rumble on, the pad buzzes too."""
+        pad = getattr(self, "gamepad", None)
+        if pad is not None and settings.get("tv_rumble") and name in self.RUMBLE:
+            pad.rumble(*self.RUMBLE[name])
         if not settings.get("tv_intro" if name == "intro" else "tv_sounds"):
             return
         if self._sounds is None:
@@ -1999,6 +2004,17 @@ class AioLaunch(QObject):
         personal.switch(name)
         self._personal_reloaded()
         self.toast.emit(f"Hi {name}: your favourites, collections and stats")
+
+    # --- TV mode's power menu ---------------------------------------------------------
+    @Slot(str)
+    def power(self, what):
+        """Suspend, restart or shut down the PC (TV mode's Guide menu): systemd on the host."""
+        verb = {"suspend": "suspend", "restart": "reboot", "shutdown": "poweroff"}.get(what)
+        if not verb or self.demo:
+            return
+        cmd = host.argv(["systemctl", verb])
+        if not QProcess.startDetached(cmd[0], cmd[1:])[0]:
+            self.toast.emit("Could not ask the PC to " + {"suspend": "sleep", "reboot": "restart", "poweroff": "shut down"}[verb])
 
     @Slot(str, result=str)
     def addProfile(self, name):

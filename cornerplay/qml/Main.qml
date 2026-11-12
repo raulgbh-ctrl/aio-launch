@@ -4203,6 +4203,23 @@ ApplicationWindow {
                         Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: qsTr("TV mode: play the focused game's trailer (muted)"); settingKey: "tv_trailers" }
                         Toggle { label: qsTr("TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)"); settingKey: "tv_animated" }
                         Toggle { label: qsTr("TV mode: soft sounds when moving and choosing"); settingKey: "tv_sounds" }
+                        Toggle { label: qsTr("TV mode: the controller buzzes lightly when moving and choosing"); settingKey: "tv_rumble" }
+                        Toggle { visible: typeof canPlayVideo !== "undefined" && canPlayVideo; label: qsTr("TV mode: calm background music (quiet during trailers and games)"); settingKey: "tv_music" }
+                        Toggle { label: qsTr("TV mode: ask \"Who's playing?\" at start (when several people use this PC)"); settingKey: "tv_who" }
+                        Row2 {
+                            label: qsTr("TV mode screensaver")
+                            hint: qsTr("Your recently played games' art drifts by with the clock after a few quiet minutes. Any button wakes it.")
+                            KCombo {
+                                id: saverPick
+                                theme: win.theme
+                                Layout.preferredWidth: 200
+                                model: [{ label: qsTr("After 3 minutes"), value: 3 }, { label: qsTr("After 5 minutes"), value: 5 },
+                                        { label: qsTr("After 10 minutes"), value: 10 }, { label: qsTr("After 20 minutes"), value: 20 },
+                                        { label: qsTr("Never"), value: 0 }]
+                                Component.onCompleted: select(app.settingsMap.tv_screensaver)
+                                onActivated: app.setSetting("tv_screensaver", currentValue)
+                            }
+                        }
                         Toggle { label: qsTr("Show the ProtonDB rating on a cover when pointed at"); settingKey: "show_protondb" }
                         Row2 {
                             label: qsTr("Retro games (ROM folders)")

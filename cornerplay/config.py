@@ -107,6 +107,10 @@ DEFAULTS = {
     "tv_trailers": True,       # TV mode plays the focused game's trailer (muted) after a moment
     "hover_trailers": True,    # the library plays a cover's trailer (muted) inside it while it is pointed at
     "tv_sounds": False,        # TV mode makes soft clicks when moving and choosing
+    "tv_rumble": False,        # TV mode: the controller buzzes lightly when moving and choosing
+    "tv_music": False,         # TV mode: a calm, original ambient loop (fades out for trailers and games)
+    "tv_screensaver": 3,       # TV mode: minutes without input before the slideshow of your games (0 = never)
+    "tv_who": True,            # TV mode: "Who's playing?" at start when there are several people
     "show_protondb": True,     # ProtonDB rating badge on covers
 }
 
