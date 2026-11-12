@@ -48,7 +48,8 @@ APPS = {
     570: {"appinfo": {"appid": 570, "common": {"name": "Dota 2", "type": "Game"}}},
     49521: {"appinfo": {"common": {"name": "Borderlands 2 RU", "type": "game"},
                         "extended": {"GameManualURL": "https://store.steampowered.com/manual/49520/"}}},
-    49520: {"appinfo": {"common": {"name": "Borderlands 2", "type": "game"},
+    49520: {"appinfo": {"common": {"name": "Borderlands 2", "type": "game",
+                                   "category": {"category_1": 1, "category_39": 1, "category_9": 1}},
                         "extended": {"GameManualURL": "https://store.steampowered.com/manual/49520/"}}},
     228980: {"appinfo": {"common": {"name": "Steamworks Common Redistributables", "type": "Tool"}}},
 }
@@ -57,7 +58,8 @@ APPS = {
 @pytest.mark.parametrize("version", [27, 28, 29])
 def test_parse_each_format(version):
     apps = steamappinfo._parse(build(version, APPS))
-    assert apps["570"] == {"name": "Dota 2", "type": "game", "variant_of": ""}
+    assert apps["570"] == {"name": "Dota 2", "type": "game", "variant_of": "", "cat": []}
+    assert apps["49520"]["cat"] == [1, 9, 39]  # Steam's store categories: 39 is split-screen co-op
     assert apps["228980"]["type"] == "tool"
     assert apps["49521"]["variant_of"] == "49520"  # a regional edition points at the main game
     assert apps["49520"]["variant_of"] == ""
