@@ -346,25 +346,78 @@ ApplicationWindow {
                 spacing: 4
                 Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; opacity: sideFlick.contentHeight > sideFlick.height + 1 ? 1 : 0 }
                 NavItem { label: qsTr("TV mode"); icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                // Three things only: the tools (a labelled menu), Accounts and Settings.
                 GridLayout {
                     Layout.fillWidth: !win.rail
                     Layout.alignment: Qt.AlignHCenter
                     Layout.topMargin: 6
-                    columns: win.rail ? 2 : 20
-                    columnSpacing: 1; rowSpacing: 2
-                    ToolIcon { icon: "gamepad-2"; tip: qsTr("What should I play?"); onPicked: picker.show() }
-                    ToolIcon { icon: "trophy"; tip: qsTr("Stats"); onPicked: statsBox.show() }
-                    ToolIcon { icon: "folder-open"; tip: qsTr("Storage"); onPicked: storage.show() }
-                    ToolIcon { icon: "images"; tip: qsTr("Screenshots (Ctrl+Shift+S)"); onPicked: shotsPage.show() }
-                    ToolIcon { icon: "check"; tip: healthBox.bad > 0 ? qsTr("Health check: ") + healthBox.bad + qsTr(" to fix") : qsTr("Health check")
-                               alert: healthBox.bad > 0; onPicked: healthBox.show() }
-                    ToolIcon { visible: app.hiddenCount > 0 || library.showHidden; icon: "eye-off"; on: library.showHidden
-                               tip: qsTr("Hidden games (") + app.hiddenCount + ")"
-                               onPicked: { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } }
+                    columns: win.rail ? 1 : 4
+                    columnSpacing: 2; rowSpacing: 2
+                    Rectangle {
+                        id: toolsButton
+                        height: 32; radius: 9
+                        width: win.rail ? 28 : toolsRow.implicitWidth + 20
+                        color: toolsMenu.visible ? theme.primaryContainer : toolsHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                        Row {
+                            id: toolsRow
+                            anchors.centerIn: parent
+                            spacing: 7
+                            Icon { anchors.verticalCenter: parent.verticalCenter; name: "layout-grid"; size: 16
+                                   color: toolsMenu.visible ? theme.onPrimaryContainer : theme.onSurfaceVariant }
+                            Text { visible: !win.rail; anchors.verticalCenter: parent.verticalCenter; text: qsTr("Tools")
+                                   color: toolsMenu.visible ? theme.onPrimaryContainer : theme.onSurfaceVariant; font.pixelSize: 13 }
+                        }
+                        Rectangle { visible: healthBox.bad > 0; width: 8; height: 8; radius: 4; color: theme.error
+                                    anchors { right: parent.right; top: parent.top; margins: 4 } }
+                        HoverHandler { id: toolsHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: toolsMenu.visible ? toolsMenu.close() : toolsMenu.open() }
+                        ToolTip.visible: win.rail && toolsHover.hovered; ToolTip.text: qsTr("Tools"); ToolTip.delay: 300
+                        Popup {
+                            id: toolsMenu
+                            x: win.rail ? parent.width + 8 : 0
+                            y: -height - 8
+                            width: 270
+                            padding: 6
+                            background: Rectangle { radius: 14; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+                            contentItem: Column {
+                                spacing: 0
+                                Repeater {
+                                    model: [
+                                        { i: "gamepad-2", t: qsTr("What should I play?"), k: "Ctrl+P", run: () => picker.show() },
+                                        { i: "trophy", t: qsTr("Stats and journal"), k: "Ctrl+I", run: () => statsBox.show() },
+                                        { i: "images", t: qsTr("Screenshots"), k: "Ctrl+Shift+S", run: () => shotsPage.show() },
+                                        { i: "folder-open", t: qsTr("Storage"), k: "", run: () => storage.show() },
+                                        { i: "check", t: qsTr("Health check"), k: "", alert: true, run: () => healthBox.show() },
+                                        { i: "eye-off", t: qsTr("Hidden games"), k: "", hidden: true,
+                                          run: () => { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } },
+                                        { i: "keyboard", t: qsTr("Keyboard shortcuts"), k: "F1", run: () => keysBox.open() }
+                                    ]
+                                    Rectangle {
+                                        id: tm
+                                        required property var modelData
+                                        visible: !modelData.hidden || app.hiddenCount > 0 || library.showHidden
+                                        width: toolsMenu.availableWidth; height: visible ? 38 : 0; radius: 9
+                                        color: tmHover.hovered ? theme.surfaceContainerHighest : "transparent"
+                                        Icon { x: 10; anchors.verticalCenter: parent.verticalCenter; name: tm.modelData.i; size: 16
+                                               color: tm.modelData.hidden && library.showHidden ? theme.primary : theme.onSurfaceVariant }
+                                        Text { x: 38; anchors.verticalCenter: parent.verticalCenter; color: theme.onSurface; font.pixelSize: 13
+                                               text: tm.modelData.t + (tm.modelData.hidden ? "  (" + app.hiddenCount + ")" : "") }
+                                        Text { visible: !!tm.modelData.k; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                                               text: tm.modelData.k || ""; color: theme.outline; font.pixelSize: 11 }
+                                        Rectangle { visible: !!tm.modelData.alert && healthBox.bad > 0
+                                                    anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                                                    height: 18; width: badText.implicitWidth + 12; radius: 9; color: theme.error
+                                                    Text { id: badText; anchors.centerIn: parent; text: healthBox.bad + qsTr(" to fix"); color: "white"; font.pixelSize: 10; font.weight: Font.Bold } }
+                                        HoverHandler { id: tmHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: { toolsMenu.close(); tm.modelData.run() } }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Item { visible: !win.rail; Layout.fillWidth: true }
-                    ToolIcon { icon: "keyboard"; tip: qsTr("Keyboard shortcuts (F1)"); onPicked: keysBox.open() }
                     ToolIcon { icon: "user-round"; tip: qsTr("Accounts"); onPicked: accounts.open() }
-                    ToolIcon { icon: "sliders-horizontal"; tip: qsTr("Settings"); onPicked: prefs.open() }
+                    ToolIcon { icon: "sliders-horizontal"; tip: qsTr("Settings (Ctrl+,)"); onPicked: prefs.open() }
                 }
             }
 
@@ -2034,6 +2087,21 @@ ApplicationWindow {
                 interactive: contentHeight > height
                 model: jump.rows
                 highlightMoveDuration: 0
+                // The pointer picks a row only when it really moves: a mouse that happens to rest
+                // over the palette must not steal the selection from what is being typed.
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    hoverEnabled: true
+                    property point last: Qt.point(-1, -1)
+                    onPositionChanged: (m) => {
+                        if (last.x >= 0 && (Math.abs(m.x - last.x) > 1 || Math.abs(m.y - last.y) > 1)) {
+                            const i = jumpList.indexAt(m.x, m.y + jumpList.contentY)
+                            if (i >= 0) jumpList.currentIndex = i
+                        }
+                        last = Qt.point(m.x, m.y)
+                    }
+                }
                 section.property: "kind"
                 section.delegate: Text {
                     required property string section
@@ -2084,7 +2152,7 @@ ApplicationWindow {
                             Text { id: kText; anchors.centerIn: parent; text: jr.modelData.k || ""; color: theme.onSurfaceVariant; font.pixelSize: 11 }
                         }
                     }
-                    HoverHandler { id: jrHover; cursorShape: Qt.PointingHandCursor; onHoveredChanged: if (hovered) jumpList.currentIndex = jr.index }
+                    HoverHandler { id: jrHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: jump.run(jr.modelData, false) }
                     TapHandler { onDoubleTapped: jump.run(jr.modelData, true) }
                 }
@@ -2203,6 +2271,7 @@ ApplicationWindow {
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
             similar = app.similarGames(win.selectedKey)
             plays = app.gameSessions(win.selectedKey)
+            fit = ({}); app.loadCompat(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -2219,6 +2288,8 @@ ApplicationWindow {
         bottomPadding: 0
         property var similar: []
         property var plays: ({})
+        property var fit: ({})
+        Connections { target: app; function onCompatReady(key, v) { if (key === win.selectedKey) detail.fit = v } }
         Connections { target: app; function onDetailsGrew() { if (detail.opened) detail.similar = app.similarGames(win.selectedKey) } }
         // Opening grows out of the middle, like the cover it came from.
         enter: Transition {
@@ -2726,6 +2797,96 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
+            }
+        }
+        // On this PC: will it run (requirements against this PC), what Linux players report, and
+        // one-click tweaks that often fix things.
+        Rectangle {
+            id: fitCard
+            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0)
+            Layout.fillWidth: true
+            implicitHeight: fitCol.implicitHeight + 32
+            radius: 16
+            readonly property color tone: ({ great: "#7bd88f", ok: "#7bd88f", borderline: "#ffcc66", low: "#ff7a6b", no: "#ff7a6b" })[detail.fit.level] || theme.outline
+            color: Qt.alpha(tone, 0.08)
+            border.width: 1; border.color: Qt.alpha(tone, 0.35)
+            ColumnLayout {
+                id: fitCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+                spacing: 10
+                RowLayout {
+                    spacing: 10
+                    Rectangle { width: 10; height: 10; radius: 5; color: fitCard.tone }
+                    Text {
+                        text: ({ great: qsTr("Runs well on this PC"), ok: qsTr("Should run on this PC"), borderline: qsTr("Borderline on this PC: lower settings"),
+                                 low: qsTr("Probably too much for this PC"), no: qsTr("Players report it does not run on Linux"), unknown: qsTr("On this PC") })[detail.fit.level] || ""
+                        color: theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold
+                    }
+                    Text { visible: !!(detail.fit.system || {}).gpu; color: theme.outline; font.pixelSize: 12; elide: Text.ElideRight
+                           Layout.fillWidth: true
+                           text: "  " + ((detail.fit.system || {}).gpu || "") + "  \u00B7  " + Math.round((detail.fit.system || {}).ram || 0) + qsTr(" GB RAM") }
+                }
+                // Each part: what this PC has against what the game asks for.
+                Repeater {
+                    model: detail.fit.rows || []
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text { text: modelData.level === "low" ? "\u2715" : modelData.level === "borderline" ? "!" : "\u2713"
+                               color: ({ great: "#7bd88f", ok: "#7bd88f", borderline: "#ffcc66", low: "#ff7a6b" })[modelData.level]
+                               font.pixelSize: 13; font.weight: Font.Bold; Layout.preferredWidth: 14 }
+                        Text { text: qsTr(modelData.part); color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.preferredWidth: 110 }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; color: theme.onSurface; font.pixelSize: 13
+                               text: modelData.have + "  <font color='" + theme.outline + "'>" + qsTr("needs ") + modelData.needs + "</font>"
+                               textFormat: Text.StyledText }
+                    }
+                }
+                Repeater {
+                    model: detail.fit.linux || []
+                    RowLayout {
+                        required property var modelData
+                        spacing: 10
+                        Text { text: modelData.level === "low" ? "\u2715" : modelData.level === "borderline" ? "!" : "\u2713"
+                               color: ({ great: "#7bd88f", ok: "#7bd88f", borderline: "#ffcc66", low: "#ff7a6b" })[modelData.level]
+                               font.pixelSize: 13; font.weight: Font.Bold; Layout.preferredWidth: 14 }
+                        Text { text: modelData.text; color: theme.onSurface; font.pixelSize: 13 }
+                    }
+                }
+                // Tweaks: suggested ones first, each one click on or off (it applies at the next start).
+                Text {
+                    visible: (detail.fit.tweaks || []).length > 0
+                    Layout.topMargin: 6
+                    text: qsTr("If it misbehaves, try")
+                    color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.1; font.capitalization: Font.AllUppercase
+                }
+                Flow {
+                    visible: (detail.fit.tweaks || []).length > 0
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: (detail.fit.tweaks || []).slice().sort((a, b) => (b.suggested - a.suggested))
+                        Rectangle {
+                            id: tw
+                            required property var modelData
+                            height: 32; radius: 16
+                            width: twRow.implicitWidth + 24
+                            color: modelData.on ? Qt.alpha(theme.primary, 0.2) : twHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
+                            border.width: modelData.suggested && !modelData.on ? 1 : 0; border.color: Qt.alpha(theme.primary, 0.5)
+                            Row {
+                                id: twRow
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Icon { anchors.verticalCenter: parent.verticalCenter; size: 13; name: tw.modelData.on ? "check" : tw.modelData.suggested ? "sparkles" : "plus"
+                                       color: tw.modelData.on || tw.modelData.suggested ? theme.primary : theme.onSurfaceVariant }
+                                Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr(tw.modelData.label); color: theme.onSurface; font.pixelSize: 12 }
+                            }
+                            HoverHandler { id: twHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.setTweak(win.selectedKey, tw.modelData.id, !tw.modelData.on) }
+                            ToolTip.visible: twHover.hovered; ToolTip.delay: 400; ToolTip.text: qsTr(tw.modelData.why)
+                        }
+                    }
+                }
             }
         }
         // Your sessions: the last few times you played, and the hours of the last 30 days.

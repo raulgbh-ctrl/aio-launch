@@ -66,6 +66,7 @@ orig = QApplication.exec
 def run(*_):
     win = [w for w in QGuiApplication.topLevelWindows() if w.isVisible() or True][0]
     W, H = map(int, os.environ.get("SHOT_SIZE", "1600x960").split("x")); win.resize(W, H); win.show()
+    QTimer.singleShot(300, lambda: (win.setMinimumSize(win.minimumSize().boundedTo(__import__("PySide6.QtCore", fromlist=["QSize"]).QSize(W, H))), win.resize(W, H)))
     t = 2500
     for a in acts:
         if a == "tv": continue

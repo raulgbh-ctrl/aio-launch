@@ -1230,6 +1230,9 @@ class AioLaunch(QObject):
             return  # closed quickly but cleanly: probably a launcher handing over
         found = found or {"cause": "It closed right away", "fix": "proton",
                           "detail": "Nothing in its log says why. Another Proton version, or Repair files, often helps."}
+        if not hasattr(self, "_last_problem"):
+            self._last_problem = {}
+        self._last_problem[key] = found.get("fix", "") or "crash"  # the game's page then suggests tweaks
         self.launchProblem.emit(key, dict(found, title=data.get("title", "")))
 
     @Slot(str, str)
@@ -2633,6 +2636,59 @@ class AioLaunch(QObject):
                     "path": r["path"], "time": r["time"], "source": r["source"]} for r in rows]
             return lambda: self.screenshotsReady.emit(key, out)
         self._bg(work)
+
+    # --- will it run on this PC? (compat.py) ---------------------------------------------
+    compatReady = Signal(str, "QVariantMap")
+
+    @Slot(str)
+    def loadCompat(self, key):
+        """A game's page: its requirements against this PC, Linux reports, and tweaks to try."""
+        g = self.model.find(key)
+        if not g:
+            return
+        appid = _appid(g)
+        tier = protondb.rating(appid) if appid else ""
+        installed = g.installed
+        opts = game_options.get(key)
+        windows = g.store in ("epic", "gog", "amazon", "custom", "itch", "humble") and g.extra.get("platform") != "linux"
+        problem = (self._last_problem.get(key) or "") if hasattr(self, "_last_problem") else ""
+
+        def work():
+            from . import compat
+            me = compat.system()
+            req = compat.requirements(appid) if appid else {}
+            ac = compat.anticheat(appid) if appid else {}
+            v = compat.verdict(req, me, tier.get("tier", "") if isinstance(tier, dict) else (tier or ""), ac,
+                               installed=installed)
+            sug = compat.suggest(me, tier.get("tier", "") if isinstance(tier, dict) else (tier or ""), problem)
+            v["tweaks"] = [{"id": t["id"], "label": t["label"], "why": t["why"], "on": compat.tweak_on(t, opts),
+                            "suggested": t["id"] in sug}
+                           for t in compat.TWEAKS if windows and (t["id"] != "nvapi" or "nvapi" in sug or compat.tweak_on(t, opts))]
+            v["system"] = {"gpu": me.get("gpu", ""), "cpu": me.get("cpu", ""), "ram": me.get("ram", 0), "vram": me.get("vram", 0)}
+            return lambda: self.compatReady.emit(key, v)
+        self._bg(work)
+
+    @Slot(str, str, bool)
+    def setTweak(self, key, tweak_id, on):
+        """Turn one of compat.TWEAKS on or off for a game (its Proton version or environment)."""
+        from . import compat
+        t = next((x for x in compat.TWEAKS if x["id"] == tweak_id), None)
+        if not t:
+            return
+        opts = game_options.get(key)
+        if t.get("proton"):
+            game_options.set(key, "proton", t["proton"] if on else "")
+        else:
+            env = compat.parse_env(opts.get("env", ""))
+            for k, v in t["env"].items():
+                if on:
+                    env[k] = v
+                else:
+                    env.pop(k, None)
+            game_options.set(key, "env", compat.env_string(env))
+        self._touch(key)
+        self.toast.emit(("Turned on: " if on else "Turned off: ") + t["label"] + ". It applies the next time the game starts.")
+        self.loadCompat(key)
 
     # --- the Screenshots page: every game's screenshots, newest game first --------------
     allScreenshotsReady = Signal("QVariantList")
