@@ -1658,6 +1658,15 @@ ApplicationWindow {
                                 font.pixelSize: 15; font.weight: Font.DemiBold
                             }
                         }
+                        SteamBundles {
+                            width: grid.width
+                            shown: library.storeFilter === "steam" && !library.search && !library.showHidden && !library.shelf
+                            theme: win.theme
+                            onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(() => {
+                                if (grid.count === 0) grid.contentY = grid.originY - grid.topMargin
+                                else grid.positionViewAtBeginning()
+                            })
+                        }
                         HumbleShop {
                             width: grid.width
                             shown: library.storeFilter === "humble" && !library.search && !library.showHidden && !library.shelf
@@ -2539,6 +2548,7 @@ ApplicationWindow {
             function onAchievementsReady(key, d) { if (key === win.selectedKey) detail.ach = d }
             function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
             function onPatchNotesReady(key, rows) { if (key === win.selectedKey) detail.notes = rows }
+            function onGameBundlesReady(key, data) { if (key === win.selectedKey) detail.bundles = data }
             function onModsReady(key, view) { if (key === win.selectedKey) detail.modInfo = app.modSupport(key) }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
@@ -2548,6 +2558,7 @@ ApplicationWindow {
         property int dlcCount: -1   // -1 until known
         property var notes: []      // patch notes and news from the developer (patchnotes.py)
         property var modInfo: ({})  // {gid, name, source, installed, enabled} when it can be modded
+        property var bundles: ({})  // Steam bundles with this game, priced for you (steambundles.py)
         property int noteOpen: -1   // the one shown in full
         onOpened: {
             accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
@@ -2563,6 +2574,7 @@ ApplicationWindow {
             ran = app.perfHistory(win.selectedKey)
             notes = []; noteOpen = -1; app.loadPatchNotes(win.selectedKey)
             modInfo = app.modSupport(win.selectedKey)
+            bundles = ({}); app.loadGameBundles(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -3446,6 +3458,56 @@ ApplicationWindow {
                             font.pixelSize: 13; font.weight: Font.DemiBold
                             HoverHandler { id: steamNoteHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: app.openUrl(noteBox.modelData.url) }
+                        }
+                    }
+                }
+            }
+        }
+        // Steam bundles with this game, cheapest for you first (what you own comes off).
+        ColumnLayout {
+            visible: (detail.bundles.rows || []).length > 0
+            Layout.fillWidth: true
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: qsTr("Bundles with this game on Steam") + "  \u00B7  " + (detail.bundles.total || 0)
+                       color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                Text {
+                    text: qsTr("All on Steam") + "  \u2197"
+                    color: allBHover.hovered ? theme.primary : theme.outline; font.pixelSize: 13
+                    HoverHandler { id: allBHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.openUrl(detail.bundles.url) }
+                }
+            }
+            Repeater {
+                model: detail.bundles.rows || []
+                Rectangle {
+                    id: bRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    implicitHeight: 58
+                    radius: 10
+                    color: bHover.hovered ? theme.surfaceContainerHigh : theme.surfaceContainer
+                    HoverHandler { id: bHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.openUrl(bRow.modelData.url) }
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 8; rightMargin: 12 }
+                        spacing: 12
+                        RoundedArt {
+                            Layout.preferredWidth: 86; Layout.preferredHeight: 42; radius: 6
+                            ArtImage { anchors.fill: parent; sources: bRow.modelData.image ? [bRow.modelData.image] : []; sourceSize.width: 172 }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text { Layout.fillWidth: true; text: bRow.modelData.name; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { Layout.fillWidth: true; text: qsTr("Adds ") + bRow.modelData.adds.join(", "); color: theme.outline; font.pixelSize: 12; elide: Text.ElideRight }
+                        }
+                        ColumnLayout {
+                            spacing: 2
+                            Text { Layout.alignment: Qt.AlignRight; text: qsTr("%1 for you").arg(bRow.modelData.forYou); color: theme.primary; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            Text { Layout.alignment: Qt.AlignRight; visible: bRow.modelData.saving > 0
+                                   text: qsTr("%1 separately").arg(bRow.modelData.alone); color: theme.outline; font.pixelSize: 11; font.strikeout: true }
                         }
                     }
                 }

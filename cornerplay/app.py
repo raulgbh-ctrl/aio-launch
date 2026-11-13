@@ -17,7 +17,7 @@ import shlex
 
 import sys
 
-from . import humbleshop, patchnotes, mods, workshop, cleanup, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import humbleshop, patchnotes, mods, workshop, cleanup, steambundles, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
@@ -1878,6 +1878,95 @@ class AioLaunch(QObject):
                 "bundlesUrl": humbleshop.BUNDLES_URL}
 
     humbleShop = Property("QVariantMap", _humble_shop_info, notify=humbleShopChanged)
+
+    # --- Steam bundles (steambundles.py): with your wishlist games, extras for your games ----
+    steamBundlesReady = Signal("QVariantMap")          # {wishlist: [...], extras: [...]}
+    gameBundlesReady = Signal(str, "QVariantMap")      # key, {rows, total, url}
+    _steam_bundles = {}
+
+    def _bundle_row(self, b, owned, wish_ids=frozenset()):
+        y = steambundles.for_you(b, owned)
+        return {"id": b["id"], "name": b["name"], "url": b["url"], "image": b["image"], "price": b["price"],
+                "forYou": y["price"], "alone": y["alone"], "saving": y["saving"], "ownedCount": y["ownedCount"],
+                "newCount": y["newCount"], "count": len(b["items"]), "cents": y["cents"],
+                "wish": [i["name"] for i in b["items"] if i["appid"] in wish_ids],
+                "adds": [i["name"] for i in b["items"] if i["appid"] not in owned][:6]}
+
+    def _steam_owned(self):
+        games = [g for g in self.model.games if g.store == "steam" and g.id.isdigit()]
+        return {int(g.id) for g in games}, [g.title for g in games]
+
+    @Slot()
+    @Slot(bool)
+    def loadSteamBundles(self, force=False):
+        """For the Steam page: bundles with games from your wishlist, and bundles that only add
+        DLC / soundtracks to games you own, each priced for you."""
+        wish = [str(w.get("id")) for w in self._wishlist if w.get("store") == "steam" and str(w.get("id", "")).isdigit()]
+        made_for = (len(self.model.games), tuple(sorted(wish)))  # done again when the library or wishlist changes
+        if self.demo or (self._steam_bundles and not force and getattr(self, "_steam_bundles_for", None) == made_for):
+            return self.steamBundlesReady.emit(self._steam_bundles)
+        self._steam_bundles_for = made_for
+        owned, titles = self._steam_owned()
+        by_id = {g.id: g.title for g in self.model.games if g.store == "steam"}
+
+        def work():
+            cc = wishlist.country()
+            rows_wish, rows_extra = [], []
+            try:
+                wish_b = steambundles.bundle_ids(wish, cc) if wish else {}
+                wanted = {b for ids in wish_b.values() for b in ids}
+                own_b = steambundles.bundle_ids(sorted(str(a) for a in owned), cc, names=True) if owned else {}
+                for appid, rows in own_b.items():  # only bundles named after the game: its DLC packs
+                    t = (by_id.get(appid) or "").lower()
+                    wanted |= {bid for bid, name in rows if t and len(t) >= 3 and t in name.lower()}
+                found = steambundles.bundles(sorted(wanted), cc)
+            except Exception as e:
+                msg = f"Steam bundles: {type(e).__name__}"
+                return lambda: self.toast.emit(msg)
+            wish_ids = {int(w) for w in wish}
+            for b in found.values():
+                if any(i["appid"] in wish_ids for i in b["items"]):
+                    rows_wish.append(self._bundle_row(b, owned, wish_ids))
+                elif steambundles.is_extras_for(b, owned, titles):
+                    rows_extra.append(self._bundle_row(b, owned))
+            rows_wish.sort(key=lambda r: r["cents"] / max(1, len(r["wish"])))  # cheapest per wishlist game
+            per_game, kept = {}, []
+            for r in rows_wish:  # at most two bundles for the same wishlist game(s), so one game doesn't fill the row
+                k = tuple(sorted(r["wish"]))
+                if per_game.get(k, 0) < 2:
+                    per_game[k] = per_game.get(k, 0) + 1
+                    kept.append(r)
+            rows_wish = kept
+            rows_extra.sort(key=lambda r: (r["cents"]))
+            data = {"wishlist": rows_wish[:30], "extras": rows_extra[:30]}
+
+            def done():
+                self._steam_bundles = data
+                self.steamBundlesReady.emit(data)
+            return done
+        self._bg(work)
+
+    @Slot(str)
+    def loadGameBundles(self, key):
+        """For a game's page: every Steam bundle it is in, cheapest for you first."""
+        g = self.model.find(key)
+        appid = _appid(g) if g else ""
+        if not appid or self.demo:
+            return self.gameBundlesReady.emit(key, {})
+        owned, _titles = self._steam_owned()
+
+        def work():
+            try:
+                cc = wishlist.country()
+                ids = steambundles.bundle_ids([appid], cc).get(appid) or []
+                found = steambundles.bundles(ids, cc)
+            except Exception:
+                return lambda: self.gameBundlesReady.emit(key, {})
+            rows = sorted((self._bundle_row(b, owned) for b in found.values()), key=lambda r: r["cents"])
+            data = {"rows": [r for r in rows if r["newCount"]][:8], "total": len(rows),
+                    "url": f"https://store.steampowered.com/app/{appid}/#game_area_purchase"}
+            return lambda: self.gameBundlesReady.emit(key, data)
+        self._bg(work)
 
     bundleReady = Signal(str, "QVariantMap")  # url, its tiers priced against buying the games separately
 
