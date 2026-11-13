@@ -80,9 +80,35 @@ def prefix_path(store: str, game_id: str, create: bool = False) -> str:
     return str(p)
 
 
+# Anti-cheat for Proton: Steam's free "Proton EasyAntiCheat Runtime" and "Proton BattlEye
+# Runtime" tools. Steam points Proton at them for its own games; for the others Cornerplay does
+# the same (Proton adds /v2/lib64 and /v1/lib64/wine to these folders itself). A game still only
+# runs when its developer turned on anti-cheat support for Linux.
+ANTICHEAT_RUNTIMES = {"PROTON_EAC_RUNTIME": ("Proton EasyAntiCheat Runtime", "1826330"),
+                      "PROTON_BATTLEYE_RUNTIME": ("Proton BattlEye Runtime", "1161040")}
+
+
+def anticheat_runtimes() -> dict:
+    """{"PROTON_EAC_RUNTIME": folder, ...} for the runtimes installed in any Steam library."""
+    from . import protons
+    found = {}
+    for root in protons.steam_roots():
+        try:
+            libs = protons._steam_libraries(root)
+        except Exception:
+            libs = [root]
+        for lib in libs:
+            for var, (folder, _appid) in ANTICHEAT_RUNTIMES.items():
+                d = os.path.join(lib, "steamapps", "common", folder)
+                if var not in found and os.path.isdir(d):
+                    found[var] = d
+    return found
+
+
 def wine_env(store: str, game_id: str, umu_id: str = "umu-default") -> dict:
     """Environment for umu-run / wine for one game."""
     env = {"WINEPREFIX": prefix_path(store, game_id, create=True)}
+    env.update(anticheat_runtimes())
     kind, _ = compat()
     if kind == "umu":
         env["GAMEID"] = umu_id

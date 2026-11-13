@@ -2963,6 +2963,13 @@ class AioLaunch(QObject):
                                 or compat.tweak_on(t, opts))]
             v["system"] = {"gpu": me.get("gpu", ""), "cpu": me.get("cpu", ""), "ram": me.get("ram", 0), "vram": me.get("vram", 0)}
             v["denuvo"] = bool(appid) and compat.denuvo(appid)
+            if windows and ac and str(ac.get("status", "")).lower() in ("supported", "running"):
+                names = " ".join(ac.get("anticheats") or []).lower()
+                have = runner.anticheat_runtimes()
+                for var, (folder, rt_app) in runner.ANTICHEAT_RUNTIMES.items():
+                    wanted = "easy" in names if var == "PROTON_EAC_RUNTIME" else "battleye" in names
+                    if wanted and var not in have:
+                        v["acRuntime"] = {"name": folder, "url": f"steam://install/{rt_app}"}
             if appid and settings.get("peer_reports"):
                 from . import pdbreports
                 v["peers"] = [dict(r, apply=pdbreports.settings_from(r), when=_short_date(r["t"]))

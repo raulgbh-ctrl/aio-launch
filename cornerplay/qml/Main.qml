@@ -3067,7 +3067,7 @@ ApplicationWindow {
         // one-click tweaks that often fix things.
         Rectangle {
             id: fitCard
-            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0 || !!detail.fit.denuvo || (detail.fit.peers || []).length > 0)
+            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0 || !!detail.fit.denuvo || (detail.fit.peers || []).length > 0 || !!detail.fit.acRuntime)
             Layout.fillWidth: true
             implicitHeight: fitCol.implicitHeight + 32
             radius: 16
@@ -3153,6 +3153,20 @@ ApplicationWindow {
                     visible: (detail.fit.peers || []).length > 0
                     text: qsTr("From ProtonDB reports (open data, updated monthly)")
                     color: theme.outline; font.pixelSize: 10
+                }
+                // Anti-cheat that works on Linux, but its Proton runtime (a free Steam tool) is missing.
+                RowLayout {
+                    visible: !!detail.fit.acRuntime
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Icon { name: "shield-alert"; size: 16; color: "#ffcc66" }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                        text: qsTr("Its anti-cheat needs Steam's free %1 (Cornerplay uses it by itself once it is installed).").arg((detail.fit.acRuntime || {}).name || "")
+                        color: theme.onSurfaceVariant; font.pixelSize: 12
+                    }
+                    KButton { theme: win.theme; implicitHeight: 30; text: qsTr("Install in Steam"); iconName: "download"
+                              onClicked: { app.openUrl(detail.fit.acRuntime.url); toasts.append({ message: qsTr("Steam is installing it; open the game's page again afterwards") }) } }
                 }
                 // Denuvo: a change of Proton can count as a new PC, and only a few are allowed a day.
                 RowLayout {
