@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import humbleshop, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import humbleshop, patchnotes, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
@@ -931,6 +931,25 @@ class AioLaunch(QObject):
 
     gameColourReady = Signal(str, str)  # key, accent ("" = no clear colour)
     detailsReady = Signal(str, "QVariantMap")  # key, {description, genres, developer, year}
+    patchNotesReady = Signal(str, "QVariantList")  # key, [{title, when, text, url, patch, new}]
+
+    @Slot(str)
+    def loadPatchNotes(self, key):
+        """The developer's latest announcements on Steam (patchnotes.py); patchNotesReady follows.
+        Ones posted since you last played are marked new."""
+        g = self.model.find(key)
+        appid = _appid(g) if g and g.id != "battlenet-app" else ""
+        if not appid:
+            return self.patchNotesReady.emit(key, [])
+        last = self.model.group_value(self.model.group_of(key) or [g], "lastPlayed") or 0
+        this_year = time.localtime().tm_year
+
+        def work():
+            notes = patchnotes.get(appid)
+            rows = [dict(n, when=_short_date(n["date"], time.localtime(n["date"]).tm_year != this_year) if n.get("date") else "",
+                         new=bool(last and n.get("date", 0) > last)) for n in notes]
+            return lambda: self.patchNotesReady.emit(key, rows)
+        self._bg(work)
 
     @Slot(str, result="QVariantMap")
     def gameDetails(self, key):

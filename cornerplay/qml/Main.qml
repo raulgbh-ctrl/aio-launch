@@ -2535,12 +2535,15 @@ ApplicationWindow {
             function onScreenshotsReady(key, rows) { if (key === win.selectedKey) detail.shots = rows }
             function onAchievementsReady(key, d) { if (key === win.selectedKey) detail.ach = d }
             function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
+            function onPatchNotesReady(key, rows) { if (key === win.selectedKey) detail.notes = rows }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
         property var info: ({})
         property var shots: []      // your own screenshots of it (screenshots.py)
         property var ach: ({})      // Steam achievements: {done, total}
         property int dlcCount: -1   // -1 until known
+        property var notes: []      // patch notes and news from the developer (patchnotes.py)
+        property int noteOpen: -1   // the one shown in full
         onOpened: {
             accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
             ach = app.achievements(win.selectedKey)
@@ -2553,6 +2556,7 @@ ApplicationWindow {
             plays = app.gameSessions(win.selectedKey)
             fit = ({}); app.loadCompat(win.selectedKey)
             ran = app.perfHistory(win.selectedKey)
+            notes = []; noteOpen = -1; app.loadPatchNotes(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -3346,6 +3350,88 @@ ApplicationWindow {
                         text: (index === 0 ? "\u2605 " : "   ") + modelData.proton + "  \u2014  " + Math.round(modelData.avgFps) + qsTr(" fps, 1% low ")
                               + Math.round(modelData.low1) + ", " + modelData.stutters + qsTr(" stutters a session") + "  (" + modelData.sessions + ")"
                         color: index === 0 ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12
+                    }
+                }
+            }
+        }
+        // Patch notes and news, from the developer's announcements on Steam: the newest four,
+        // marked when posted since you last played; one opens in full at a time.
+        ColumnLayout {
+            visible: detail.notes.length > 0
+            Layout.fillWidth: true
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    readonly property int fresh: detail.notes.filter(n => n.new).length
+                    text: qsTr("Patch notes and news") + (fresh ? "  \u00B7  " + qsTr("%1 new since you last played").arg(fresh) : "")
+                    color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                }
+                Text {
+                    text: qsTr("All news") + "  \u2197"
+                    color: allNewsHover.hovered ? theme.primary : theme.outline; font.pixelSize: 13
+                    HoverHandler { id: allNewsHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.openUrl(detail.notes[0].url.replace(/\/view\/.*$/, "")) }
+                }
+            }
+            Repeater {
+                model: detail.notes.slice(0, 4)
+                Rectangle {
+                    id: noteBox
+                    required property var modelData
+                    required property int index
+                    readonly property bool open: detail.noteOpen === index
+                    Layout.fillWidth: true
+                    implicitHeight: noteCol.implicitHeight + 24
+                    radius: 12
+                    color: noteHover.hovered ? theme.surfaceContainerHigh : theme.surfaceContainer
+                    border.width: modelData.new ? 1 : 0
+                    border.color: theme.primary
+                    HoverHandler { id: noteHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: detail.noteOpen = noteBox.open ? -1 : noteBox.index }
+                    ColumnLayout {
+                        id: noteCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                        spacing: 6
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Rectangle {
+                                visible: noteBox.modelData.new
+                                radius: 6; implicitHeight: 20; implicitWidth: newNote.implicitWidth + 12
+                                color: theme.primary
+                                Text { id: newNote; anchors.centerIn: parent; text: qsTr("NEW"); color: theme.onPrimary; font.pixelSize: 10; font.weight: Font.Bold }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: noteBox.modelData.title
+                                color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                text: (noteBox.modelData.patch ? qsTr("Patch notes") + "  \u00B7  " : "") + noteBox.modelData.when
+                                color: theme.outline; font.pixelSize: 12
+                            }
+                            Icon { name: noteBox.open ? "chevron-up" : "chevron-down"; size: 14; color: theme.outline }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: text !== ""
+                            text: noteBox.modelData.text
+                            color: theme.onSurfaceVariant; font.pixelSize: 13; lineHeight: 1.15
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: noteBox.open ? 400 : 3
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            visible: noteBox.open
+                            text: qsTr("Read it on Steam") + "  \u2197"
+                            color: steamNoteHover.hovered ? theme.primary : theme.onSurfaceVariant
+                            font.pixelSize: 13; font.weight: Font.DemiBold
+                            HoverHandler { id: steamNoteHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.openUrl(noteBox.modelData.url) }
+                        }
                     }
                 }
             }
