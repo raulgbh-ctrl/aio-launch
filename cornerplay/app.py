@@ -72,6 +72,7 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "A command before the game did not work:"),
             QCoreApplication.translate("app", "Games"),
             QCoreApplication.translate("app", "added to Favourites"),
             QCoreApplication.translate("app", "removed from Favourites"),
@@ -2929,7 +2930,9 @@ class AioLaunch(QObject):
             sug = compat.suggest(me, tier.get("tier", "") if isinstance(tier, dict) else (tier or ""), problem)
             v["tweaks"] = [{"id": t["id"], "label": t["label"], "why": t["why"], "on": compat.tweak_on(t, opts),
                             "suggested": t["id"] in sug}
-                           for t in compat.TWEAKS if windows and (t["id"] != "nvapi" or "nvapi" in sug or compat.tweak_on(t, opts))]
+                           for t in compat.TWEAKS if windows and (t["id"] != "nvapi" or "nvapi" in sug or compat.tweak_on(t, opts))
+                           and (t["id"] != "hidenv" or "nvidia" in str(me.get("gpus") or me.get("gpu") or "").lower()
+                                or compat.tweak_on(t, opts))]
             v["system"] = {"gpu": me.get("gpu", ""), "cpu": me.get("cpu", ""), "ram": me.get("ram", 0), "vram": me.get("vram", 0)}
             v["denuvo"] = bool(appid) and compat.denuvo(appid)
             return lambda: self.compatReady.emit(key, v)
@@ -3175,6 +3178,25 @@ class AioLaunch(QObject):
     @Slot(str, result="QVariantMap")
     def gameOptions(self, key):
         return game_options.get(key)
+
+    def _after_steps(self, g):
+        text = self._options_for(g).get("after")
+        if text:
+            from . import steps
+            self._bg(lambda: (steps.after(g.key, text), None)[1])
+
+    @Slot(str, str)
+    def addStepPreset(self, key, preset):
+        """Options > Before and after: add one of steps.PRESETS to the game's commands."""
+        from . import steps
+        p = steps.PRESETS.get(preset)
+        if not p:
+            return
+        opts = game_options.get(key)
+        for side in ("before", "after"):
+            if p[side]:
+                game_options.set(key, side, steps.add_preset(opts.get(side, ""), p[side]))
+        self.gameChanged.emit(key)
 
     @Slot(str)
     def verifyGame(self, key):
@@ -3571,6 +3593,11 @@ class AioLaunch(QObject):
                         self._worker_toast.emit(f"Saves of {g.title} backed up")
                 except Exception:
                     pass
+            if opts.get("before"):  # the game's own "before it starts" commands (steps.py)
+                from . import steps
+                failed = steps.before(g.key, opts["before"])
+                if failed:
+                    self._worker_toast.emit(_t("A command before the game did not work:") + " " + failed[0])
             try:
                 with runner.using(opts):
                     cmd = store.launch(g)
@@ -3634,6 +3661,8 @@ class AioLaunch(QObject):
                 for key in set(self._steam_playing) - keys:
                     info = self._steam_playing.pop(key)
                     changed = True
+                    if self.model.find(key):
+                        self._after_steps(self.model.find(key))
                     try:
                         playtime.record(key, info["since"], now, log_only=True)
                     except OSError:
@@ -3756,6 +3785,8 @@ class AioLaunch(QObject):
                              (perf.record(gg.key, gg.store, gg.id, s0, s1, os.path.basename(pr.rstrip("/"))), None)[1])
                 if done_game and self._shares_saves(done_game):
                     self._bg(lambda gg=done_game: (savebackup.share(gg, _appid(gg)), None)[1])
+                if done_game:
+                    self._after_steps(done_game)
                 if done_game and done_game.store != "steam" and settings.get("shader_warmup"):
                     from . import shaders  # it just built its shaders with this driver
                     if shaders.folder(done_game.store, done_game.id).is_dir():

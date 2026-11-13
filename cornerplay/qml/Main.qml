@@ -6340,6 +6340,8 @@ ApplicationWindow {
             optSaves.select(opts.cloud_saves === undefined ? "default" : opts.cloud_saves)
             optEnv.text = opts.env || ""
             optArgs.text = opts.args || ""
+            optBefore.text = opts.before || ""
+            optAfter.text = opts.after || ""
             optCover.text = opts.cover || ""
             open()
         }
@@ -6457,6 +6459,56 @@ ApplicationWindow {
                 label: qsTr("Launch arguments")
                 KField { id: optArgs; theme: win.theme; Layout.fillWidth: true; placeholderText: qsTr("-windowed -skipintro")
                          onEditingFinished: app.setGameOption(gameOpts.key, "args", text) }
+            }
+            // Before it starts and after it closes: commands, one per line ("&" at the end: leave it running).
+            component StepsBox: Rectangle {
+                id: sb
+                property alias text: sbArea.text
+                property string placeholder: ""
+                signal saved(string text)
+                Layout.fillWidth: true
+                implicitHeight: Math.max(64, sbArea.implicitHeight + 12)
+                radius: 10
+                color: theme.surfaceContainerHigh
+                border.width: sbArea.activeFocus ? 1 : 0; border.color: theme.primary
+                TextArea {
+                    id: sbArea
+                    anchors.fill: parent; anchors.margins: 2
+                    wrapMode: TextArea.NoWrap
+                    font.family: "monospace"; font.pixelSize: 12
+                    color: theme.onSurface
+                    placeholderText: sb.placeholder; placeholderTextColor: theme.outline
+                    background: null
+                    onEditingFinished: sb.saved(text)
+                }
+            }
+            Row2 {
+                label: qsTr("Before it starts")
+                hint: qsTr("One command per line, each given up to a minute; end a line with & to leave it running (Discord, a server).")
+                StepsBox { id: optBefore; placeholder: "discord &\nnmcli connection up my-vpn"
+                           onSaved: t => app.setGameOption(gameOpts.key, "before", t) }
+            }
+            Row2 {
+                label: qsTr("After it closes")
+                hint: gameOpts.game.store === "prism" || gameOpts.game.store === "battlenet"
+                      ? qsTr("Cornerplay cannot tell when this game closes, so these do not run for it.")
+                      : qsTr("Run one after another once the game has closed.")
+                StepsBox { id: optAfter; placeholder: "powerprofilesctl set balanced"
+                           onSaved: t => app.setGameOption(gameOpts.key, "after", t) }
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [{ id: "discord", t: qsTr("+ Open Discord") }, { id: "power", t: qsTr("+ Performance power mode while playing") },
+                            { id: "close_discord", t: qsTr("+ Close Discord after") }]
+                    Chip2 {
+                        required property var modelData
+                        label: modelData.t
+                        onPicked: { app.addStepPreset(gameOpts.key, modelData.id); const o = app.gameOptions(gameOpts.key)
+                                    optBefore.text = o.before || ""; optAfter.text = o.after || "" }
+                    }
+                }
             }
             RowLayout {
                 visible: app.cloudSaveStores.includes(gameOpts.game.store)
