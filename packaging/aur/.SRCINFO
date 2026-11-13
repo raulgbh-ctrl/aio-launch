@@ -1,6 +1,6 @@
 pkgbase = cornerplay
 	pkgdesc = Your cosy corner for every game you own: Steam, Epic, GOG, Amazon, Battle.net, Humble Bundle and itch.io in one library, with a TV mode
-	pkgver = 0.12.0
+	pkgver = 0.12.1
 	pkgrel = 1
 	url = https://github.com/raulgbh-ctrl/cornerplay
 	arch = any
@@ -20,7 +20,7 @@ pkgbase = cornerplay
 	optdepends = libnotify: a notification when a download finishes
 	optdepends = gamescope: games in gamescope, and the Cornerplay (TV) login session
 	optdepends = legendary: Epic Games (otherwise Cornerplay downloads its own copy)
-	source = cornerplay-0.12.0.tar.gz::https://github.com/raulgbh-ctrl/cornerplay/archive/refs/tags/v0.12.0.tar.gz
-	sha256sums = dbaa4a75643ac71e6c34243bcd65a907d82ab6bf888064b17b6c2f2c22d193d5
+	source = cornerplay-0.12.1.tar.gz::https://github.com/raulgbh-ctrl/cornerplay/archive/refs/tags/v0.12.1.tar.gz
+	sha256sums = 6e5c42dd9268c6ee8e71c0d29cad8aa1b94f5724d5d8fe7b289115313f324e22
 
 pkgname = cornerplay
