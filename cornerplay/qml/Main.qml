@@ -141,6 +141,13 @@ ApplicationWindow {
     Shortcut { sequence: "F11"; onActivated: win.tv = !win.tv }
     Shortcut { sequence: "F10"; enabled: !win.tv; onActivated: win.tv = true }  // the controller's Guide button
     Shortcut { sequence: "Ctrl+Q"; onActivated: Qt.quit() }
+    // Quick ways to the tools in the sidebar; F1 (or ?) lists every key.
+    Shortcut { sequence: "Ctrl+,"; enabled: !win.tv; onActivated: prefs.open() }
+    Shortcut { sequence: "Ctrl+P"; enabled: !win.tv; onActivated: picker.show() }
+    Shortcut { sequence: "Ctrl+I"; enabled: !win.tv; onActivated: statsBox.show() }
+    Shortcut { sequence: "Ctrl+N"; enabled: !win.tv; onActivated: addBox.show() }
+    Shortcut { sequence: "F1"; enabled: !win.tv; onActivated: keysBox.open() }
+    Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
     // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
     property bool tvUsed: startTv
@@ -197,7 +204,7 @@ ApplicationWindow {
     // store or a list, the matching games show as covers, and the shelves come back after.
     readonly property string libView: {
         const v = app.settingsMap.view || "grid"
-        if (v === "shelves" && (library.search !== "" || (library.tags || []).length || library.storeFilter !== ""
+        if (v === "shelves" && (library.search !== "" || ((library && library.tags) || []).length || library.storeFilter !== ""
                                 || library.shelf !== "" || library.installedOnly || library.showHidden)) return "grid"
         return v
     }
@@ -328,6 +335,7 @@ ApplicationWindow {
                                tip: qsTr("Hidden games (") + app.hiddenCount + ")"
                                onPicked: { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } }
                     Item { Layout.fillWidth: true }
+                    ToolIcon { icon: "keyboard"; tip: qsTr("Keyboard shortcuts (F1)"); onPicked: keysBox.open() }
                     ToolIcon { icon: "user-round"; tip: qsTr("Accounts"); onPicked: accounts.open() }
                     ToolIcon { icon: "sliders-horizontal"; tip: qsTr("Settings"); onPicked: prefs.open() }
                 }
@@ -621,7 +629,7 @@ ApplicationWindow {
                 }
                 // How many games, when it tells you something (a search, a filter, a store or a list).
                 Text {
-                    visible: !!library.search || (library.tags || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf
+                    visible: !!library.search || ((library && library.tags) || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf
                     text: grid.count + (grid.count === 1 ? qsTr(" game") : qsTr(" games"))
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
@@ -630,8 +638,8 @@ ApplicationWindow {
                 // Filters: the chip row shows while this is on, or while a filter is set.
                 TopButton {
                     icon: "filter"; label: qsTr("Filters")
-                    badge: (library.tags || []).length
-                    on: win.showFilters || (library.tags || []).length > 0
+                    badge: ((library && library.tags) || []).length
+                    on: win.showFilters || ((library && library.tags) || []).length > 0
                     onPicked: win.showFilters = !win.showFilters
                 }
                 // View: covers or list, sort, installed only, cover size.
@@ -735,7 +743,7 @@ ApplicationWindow {
             // Filter chips: pick several; a genre from the details fetched so far.
             Flow {
                 id: chips
-                visible: win.showFilters || (library.tags || []).length > 0
+                visible: win.showFilters || ((library && library.tags) || []).length > 0
                 Layout.fillWidth: true
                 Layout.leftMargin: 20; Layout.rightMargin: 20; Layout.bottomMargin: 8
                 spacing: 6
@@ -743,7 +751,7 @@ ApplicationWindow {
                 Connections { target: app; function onDetailsGrew() { chips.genres = app.genreList().slice(0, 14) } }
                 Component.onCompleted: genres = app.genreList().slice(0, 14)
                 function toggle(tag) {
-                    const t = (library.tags || []).slice()
+                    const t = ((library && library.tags) || []).slice()
                     const i = t.indexOf(tag)
                     if (i === -1) t.push(tag); else t.splice(i, 1)
                     library.tags = t
@@ -752,14 +760,14 @@ ApplicationWindow {
                     model: [{ t: "unplayed", l: "Never played", i: "sparkles" }, { t: "linux", l: "Linux version", i: "" },
                             { t: "controller", l: "Full controller support", i: "gamepad-2" }, { t: "couch", l: "Play together (same screen)", i: "user-round" }, { t: "protondb", l: "Runs well (ProtonDB Gold+)", i: "check" }]
                     Chip2 { required property var modelData; label: modelData.l; icon: modelData.i
-                            on: (library.tags || []).indexOf(modelData.t) !== -1; onPicked: chips.toggle(modelData.t) }
+                            on: ((library && library.tags) || []).indexOf(modelData.t) !== -1; onPicked: chips.toggle(modelData.t) }
                 }
                 Repeater {
                     model: chips.genres
                     Chip2 { required property string modelData; label: modelData
-                            on: (library.tags || []).indexOf("genre:" + modelData) !== -1; onPicked: chips.toggle("genre:" + modelData) }
+                            on: ((library && library.tags) || []).indexOf("genre:" + modelData) !== -1; onPicked: chips.toggle("genre:" + modelData) }
                 }
-                Chip2 { visible: (library.tags || []).length > 0; label: qsTr("Clear filters"); icon: "x"; onPicked: library.tags = [] }
+                Chip2 { visible: ((library && library.tags) || []).length > 0; label: qsTr("Clear filters"); icon: "x"; onPicked: library.tags = [] }
             }
             Text {
                 Layout.leftMargin: 22; Layout.bottomMargin: 6
@@ -1742,7 +1750,7 @@ ApplicationWindow {
                         width: 240; height: 160
                         theme: win.theme
                         kind: app.totalCount === 0 ? "library"
-                              : library.shelf && !library.search && !(library.tags || []).length ? "list" : "search"
+                              : library.shelf && !library.search && !((library && library.tags) || []).length ? "list" : "search"
                     }
                     Text {
                         width: parent.width
@@ -1763,8 +1771,8 @@ ApplicationWindow {
                         visible: !app.refreshing && !library.showHidden
                         text: app.totalCount === 0
                               ? "Connect your stores in Accounts and every game you own settles in here."
-                              : library.search ? "No game called \u201c" + library.search + "\u201d" + ((library.tags || []).length || library.installedOnly || library.storeFilter || library.shelf ? " with these filters." : ".")
-                              : library.shelf && !(library.tags || []).length && !library.installedOnly ? "This list is empty. Add games to it from a game's page."
+                              : library.search ? "No game called \u201c" + library.search + "\u201d" + (((library && library.tags) || []).length || library.installedOnly || library.storeFilter || library.shelf ? " with these filters." : ".")
+                              : library.shelf && !((library && library.tags) || []).length && !library.installedOnly ? "This list is empty. Add games to it from a game's page."
                               : "No games match these filters."
                     }
                     Row {
@@ -1774,7 +1782,7 @@ ApplicationWindow {
                         KButton { theme: win.theme; primary: true; visible: app.totalCount === 0; text: qsTr("Connect stores"); onClicked: accounts.open() }
                         KButton { theme: win.theme; visible: app.totalCount === 0; text: qsTr("Add a game"); iconName: "plus"; onClicked: addBox.show() }
                         KButton { theme: win.theme; visible: !!library.search; text: qsTr("Clear search"); iconName: "x"; onClicked: search.text = "" }
-                        KButton { theme: win.theme; visible: (library.tags || []).length > 0; text: qsTr("Clear filters"); onClicked: library.tags = [] }
+                        KButton { theme: win.theme; visible: ((library && library.tags) || []).length > 0; text: qsTr("Clear filters"); onClicked: library.tags = [] }
                         KButton { theme: win.theme; visible: library.installedOnly; text: qsTr("Show all games"); onClicked: library.installedOnly = false }
                         KButton { theme: win.theme; visible: !!library.storeFilter || !!library.shelf; text: qsTr("All games"); iconName: "library"
                                   onClicked: { library.storeFilter = ""; library.shelf = "" } }
@@ -1785,6 +1793,77 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- game detail
+    // Every keyboard shortcut on one card: F1, ? or the keyboard icon in the sidebar.
+    KDialog {
+        id: keysBox
+        theme: win.theme
+        heading: qsTr("Keyboard shortcuts")
+        headingIcon: "keyboard"
+        width: Math.min(win.width - 80, 760)
+        readonly property var groups: [
+            { title: qsTr("Library"), keys: [
+                ["Ctrl+F", qsTr("Search (or just start typing)")],
+                ["Enter", qsTr("Play the selected game")],
+                ["\u2190 \u2191 \u2192 \u2193", qsTr("Move between covers")],
+                ["Ctrl+R / F5", qsTr("Refresh every store")],
+                ["Ctrl+N", qsTr("Add a game")],
+                ["Esc", qsTr("Close a page or pop-up")] ] },
+            { title: qsTr("Tools"), keys: [
+                ["Ctrl+P", qsTr("What should I play?")],
+                ["Ctrl+I", qsTr("Stats")],
+                ["Ctrl+,", qsTr("Settings")],
+                ["F1 / ?", qsTr("This list")],
+                ["Ctrl+Q", qsTr("Quit")] ] },
+            { title: qsTr("TV mode"), keys: [
+                ["F11", qsTr("Open or leave TV mode")],
+                ["F10", qsTr("Main menu (the Guide button)")],
+                ["F9", qsTr("Quick access")],
+                ["F2", qsTr("A game\u2019s options")],
+                ["Esc", qsTr("Back")] ] }
+        ]
+        contentItem: GridLayout {
+            columns: keysBox.width > 640 ? 2 : 1
+            columnSpacing: 36
+            rowSpacing: 18
+            Repeater {
+                model: keysBox.groups
+                ColumnLayout {
+                    required property var modelData
+                    Layout.alignment: Qt.AlignTop
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Text { text: modelData.title; color: theme.primary; font.pixelSize: 13; font.weight: Font.Bold
+                           font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                    Repeater {
+                        model: modelData.keys
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 12
+                            Text { Layout.fillWidth: true; text: modelData[1]; color: theme.onSurface; font.pixelSize: 14; elide: Text.ElideRight }
+                            Row {
+                                spacing: 4
+                                Repeater {
+                                    model: modelData[0].split(" / ")
+                                    Rectangle {
+                                        required property string modelData
+                                        height: 24; width: Math.max(24, keyText.implicitWidth + 14); radius: 6
+                                        color: theme.surfaceContainerHigh
+                                        border.width: 1; border.color: theme.outlineVariant
+                                        Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                                    height: 2; radius: 6; color: Qt.alpha(theme.onSurface, 0.10) }
+                                        Text { id: keyText; anchors.centerIn: parent; text: modelData; color: theme.onSurface
+                                               font.pixelSize: 12; font.weight: Font.DemiBold }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     KDialog {
         id: detail
         objectName: "detail"

@@ -30,10 +30,11 @@ Item {
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: "black"
-            shadowOpacity: app.theme.dark === false ? 1.0 : 0.55
-            shadowBlur: 0.35
-            blurMax: 24
-            shadowScale: 1.03
+            // On a light theme the shadow is wider and darker, a soft dark halo the white letters sit on.
+            shadowOpacity: app.theme.dark === false ? 0.9 : 0.55
+            shadowBlur: app.theme.dark === false ? 0.7 : 0.35
+            blurMax: app.theme.dark === false ? 40 : 24
+            shadowScale: app.theme.dark === false ? 1.06 : 1.03
             shadowVerticalOffset: 2
             autoPaddingEnabled: true
         }
