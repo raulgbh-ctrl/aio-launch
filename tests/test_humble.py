@@ -57,7 +57,44 @@ def test_mojosetup_unpacks_without_running(tmp_path):
 
 def test_cookie_paste_forms(monkeypatch, tmp_path):
     monkeypatch.setattr(humble, "AUTH_FILE", tmp_path / "auth.json")
-    seen = {}
-    monkeypatch.setattr(humble, "get", lambda path, params=None, value=None: seen.setdefault("v", value) and [])
+    seen = []
+    monkeypatch.setattr(humble, "signed_in", lambda jar: seen.append(jar) or True)
     humble.Humble().login_finish('_simpleauth_sess="abc123|def"; Path=/')
-    assert seen["v"] == "abc123|def" and humble.cookie() == "abc123|def"
+    assert seen[-1] == {"_simpleauth_sess": "abc123|def"} and humble.cookie() == "abc123|def"
+    humble.Humble().login_finish("abc123|def")
+    assert seen[-1] == {"_simpleauth_sess": "abc123|def"}
+    humble.Humble().login_finish("ory_session_x=s1; csrf_token_y=c2")  # the new sign-in's cookies
+    assert humble.cookies() == {"ory_session_x": "s1", "csrf_token_y": "c2"}
+    monkeypatch.setattr(humble, "signed_in", lambda jar: False)
+    try:
+        humble.Humble().login_finish("ory_session_x=gone")
+        raise AssertionError("an unknown session was accepted")
+    except humble.StoreError:
+        pass
+
+
+def test_find_program_skips_helpers(tmp_path):
+    from cornerplay import unpack
+    (tmp_path / "Game_Data").mkdir()
+    (tmp_path / "Game_Data" / "lib.so").write_bytes(b"\x7fELF")
+    (tmp_path / "UnityCrashHandler64.exe").write_bytes(b"MZ")
+    (tmp_path / "Game.exe").write_bytes(b"MZ" * 10)
+    assert unpack.find_program(tmp_path, "windows") == "Game.exe"
+    (tmp_path / "Game.x86_64").write_bytes(b"\x7fELF")
+    assert unpack.find_program(tmp_path, "linux") == "Game.x86_64"
+
+
+def test_zip_cannot_escape(tmp_path):
+    import io
+    import zipfile
+    from cornerplay import unpack
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("../../escaped", b"x")
+        z.writestr("ok/file", b"y")
+    archive = tmp_path / "evil.zip"
+    archive.write_bytes(buf.getvalue())
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    assert unpack._safe_extract(str(archive), str(dest))
+    assert (dest / "ok" / "file").exists() and not (tmp_path.parent / "escaped").exists()

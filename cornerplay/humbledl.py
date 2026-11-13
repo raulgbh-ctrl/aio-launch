@@ -21,7 +21,7 @@ import time
 import zipfile
 
 from .config import write_json
-from .itchdl import _safe_extract, find_program
+from .unpack import _safe_extract, find_program
 from .net import requests
 from .stores.humble import MANIFEST, downloads, get
 

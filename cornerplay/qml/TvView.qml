@@ -49,7 +49,7 @@ FocusScope {
         info = ({}); ach = ({}); anim = ({})
         infoTimer.restart()
     }
-    // The stores you use (games there, or signed in), like the sidebar: no empty itch.io or Retro
+    // The stores you use (games there, or signed in), like the sidebar: no empty Retro
     // games tab for someone who uses neither, and LB / RB skip them.
     readonly property var storeIds: [""].concat(app.storesInfo.filter(s => s.count > 0 || (s.inAccounts && s.loggedIn)).map(s => s.id))
 

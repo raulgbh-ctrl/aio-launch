@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/banner.jpg" alt="Cornerplay: your games, in one cozy place"></p>
 
 <p align="center">
-  <b>Steam, Epic Games, GOG, Amazon Games, Battle.net, Humble Bundle and itch.io in one cosy library on Linux,<br>
+  <b>Steam, Epic Games, GOG, Amazon Games, Battle.net and Humble Bundle in one cosy library on Linux,<br>
   with a couch-friendly TV mode for your controller.</b>
 </p>
 
@@ -71,7 +71,6 @@ themselves, and the old `aiolaunch` command keeps working.*
 | **Amazon Games** | Accounts > Amazon Games > Sign in, through [nile](https://github.com/imLinguin/nile). | Nothing else. |
 | **Battle.net** | See below. | The Battle.net app, under Proton. |
 | **Humble Bundle** | Accounts > Humble Bundle > Sign in: log in on Humble's page in the sign-in window (or paste your `_simpleauth_sess` cookie). Every DRM-free game in your library (bundles, the store, Humble Choice) is listed; the Linux download installs when there is one (archives and MojoSetup `.sh` installers are unpacked without running them), otherwise the Windows one through Proton (an installer runs once in its own window). Steam keys show up through Steam once redeemed. | Nothing else. |
-| **itch.io** | Accounts > itch.io > Sign in: make an API key at [itch.io/user/settings/api-keys](https://itch.io/user/settings/api-keys) and paste it. Games you bought or claimed are listed; the Linux build installs when there is one, otherwise the Windows build runs through Proton. | Nothing else. |
 
 **Steam Web API key (optional).** Without one, Cornerplay lists the Steam games in your Steam
 client's library. With one it also lists every game you own (even ones Steam has never shown on
@@ -205,7 +204,7 @@ To remove it:
 - **Players with a PC like yours**: a game's page shows the ProtonDB reports from graphics cards like yours (the same card first, then the same maker and similar power) that got it running: their Proton, launch options and notes. "Use these settings" puts their Proton (when this PC has that build, or GE-Proton), environment variables, launch arguments, GameMode and MangoHud into the game's Options; for Steam games the launch options are copied to paste into Steam. From ProtonDB's open data dump (ODbL), read once a month in the background, keeping only your games' reports (`pdbreports.py`; Settings > Compatibility).
 - **Before it starts, after it closes** (a game's Options): commands to run first (connect a VPN, mount a drive; a line ending in & is left running, like Discord) and after it closes (power mode back to balanced, close Discord). One-click presets for Discord and the performance power mode (`steps.py`).
 - **Prism Launcher**: your Minecraft instances are games in Cornerplay, with the Minecraft version, mod loader (Fabric, Forge, NeoForge, Quilt), number of mods and the time Prism counted; Play starts the instance through Prism, and "Open in Prism Launcher" (right-click) gets to its mods and worlds. Native or Flathub Prism, and a custom instance folder (`stores/prism.py`).
-- **Shaders ready after a driver update**: while a game from Epic, GOG, Amazon, itch, Humble or your own runs, its shaders are recorded with Steam's Fossilize (the layer Steam installs); after a Mesa or NVIDIA update they are built again in the background, one game at a time, at the lowest priority, on mains power and while nothing is played, so the first run after the update does not stutter (Settings > Compatibility; `shaders.py`). Steam does the same for its own games.
+- **Shaders ready after a driver update**: while a game from Epic, GOG, Amazon, Humble or your own runs, its shaders are recorded with Steam's Fossilize (the layer Steam installs); after a Mesa or NVIDIA update they are built again in the background, one game at a time, at the lowest priority, on mains power and while nothing is played, so the first run after the update does not stutter (Settings > Compatibility; `shaders.py`). Steam does the same for its own games.
 - **Easy Anti-Cheat and BattlEye**: when Steam's free "Proton EasyAntiCheat Runtime" or "Proton BattlEye Runtime" tool is installed (in any Steam library), Epic, GOG, Amazon and the other games Cornerplay runs through Proton use it too (`PROTON_EAC_RUNTIME`, `PROTON_BATTLEYE_RUNTIME`), as Steam does for its own. A game whose anti-cheat works on Linux but whose runtime is missing says so on its page, with Install in Steam. The game's developer still has to allow Linux.
 - **Denuvo warning**: a game with Denuvo (from Steam's store data) says so on its page, and changing its Proton version (Options, or the GE-Proton switch) asks first: Denuvo can count each change as a new PC and allows only a few a day.
 - **Many games at once**: Ctrl+click picks a game, Shift+click a range, Ctrl+A everything shown; a bar at the bottom favourites, adds to a collection, sets the status, installs, updates or hides them all. Esc lets go.

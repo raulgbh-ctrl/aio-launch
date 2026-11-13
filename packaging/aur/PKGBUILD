@@ -2,7 +2,7 @@
 pkgname=cornerplay
 pkgver=0.13.1
 pkgrel=1
-pkgdesc="Your cosy corner for every game you own: Steam, Epic, GOG, Amazon, Battle.net, Humble Bundle and itch.io in one library, with a TV mode"
+pkgdesc="Your cosy corner for every game you own: Steam, Epic, GOG, Amazon, Battle.net and Humble Bundle in one library, with a TV mode"
 arch=('any')
 url="https://github.com/raulgbh-ctrl/cornerplay"
 license=('MIT' 'OFL-1.1')

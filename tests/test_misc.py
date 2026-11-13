@@ -52,7 +52,7 @@ def test_one_store_list_everywhere():
     from cornerplay.steamgames import eligible
     from cornerplay.stores.base import Game
     ids = [s.id for s in all_stores()]
-    assert {"steam", "epic", "gog", "amazon", "battlenet", "humble", "itch", "prism", "retro", "custom"} == set(ids)
+    assert {"steam", "epic", "gog", "amazon", "battlenet", "humble", "prism", "retro", "custom"} == set(ids)
     for sid in ids:
         if sid != "steam":
             assert eligible(Game(sid, "1", "X", installed=True))

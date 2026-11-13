@@ -130,7 +130,7 @@ class Presence:
 
 
 STORE_NAMES = {"epic": "Epic Games", "gog": "GOG", "amazon": "Amazon Games", "battlenet": "Battle.net",
-               "custom": "", "steam": "Steam", "itch": "itch.io", "humble": "Humble Bundle", "prism": "Minecraft", "retro": "Retro games"}
+               "custom": "", "steam": "Steam", "humble": "Humble Bundle", "prism": "Minecraft", "retro": "Retro games"}
 
 
 def activity_for(game, started):

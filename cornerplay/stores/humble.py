@@ -1,10 +1,11 @@
 """Humble Bundle: the DRM-free games in your Humble library (bundles, the store, Humble Choice).
 
 Humble has no public API: Cornerplay asks the same pages the Humble library page does
-(/api/v1/user/order and /api/v1/orders), signed in with your session cookie (_simpleauth_sess),
-as Lutris does. Signing in happens in Cornerplay's sign-in window (the cookie is read from it,
-the password never), or by pasting the cookie's value. Kept in ~/.config/cornerplay/humble_auth.json,
-readable only by you.
+(/api/v1/user/order and /api/v1/orders), signed in with your session cookies, as Lutris does.
+Since November 2026 Humble signs you in at auth.humblebundle.com (a code by email, no password)
+and its session is no longer the single _simpleauth_sess cookie, so every humblebundle.com cookie
+from the sign-in window is kept (the password never is), or you paste a Cookie header / the old
+cookie's value. Kept in ~/.config/cornerplay/humble_auth.json, readable only by you.
 
 A game is listed when one of its downloads is for Linux or Windows (soundtracks, books and
 Android files are left out; Steam keys from bundles show up through Steam once redeemed).
@@ -15,6 +16,7 @@ import json
 import os
 import shutil
 import sys
+from urllib.parse import quote
 
 from ..config import CONFIG_DIR, read_json, settings, write_private
 from ..net import redact, requests
@@ -23,7 +25,9 @@ from .base import Command, Game, Store
 
 SITE = "https://www.humblebundle.com"
 API = SITE + "/api/v1"
-LOGIN_URL = SITE + "/login?goto=%2Fhome%2Flibrary"
+LIBRARY_URL = SITE + "/home/library"
+LOGIN_URL = "https://auth.humblebundle.com/self-service/login/browser?return_to=" + quote(LIBRARY_URL, safe="")
+SESSION_URL = SITE + "/api/auth/session-status"  # {"status": "anonymous"} when signed out
 COOKIE = "_simpleauth_sess"
 AUTH_FILE = CONFIG_DIR / "humble_auth.json"
 MANIFEST = ".cornerplay-humble.json"
@@ -43,22 +47,66 @@ def manifest(machine):
     return read_json(game_dir(machine) / MANIFEST) or {}
 
 
+def cookies():
+    """The saved session cookies: {name: value} (an older sign-in saved only _simpleauth_sess)."""
+    auth = read_json(AUTH_FILE) or {}
+    jar = auth.get("cookies")
+    if isinstance(jar, dict) and jar:
+        return {str(k): str(v) for k, v in jar.items()}
+    return {COOKIE: auth["cookie"]} if auth.get("cookie") else {}
+
+
 def cookie():
-    return (read_json(AUTH_FILE) or {}).get("cookie", "")
+    return cookies().get(COOKIE, "") or "; ".join(f"{k}={v}" for k, v in cookies().items())
+
+
+def parse_cookies(text):
+    """What was pasted (or handed over by the sign-in window) as {name: value}: a Cookie header
+    ("a=1; b=2"), one Set-Cookie line, or just the value of _simpleauth_sess."""
+    text = text.strip()
+    if "=" not in text.split(";")[0]:
+        value = text.strip('"').strip()
+        if not value or len(value) > 4000 or any(c.isspace() for c in value):
+            raise StoreError("Paste your humblebundle.com cookies (a Cookie header) or the _simpleauth_sess value")
+        return {COOKIE: value}
+    jar = {}
+    for part in text.split(";"):
+        name, eq, value = part.strip().partition("=")
+        if not eq or not name or name.lower() in ("path", "domain", "expires", "max-age", "samesite"):
+            continue
+        value = value.strip().strip('"')
+        if value and len(value) <= 4000 and not any(c.isspace() for c in name + value):
+            jar[name] = value
+    if not jar:
+        raise StoreError("Paste your humblebundle.com cookies (a Cookie header) or the _simpleauth_sess value")
+    return jar
+
+
+def signed_in(jar):
+    """Does Humble know this session? (the endpoint its own pages poll)"""
+    try:
+        r = requests.get(SESSION_URL, timeout=30, cookies=jar, headers={"Accept": "application/json"})
+        status = r.json().get("status") if r.ok else None
+    except (requests.RequestException, ValueError, AttributeError):
+        raise StoreError("Could not reach Humble Bundle to check the sign-in") from None
+    return bool(status) and status != "anonymous"
 
 
 def get(path, params=None, value=None):
-    """A Humble API call with the session cookie; StoreError when signed out or unreachable."""
-    value = value or cookie()
-    if not value:
+    """A Humble API call with the session cookies; StoreError when signed out or unreachable."""
+    jar = value if isinstance(value, dict) else {COOKIE: value} if value else cookies()
+    if not jar:
         raise StoreError("Not signed in to Humble Bundle")
     try:
-        r = requests.get(API + path, params=params, timeout=30, cookies={COOKIE: value},
+        r = requests.get(API + path, params=params, timeout=30, cookies=jar,
                          headers={"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"})
     except requests.RequestException as e:
         raise StoreError(f"Could not reach Humble Bundle ({type(e).__name__})") from None
-    if r.status_code in (401, 403) or "/login" in r.url:
+    if r.status_code in (401, 403) or "/login" in r.url or "auth.humblebundle.com" in r.url:
         raise StoreError("Humble Bundle signed you out: sign in again in Accounts")
+    if r.status_code == 404 and "json" not in r.headers.get("Content-Type", ""):
+        raise StoreError("Humble Bundle rebuilt its website and the library list Cornerplay read is gone; "
+                         "Cornerplay can't list your Humble games until it is updated")
     if not r.ok:
         raise StoreError(redact(f"Humble Bundle: {r.status_code} {r.text[:120]}"))
     try:
@@ -131,26 +179,22 @@ class Humble(Store):
 
     # --- state -----------------------------------------------------------
     def logged_in(self):
-        return bool(cookie())
+        return bool(cookies())
 
     def account(self):
         return (read_json(AUTH_FILE) or {}).get("account", "")
 
     def login_begin(self):
         return {"url": LOGIN_URL,
-                "prompt": "Sign in to Humble Bundle in your browser, then copy the value of the "
-                          "_simpleauth_sess cookie for humblebundle.com (Developer tools > Storage > Cookies) "
+                "prompt": "Sign in to Humble Bundle in your browser, then copy the Cookie header of a "
+                          "request to www.humblebundle.com (Developer tools > Network > the page > Request headers) "
                           "and paste it here. It lets Cornerplay read your library; your password is never needed."}
 
     def login_finish(self, text):
-        value = text.strip()
-        if value.startswith(COOKIE + "="):         # pasted as name=value (maybe with ; Path=/ ...)
-            value = value[len(COOKIE) + 1:].split(";")[0]
-        value = value.strip().strip('"').strip()
-        if not value or len(value) > 4000 or any(c.isspace() for c in value):
-            raise StoreError("Paste just the value of the _simpleauth_sess cookie")
-        found = get("/user/order", value=value)  # does Humble know this session?
-        write_private(AUTH_FILE, json.dumps({"cookie": value, "account": f"{len(found or [])} orders"}))
+        jar = parse_cookies(text)
+        if not signed_in(jar):
+            raise StoreError("Humble Bundle does not know this sign-in: sign in again")
+        write_private(AUTH_FILE, json.dumps({"cookies": jar, "account": "Signed in"}))
 
     def logout(self):
         AUTH_FILE.unlink(missing_ok=True)
