@@ -1,4 +1,5 @@
 import QtQuick
+import "protondb.js" as ProtonDB
 import QtQuick.Layouts
 
 // A game's own page in TV mode (A on a cover): its art, what it is, how long you played,
@@ -128,11 +129,11 @@ Rectangle {
             text: {
                 const parts = [page.game.storeName || ""]
                 const h = (page.game.playtime || 0) / 3600
-                if (h > 0) parts.push(h >= 10 ? Math.round(h) + qsTr(" h played") : h.toFixed(1) + qsTr(" h played"))
+                if (h > 0) parts.push((h >= 10 || h === Math.round(h) ? Math.round(h) : h.toFixed(1)) + qsTr(" h played"))
                 else parts.push(qsTr("Not played yet"))
                 if (page.ach.total) parts.push("🏆 " + page.ach.done + " / " + page.ach.total)
                 if (page.info.ttbLabel) parts.push(page.info.ttbLabel)
-                if (page.game.protondb) parts.push("ProtonDB " + page.game.protondb)
+                if (page.game.protondb) parts.push("ProtonDB " + ProtonDB.label(page.game.protondb))
                 return parts.filter(p => p).join("   ·   ")
             }
             color: page.theme.onSurfaceVariant

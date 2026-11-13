@@ -237,6 +237,7 @@ glue, `cornerplay/qml` is the interface.
     python3 -m cornerplay --check  # compile every QML file and report errors (run before a commit)
     cornerplay --fetch-backends  # download legendary, gogdl and nile into ~/.local/share/cornerplay/bin
     ./make-installer.sh          # build dist/cornerplay-<version>.run (the one-file installer)
+    python3 tools/shoot.py out wait:500 shot:library key:F11 wait:3000 shot:tv  # screenshots of the demo, off screen
 
 An Arch package recipe is in `packaging/aur/PKGBUILD` (`makepkg -si` there builds and installs it).
 
