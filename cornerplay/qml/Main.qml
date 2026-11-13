@@ -3064,7 +3064,7 @@ ApplicationWindow {
         // one-click tweaks that often fix things.
         Rectangle {
             id: fitCard
-            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0 || !!detail.fit.denuvo)
+            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0 || !!detail.fit.denuvo || (detail.fit.peers || []).length > 0)
             Layout.fillWidth: true
             implicitHeight: fitCol.implicitHeight + 32
             radius: 16
@@ -3086,6 +3086,70 @@ ApplicationWindow {
                     Text { visible: !!(detail.fit.system || {}).gpu; color: theme.outline; font.pixelSize: 12; elide: Text.ElideRight
                            Layout.fillWidth: true
                            text: "  " + ((detail.fit.system || {}).gpu || "") + "  \u00B7  " + Math.round((detail.fit.system || {}).ram || 0) + qsTr(" GB RAM") }
+                }
+                // Players with a graphics card like this PC's who got it running (ProtonDB's open data).
+                Text {
+                    visible: (detail.fit.peers || []).length > 0
+                    text: qsTr("Players with a PC like yours")
+                    color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.1; font.capitalization: Font.AllUppercase
+                    Layout.topMargin: 4
+                }
+                Repeater {
+                    model: detail.fit.peers || []
+                    Rectangle {
+                        id: peer
+                        required property var modelData
+                        readonly property bool hasSettings: win.selected.store === "steam" ? !!modelData.options
+                                                            : !!(modelData.apply.env || modelData.apply.args || modelData.apply.proton
+                                                                 || modelData.apply.gamemode || modelData.apply.mangohud)
+                        Layout.fillWidth: true
+                        implicitHeight: peerCol.implicitHeight + 20
+                        radius: 12
+                        color: Qt.alpha(theme.onSurface, 0.05)
+                        ColumnLayout {
+                            id: peerCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                            spacing: 4
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Rectangle { width: 8; height: 8; radius: 4; color: peer.modelData.perf ? "#7bd88f" : "#ffcc66" }
+                                Text { text: peer.modelData.gpu; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight
+                                       Layout.maximumWidth: 260 }
+                                Text { text: (peer.modelData.match === "same" ? qsTr("your graphics card") : qsTr("a similar card"))
+                                             + "  \u00B7  " + peer.modelData.when
+                                       color: theme.outline; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                                KButton {
+                                    visible: peer.hasSettings
+                                    theme: win.theme; implicitHeight: 30
+                                    text: win.selected.store === "steam" ? qsTr("Copy launch options") : qsTr("Use these settings")
+                                    iconName: win.selected.store === "steam" ? "copy" : "check"
+                                    onClicked: {
+                                        const k = win.selectedKey, s = peer.modelData.apply
+                                        if (s.proton && win.selected.store !== "steam") win.protonChange(k, () => app.usePeerSettings(k, s))
+                                        else app.usePeerSettings(k, s)
+                                    }
+                                }
+                            }
+                            Text {
+                                visible: peer.hasSettings
+                                Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                                font.family: "monospace"; font.pixelSize: 11; color: theme.onSurfaceVariant
+                                text: [peer.modelData.proton ? "Proton: " + peer.modelData.proton : "", peer.modelData.options].filter(t => t).join("   ")
+                            }
+                            Text {
+                                visible: !!peer.modelData.note
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
+                                text: "\u201C" + peer.modelData.note + "\u201D"; textFormat: Text.PlainText
+                                color: theme.onSurfaceVariant; font.pixelSize: 12; font.italic: true
+                            }
+                        }
+                    }
+                }
+                Text {
+                    visible: (detail.fit.peers || []).length > 0
+                    text: qsTr("From ProtonDB reports (open data, updated monthly)")
+                    color: theme.outline; font.pixelSize: 10
                 }
                 // Denuvo: a change of Proton can count as a new PC, and only a few are allowed a day.
                 RowLayout {
@@ -6247,6 +6311,8 @@ ApplicationWindow {
                             Toggle { label: qsTr("Keep each game's shader cache (less stutter after the first run)"); settingKey: "shader_cache" }
                             Toggle { label: qsTr("After a graphics driver update, get games' shaders ready again in the background (Steam's Fossilize; not for Steam games, Steam does it)")
                                      settingKey: "shader_warmup" }
+                            Toggle { label: qsTr("On a game's page, what players with a PC like yours did to run it (ProtonDB's open data, about 70 MB once a month)")
+                                     settingKey: "peer_reports" }
                             Row2 {
                                 label: qsTr("Environment variables for every game")
                                 hint: qsTr("Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button.")

@@ -72,6 +72,9 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "Launch options copied: paste them in Steam > Properties > Launch options"),
+            QCoreApplication.translate("app", "Settings used in this game's Options"),
+            QCoreApplication.translate("app", "This game already has these settings"),
             QCoreApplication.translate("app", "A command before the game did not work:"),
             QCoreApplication.translate("app", "Games"),
             QCoreApplication.translate("app", "added to Favourites"),
@@ -605,8 +608,10 @@ class AioLaunch(QObject):
         self._night = QTimer(self, interval=10 * 60 * 1000)
         self._night.timeout.connect(self._night_tick)
         self._night.timeout.connect(self._shader_tick)
+        self._night.timeout.connect(self._reports_tick)
         self._night.start()
         QTimer.singleShot(3 * 60 * 1000, self._shader_tick)
+        QTimer.singleShot(90 * 1000, self._reports_tick)
         self._worker_toast.connect(self.toast)
         self._after.connect(lambda fn: fn())
 
@@ -1391,6 +1396,26 @@ class AioLaunch(QObject):
                 if done:
                     self.toast.emit(_t("Shaders are ready again for games:") + f" {done}")
             return finish
+        self._bg(work)
+
+    # --- what players with a PC like yours did (pdbreports.py) -----------------------------
+    _reports_busy = False
+
+    def _reports_tick(self):
+        if self._reports_busy or self.demo or not settings.get("peer_reports") or self._playing or not self._network_ok():
+            return
+        appids = sorted({_appid(g) for g in self.model.games if _appid(g)})
+        if not appids:
+            return
+        self._reports_busy = True
+
+        def work():
+            from . import pdbreports
+            try:
+                pdbreports.refresh(appids)
+            except Exception:
+                pass
+            return lambda: setattr(self, "_reports_busy", False)
         self._bg(work)
 
     # --- updates overnight ---------------------------------------------------------------
@@ -2935,8 +2960,55 @@ class AioLaunch(QObject):
                                 or compat.tweak_on(t, opts))]
             v["system"] = {"gpu": me.get("gpu", ""), "cpu": me.get("cpu", ""), "ram": me.get("ram", 0), "vram": me.get("vram", 0)}
             v["denuvo"] = bool(appid) and compat.denuvo(appid)
+            if appid and settings.get("peer_reports"):
+                from . import pdbreports
+                v["peers"] = [dict(r, apply=pdbreports.settings_from(r), when=_short_date(r["t"]))
+                              for r in pdbreports.similar(appid, me.get("gpu", ""))]
             return lambda: self.compatReady.emit(key, v)
         self._bg(work)
+
+    @Slot(str, "QVariantMap")
+    def usePeerSettings(self, key, s):
+        """A game's page > players with a PC like yours > Use these settings."""
+        g = self.model.find(key)
+        if not g:
+            return
+        if g.store == "steam":  # Steam keeps its own launch options: hand them over to paste
+            opts = (s.get("raw") or "").strip()
+            if opts and "%command%" not in opts:
+                opts += " %command%"
+            if opts:
+                QGuiApplication.clipboard().setText(opts)
+                self.toast.emit(_t("Launch options copied: paste them in Steam > Properties > Launch options"))
+            return
+        from . import gamesync
+        cur = game_options.get(key)
+        changed = []
+        if s.get("env"):
+            have = cur.get("env", "")
+            names = {w.split("=", 1)[0] for w in have.split()}
+            add = [w for w in s["env"].split() if w.split("=", 1)[0] not in names]
+            if add:
+                game_options.set(key, "env", " ".join([have] + add).strip())
+                changed.append("env")
+        if s.get("args") and s["args"] not in cur.get("args", ""):
+            game_options.set(key, "args", (cur.get("args", "") + " " + s["args"]).strip())
+            changed.append("args")
+        p = s.get("proton") or ""
+        if p:
+            local = gamesync.local_proton({"name": p}) or gamesync.local_proton({"name": p + "-x86_64"})
+            if not local and p.lower().startswith("ge-proton"):
+                local = "GE-Proton"
+            if local and local != cur.get("proton"):
+                game_options.set(key, "proton", local)
+                changed.append("proton")
+        for opt in ("gamemode", "mangohud"):
+            if s.get(opt) and not cur.get(opt):
+                game_options.set(key, opt, True)
+                changed.append(opt)
+        self.gameChanged.emit(key)
+        self.toast.emit(_t("Settings used in this game's Options") if changed else _t("This game already has these settings"))
+        self.loadCompat(key)
 
     @Slot(str, result=bool)
     def usesDenuvo(self, key):
