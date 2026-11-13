@@ -1837,6 +1837,7 @@ ApplicationWindow {
                 ["Ctrl+P", qsTr("What should I play?")],
                 ["Ctrl+I", qsTr("Stats")],
                 ["Ctrl+,", qsTr("Settings")],
+                ["Ctrl+Tab", qsTr("Next tab in Settings")],
                 ["F1 / ?", qsTr("This list")],
                 ["Ctrl+Q", qsTr("Quit")] ] },
             { title: qsTr("TV mode"), keys: [
@@ -4114,13 +4115,15 @@ ApplicationWindow {
         property var act: null  // set: called with the new state instead of saving settingKey
         readonly property bool hit: prefs.query !== "" && label.toLowerCase().indexOf(prefs.query) !== -1
         Layout.fillWidth: true
-        implicitHeight: 48
+        implicitHeight: Math.max(48, tgText.implicitHeight + 24)  // a long label wraps instead of losing its end
         radius: 12
         color: theme.surfaceContainerHigh
         border.width: hit ? 2 : 0; border.color: theme.primary
         Text {
+            id: tgText
             anchors { left: parent.left; leftMargin: 14; right: sw.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
-            text: tg.label; color: tg.theme.onSurface; font.pixelSize: 13; elide: Text.ElideRight
+            text: tg.label; color: tg.theme.onSurface; font.pixelSize: 13
+            wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
         }
         Switch {
             anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
@@ -4405,6 +4408,9 @@ ApplicationWindow {
 
         contentItem: ColumnLayout {
             spacing: 18
+            // Ctrl+Tab / Ctrl+PgDn: next tab; Ctrl+Shift+Tab / Ctrl+PgUp: previous.
+            Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; enabled: prefs.visible; onActivated: prefs.tab = (prefs.tab + 1) % 5 }
+            Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+PgUp"]; enabled: prefs.visible; onActivated: prefs.tab = (prefs.tab + 4) % 5 }
             KField {
                 id: prefsFind
                 theme: win.theme
