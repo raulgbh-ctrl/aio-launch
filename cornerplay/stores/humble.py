@@ -105,8 +105,7 @@ def get(path, params=None, value=None):
     if r.status_code in (401, 403) or "/login" in r.url or "auth.humblebundle.com" in r.url:
         raise StoreError("Humble Bundle signed you out: sign in again in Accounts")
     if r.status_code == 404 and "json" not in r.headers.get("Content-Type", ""):
-        raise StoreError("Humble Bundle rebuilt its website and the library list Cornerplay read is gone; "
-                         "Cornerplay can't list your Humble games until it is updated")
+        raise LibraryGone("Humble Bundle rebuilt its website and the library list Cornerplay read is gone")
     if not r.ok:
         raise StoreError(redact(f"Humble Bundle: {r.status_code} {r.text[:120]}"))
     try:
@@ -170,6 +169,10 @@ def games_in(orders_):
     return list(games.values())
 
 
+class LibraryGone(StoreError):
+    """The old library address answers 404 since Humble's November 2026 rebuild."""
+
+
 class Humble(Store):
     id = "humble"
     name = "Humble Bundle"
@@ -203,8 +206,12 @@ class Humble(Store):
     def fetch(self):
         if not self.logged_in():
             return []
+        try:
+            found = orders()
+        except LibraryGone:
+            return []  # nothing to list (the Humble page still shows Choice and the bundles); no error on every refresh
         out = []
-        for g in games_in(orders()):
+        for g in games_in(found):
             m = manifest(g["machine"])
             exe = m.get("exe", "")
             path = exe if os.path.isabs(exe) else os.path.join(game_dir(g["machine"]), exe)
