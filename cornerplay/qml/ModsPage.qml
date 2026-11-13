@@ -283,7 +283,7 @@ KDialog {
                               ? qsTr("Nexus Mods: signed in as %1").arg(page.v.nexus.name) + (page.v.nexus.premium
                                     ? qsTr(" (Premium: Install downloads straight away).")
                                     : qsTr(". Free accounts download from the mod's page: Install opens it, then press “Mod Manager Download”."))
-                              : qsTr("Searching needs nothing. To download, paste your personal API key from your Nexus Mods account (Site preferences › API keys).")
+                              : qsTr("Searching needs nothing. To download, paste your personal API key from your Nexus Mods account (Settings › API Keys, at the bottom: Personal API Key).")
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -301,7 +301,7 @@ KDialog {
                             theme: page.theme
                             visible: !(page.v.nexus && page.v.nexus.hasKey)
                             text: qsTr("Get my key"); iconName: "external-link"
-                            onClicked: app.openUrl("https://www.nexusmods.com/users/myaccount?tab=api%20access")
+                            onClicked: app.openUrl("https://www.nexusmods.com/settings/api-keys")
                         }
                         KButton {
                             theme: page.theme; primary: true
