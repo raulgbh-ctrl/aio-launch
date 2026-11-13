@@ -75,7 +75,20 @@ def _translatable_names():
             QCoreApplication.translate("app", "Continue playing"),
             QCoreApplication.translate("app", "Favourites"),
             QCoreApplication.translate("app", "Recently added"),
-            QCoreApplication.translate("app", "Library"))
+            QCoreApplication.translate("app", "Library"),
+            QCoreApplication.translate("app", "You're in the middle of it"),
+            QCoreApplication.translate("app", "It's on your Want to play list"),
+            QCoreApplication.translate("app", "You haven't started it yet"),
+            QCoreApplication.translate("app", "played so far"),
+            QCoreApplication.translate("app", "You left it "),
+            QCoreApplication.translate("app", "months ago"),
+            QCoreApplication.translate("app", "a month ago"),
+            QCoreApplication.translate("app", "at"),
+            QCoreApplication.translate("app", "pick it back up?"),
+            QCoreApplication.translate("app", "you often play it at this time"),
+            QCoreApplication.translate("app", "plays on one screen together"),
+            QCoreApplication.translate("app", "usually about "),
+            QCoreApplication.translate("app", "a session"))
 
 
 def _short_date(stamp, with_year=False):
@@ -2746,13 +2759,30 @@ class AioLaunch(QObject):
 
     @Slot(str, bool, str, result="QVariantMap")
     def pickGame(self, length, installed_only, avoid):
-        """A game to play: from the backlog first, never Finished or Dropped ones.
-        length: "" any, "short" (about an hour), "long". avoid: keys picked a moment ago (comma separated)."""
+        """One game to play (the first of pickGames), for callers that want just one."""
+        picks = self.pickGames(length, installed_only, avoid, "")
+        return picks[0] if picks else {}
+
+    @Slot(str, bool, str, str, result="QVariantList")
+    def pickGames(self, length, installed_only, avoid, company):
+        """Three games to play now, each with why: the backlog first, never Finished or Dropped.
+        length: "" any, "quick" (half an hour), "short" (about an hour), "long" (an evening).
+        company: "" alone or anyone, "together" (local / split-screen multiplayer).
+        Weighs your lists, games started and left a while ago, what you usually play at this
+        time of day, and leaves a little room for what you played a lot this week."""
         import random
         skip = set(filter(None, avoid.split(",")))
-        per_game = {}
+        now = time.time()
+        hour = time.localtime(now).tm_hour
+        per_game, at_hour, recent = {}, {}, {}
         for key, start, end in playtime.sessions():
             per_game.setdefault(key, []).append(end - start)
+            h = time.localtime(start).tm_hour
+            if abs(h - hour) <= 1 or abs(h - hour) >= 23:
+                at_hour[key] = at_hour.get(key, 0) + 1
+            if end > now - 3 * 86400:
+                recent[key] = recent.get(key, 0) + (end - start)
+        cap = {"quick": 40, "short": 75}.get(length)
         pool = []
         for grp in self.model.groups:
             if self.model.is_hidden(grp):
@@ -2763,30 +2793,53 @@ class AioLaunch(QObject):
             status = shelves.meta(grp, "status")
             if status in ("finished", "dropped"):
                 continue
+            if company == "together" and not any(couch.local(_appid(x)) for x in grp):
+                continue
             runs = [t for x in grp for t in per_game.get(x.key, [])]
             avg = sum(runs) / len(runs) / 60 if runs else None
-            if length == "short" and avg is not None and avg > 75:
+            if cap and avg is not None and avg > cap:
                 continue
             if length == "long" and avg is not None and avg < 60:
                 continue
             played = self.model.group_value(grp, "playtime")
-            if status == "want":
-                weight, why = 4, "It's on your Want to play list"
-            elif status == "playing":
-                weight, why = 4, "You're in the middle of it"
+            last = self.model.group_value(grp, "lastPlayed")
+            reasons = []
+            if status == "playing":
+                weight = 4
+                reasons.append(_t("You're in the middle of it"))
+            elif status == "want":
+                weight = 4
+                reasons.append(_t("It's on your Want to play list"))
             elif not played:
-                weight, why = 3, "You haven't started it yet"
+                weight = 3
+                reasons.append(_t("You haven't started it yet"))
             else:
-                weight, why = 1, f"You've played {round(played / 3600, 1)} h so far"
+                weight = 1
+                reasons.append(f"{round(played / 3600, 1)} h " + _t("played so far"))
+            # Started, then left for a month or more: worth picking back up.
+            if played > 3600 and last and now - last > 30 * 86400 and status != "want":
+                weight += 2
+                months = int((now - last) // (30 * 86400))
+                reasons.insert(0, _t("You left it ") + (f"{months} " + _t("months ago") if months > 1 else _t("a month ago"))
+                               + " " + _t("at") + f" {round(played / 3600, 1)} h: " + _t("pick it back up?"))
+            if any(at_hour.get(x.key, 0) >= 2 for x in grp):
+                weight += 1
+                reasons.append(_t("you often play it at this time"))
+            if sum(recent.get(x.key, 0) for x in grp) > 3 * 3600:
+                weight = max(1, weight - 2)  # plenty of it this week already: room for something else
+            if company == "together":
+                reasons.append(_t("plays on one screen together"))
             if avg is not None:
-                why += f" · usually about {round(avg)} min a session"
+                reasons.append(_t("usually about ") + f"{round(avg)} min " + _t("a session"))
             if shelves.in_group(grp, shelves.FAV):
                 weight += 1
-            pool.append((weight, g.key, why))
-        if not pool:
-            return {}
-        _w, key, why = random.choices(pool, weights=[p[0] for p in pool])[0]
-        return dict(self.model.as_dict(key), why=why, poolSize=len(pool))
+            pool.append((weight, g.key, " · ".join(reasons)))
+        picks = []
+        while pool and len(picks) < 3:
+            choice = random.choices(pool, weights=[p[0] for p in pool])[0]
+            pool.remove(choice)
+            picks.append(dict(self.model.as_dict(choice[1]), why=choice[2], poolSize=len(pool) + len(picks)))
+        return picks
 
     def _hidden_count(self):
         return sum(1 for grp in self.model.groups if self.model.is_hidden(grp))

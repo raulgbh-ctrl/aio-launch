@@ -3332,40 +3332,53 @@ ApplicationWindow {
         heading: qsTr("What should I play?")
         headingIcon: "gamepad-2"
         property string length: ""
+        property string company: ""
         property bool installedOnly: true
-        property var g: ({})
+        property var picks: []
+        readonly property var g: picks.length ? picks[0] : ({})
         property var seen: []
         function show() { seen = []; roll(); open() }
         function roll() {
-            g = app.pickGame(length, installedOnly, seen.join(","))
-            if (g.key) seen = seen.concat([g.key]).slice(-12)
+            picks = app.pickGames(length, installedOnly, seen.join(","), company)
+            seen = seen.concat(picks.map(p => p.key)).slice(-18)
         }
-        width: Math.min(win.width - 60, 560)
+        function again() { seen = []; roll() }
+        width: Math.min(win.width - 60, 620)
+        component Choice: Rectangle {
+            property string label
+            property bool on: false
+            signal picked()
+            height: 32; radius: 16
+            width: chText.implicitWidth + 28
+            color: on ? theme.primary : chHover.hovered ? theme.surfaceContainerHigh : "transparent"
+            border.width: on ? 0 : 1; border.color: theme.outlineVariant
+            Text { id: chText; anchors.centerIn: parent; text: parent.label; font.pixelSize: 13
+                   color: parent.on ? theme.onPrimary : theme.onSurfaceVariant }
+            HoverHandler { id: chHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: parent.picked() }
+        }
         contentItem: ColumnLayout {
             spacing: 14
-            RowLayout {
+            Flow {
+                Layout.fillWidth: true
                 spacing: 6
                 Repeater {
-                    model: [{ id: "", name: qsTr("Any length") }, { id: "short", name: qsTr("About an hour") }, { id: "long", name: qsTr("A long session") }]
-                    Rectangle {
-                        required property var modelData
-                        readonly property bool on: picker.length === modelData.id
-                        height: 32; radius: 16
-                        width: lenText.implicitWidth + 28
-                        color: on ? theme.primary : "transparent"
-                        border.width: on ? 0 : 1; border.color: theme.outlineVariant
-                        Text { id: lenText; anchors.centerIn: parent; text: parent.modelData.name; font.pixelSize: 13
-                               color: parent.on ? theme.onPrimary : theme.onSurfaceVariant }
-                        TapHandler { onTapped: { picker.length = parent.modelData.id; picker.seen = []; picker.roll() } }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    }
+                    model: [{ id: "", name: qsTr("Any length") }, { id: "quick", name: qsTr("Half an hour") },
+                            { id: "short", name: qsTr("About an hour") }, { id: "long", name: qsTr("A long evening") }]
+                    Choice { required property var modelData; label: modelData.name; on: picker.length === modelData.id
+                             onPicked: { picker.length = modelData.id; picker.again() } }
                 }
+            }
+            RowLayout {
+                spacing: 6
+                Choice { label: qsTr("Just me"); on: picker.company === ""; onPicked: { picker.company = ""; picker.again() } }
+                Choice { label: qsTr("Together, one screen"); on: picker.company === "together"; onPicked: { picker.company = "together"; picker.again() } }
                 Item { Layout.fillWidth: true }
                 Text { text: qsTr("Installed only"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
                 Switch {
                     id: pickInst
                     checked: picker.installedOnly
-                    onToggled: { picker.installedOnly = checked; picker.seen = []; picker.roll() }
+                    onToggled: { picker.installedOnly = checked; picker.again() }
                 }
             }
             RowLayout {
@@ -3379,7 +3392,8 @@ ApplicationWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Text { Layout.fillWidth: true; text: picker.g.title || ""; color: theme.onSurface; font.pixelSize: 22; font.weight: Font.Bold; wrapMode: Text.WordWrap }
+                    Text { Layout.fillWidth: true; text: picker.g.title || ""; color: theme.onSurface; font.pixelSize: 22; font.weight: Font.Bold; wrapMode: Text.WordWrap
+                           font.family: app.titleFamily }
                     Text { Layout.fillWidth: true; text: picker.g.why || ""; color: theme.onSurfaceVariant; font.pixelSize: 14; wrapMode: Text.WordWrap }
                     Text { text: (picker.g.storeName || "") + (picker.g.installed ? "" : qsTr("  ·  not installed")); color: theme.outline; font.pixelSize: 12 }
                     Item { Layout.fillHeight: true }
@@ -3387,9 +3401,46 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         spacing: 8
                         KButton { theme: win.theme; primary: true; text: picker.g.installed ? qsTr("Play") : qsTr("Install"); iconName: picker.g.installed ? "play" : "download"
-                                  onClicked: { const k = picker.g.key; picker.close(); picker.g.installed ? win.activate(k) : app.install(k) } }
-                        KButton { theme: win.theme; text: qsTr("Another"); iconName: "refresh-cw"; onClicked: picker.roll() }
+                                  onClicked: { const k = picker.g.key; const inst = picker.g.installed; picker.close(); inst ? win.activate(k) : app.install(k) } }
+                        KButton { theme: win.theme; text: qsTr("Three more"); iconName: "refresh-cw"; onClicked: picker.roll() }
                         KButton { theme: win.theme; text: qsTr("Details"); onClicked: { const k = picker.g.key; picker.close(); win.select(k) } }
+                    }
+                }
+            }
+            // The other two: a click makes one the main pick.
+            Text { visible: picker.picks.length > 1; text: qsTr("Or maybe"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold
+                   font.letterSpacing: 1.1; font.capitalization: Font.AllUppercase }
+            RowLayout {
+                visible: picker.picks.length > 1
+                Layout.fillWidth: true
+                spacing: 10
+                Repeater {
+                    model: picker.picks.slice(1)
+                    Rectangle {
+                        id: alt
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        height: 74; radius: 12
+                        color: altHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
+                        RoundedArt {
+                            x: 10; anchors.verticalCenter: parent.verticalCenter
+                            width: 38; height: 54; radius: 6
+                            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHighest }
+                            ArtImage { anchors.fill: parent; sources: alt.modelData.covers || []; sourceSize.width: 76 }
+                        }
+                        Column {
+                            x: 58; width: parent.width - 66
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 3
+                            Text { width: parent.width; text: alt.modelData.title; color: theme.onSurface; font.pixelSize: 13
+                                   font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { width: parent.width; text: alt.modelData.why; color: theme.onSurfaceVariant; font.pixelSize: 11
+                                   wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                        }
+                        HoverHandler { id: altHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: { const p = picker.picks.slice(); const x = p.splice(alt.index + 1, 1)[0]; p.unshift(x); picker.picks = p } }
                     }
                 }
             }
@@ -3397,14 +3448,12 @@ ApplicationWindow {
                 visible: !picker.g.key
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: picker.installedOnly ? qsTr("Nothing fits: no installed game that isn't finished or dropped. Turn off Installed only to pick from everything.")
-                                           : "Nothing fits these choices."
                 color: theme.onSurfaceVariant; font.pixelSize: 14
+                text: picker.company === "together" ? qsTr("No game for one screen together matches. Try Any length, or turn off Installed only.")
+                      : qsTr("Nothing matches: try Any length, or turn off Installed only.")
             }
         }
     }
-
-    // -------------------------------------------------------------------- add / import games
     KDialog {
         id: addBox
         objectName: "addBox"
