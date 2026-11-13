@@ -17,7 +17,15 @@ Item {
         source: "../art/brand/" + bl.name + "-fill.png"
         sourceSize: bl.px
         smooth: true
-        visible: !bl.gpu  // without a GPU there is no masking: show the plain shape
+        visible: false   // the mask for the GPU path below
+    }
+    // Without a GPU there is no masking: the shape comes already filled with the colour.
+    Image {
+        anchors.fill: parent
+        visible: !bl.gpu
+        source: bl.gpu ? "" : "image://brandtint/" + bl.name + "/" + bl.tint.toString().slice(-6)
+        sourceSize: bl.px
+        smooth: true
     }
     Rectangle {
         anchors.fill: parent

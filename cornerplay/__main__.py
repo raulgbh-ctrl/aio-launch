@@ -82,6 +82,38 @@ def _load_translation(app):
         app._cornerplay_translator = tr  # keep it alive for as long as the app
 
 
+def BrandTint():
+    """image://brandtint/<layer>/<rrggbb>: one part of the logo filled with a colour. Used where Qt
+    draws without a GPU (no shader to tint it there), so the logo still follows the theme."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from PySide6.QtQuick import QQuickImageProvider
+
+    art = Path(__file__).parent / "art" / "brand"
+
+    class Provider(QQuickImageProvider):
+        def __init__(self):
+            super().__init__(QQuickImageProvider.ImageType.Image)
+
+        def requestImage(self, ident, size, requested):
+            name, _, colour = ident.partition("/")
+            img = QImage(str(art / f"{name}-fill.png"))
+            if img.isNull():
+                return QImage()
+            if requested.width() > 0 and requested.height() > 0:
+                img = img.scaled(requested, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            img = img.convertToFormat(QImage.Format_ARGB32_Premultiplied)
+            p = QPainter(img)
+            p.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            p.fillRect(img.rect(), QColor("#" + colour.lstrip("#")))
+            p.end()
+            size.setWidth(img.width())
+            size.setHeight(img.height())
+            return img
+
+    return Provider()
+
+
 def check_qml():
     """Compile every QML file (catches syntax and reserved-word mistakes before a restart)."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -300,6 +332,7 @@ def main():
     cornerplay = AioLaunch(demo=args.demo)
     cornerplay.web_login = web_login
     engine = QQmlApplicationEngine()
+    engine.addImageProvider("brandtint", BrandTint())  # the logo's colours without a GPU (BrandLayer.qml)
     factory = CachingFactory()
     engine.setNetworkAccessManagerFactory(factory)
     ctx = engine.rootContext()
