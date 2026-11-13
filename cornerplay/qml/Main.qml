@@ -956,8 +956,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: app.appUpdate.installed ? qsTr("Cornerplay ") + app.appUpdate.version + qsTr(" is installed. Restart to use it.")
-                              : app.appUpdate.busy ? "Updating to Cornerplay " + app.appUpdate.version + "…"
-                              : "Cornerplay " + app.appUpdate.version + " is out."
+                              : app.appUpdate.busy ? qsTr("Updating to Cornerplay %1…").arg(app.appUpdate.version)
+                              : app.appUpdate.kind === "git" ? qsTr("Cornerplay %1 has %2 new change(s) on GitHub.").arg(app.appUpdate.version).arg(app.appUpdate.behind)
+                              : qsTr("Cornerplay %1 is out.").arg(app.appUpdate.version)
                         color: theme.onPrimaryContainer; font.pixelSize: 14; font.weight: Font.DemiBold
                     }
                     KButton { theme: win.theme; visible: !app.appUpdate.installed && !app.appUpdate.busy; text: qsTr("What's new"); onClicked: app.openUrl(app.appUpdate.url) }
@@ -6119,7 +6120,22 @@ ApplicationWindow {
                                     KButton { theme: win.theme; visible: !!app.settingsMap.stream_mac; text: qsTr("Wake it"); onClicked: app.wakePc() }
                                 }
                             }
-                            Toggle { label: qsTr("Check for new Cornerplay versions (once a day)"); settingKey: "update_check" }
+                            Toggle { visible: app.updateMode !== "package"; label: qsTr("Check for new Cornerplay versions (once a day)"); settingKey: "update_check" }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    color: theme.onSurfaceVariant; font.pixelSize: 12
+                                    text: qsTr("Cornerplay %1").arg(app.appVersion) + "  \u00B7  "
+                                          + (app.updateMode === "git" ? qsTr("runs from a git folder: updates come from GitHub with git pull")
+                                             : app.updateMode === "package" ? qsTr("installed by your package manager, which updates it")
+                                             : qsTr("updates come from GitHub's releases"))
+                                }
+                                KButton { theme: win.theme; text: qsTr("Check now"); iconName: "refresh-cw"; enabled: !app.appUpdate.busy
+                                          onClicked: app.checkAppUpdate() }
+                            }
                             Toggle { visible: app.trayAvailable; label: qsTr("Step aside into the tray while a game runs"); settingKey: "tray_while_playing" }
                             Toggle { visible: app.trayAvailable; label: qsTr("Keep running in the tray when the window is closed"); settingKey: "close_to_tray" }
                             Toggle { label: qsTr("Start with the PC (in the tray)"); settingKey: "start_with_pc"

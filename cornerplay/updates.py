@@ -23,6 +23,52 @@ def from_source():
     return (Path(__file__).resolve().parent.parent / ".git").exists()
 
 
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _git(*args, timeout=30):
+    import subprocess
+    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, timeout=timeout)
+    return r.returncode, r.stdout.strip()
+
+
+def git_latest():
+    """A git checkout: {"version", "behind", "dirty", "branch", "kind": "git", "url"} when the branch
+    it follows has newer commits, else {}. Fetches first (call off the main thread)."""
+    try:
+        code, upstream = _git("rev-parse", "--abbrev-ref", "@{u}")
+        if code or not upstream:
+            return {}
+        if _git("fetch", "--quiet", upstream.split("/", 1)[0], timeout=60)[0]:
+            return {}
+        code, behind = _git("rev-list", "--count", "HEAD..@{u}")
+        if code or not behind.isdigit() or int(behind) == 0:
+            return {}
+        version = __version__
+        code, init = _git("show", "@{u}:cornerplay/__init__.py")
+        for line in init.splitlines() if not code else []:
+            if line.startswith("__version__"):
+                version = line.split("=", 1)[1].strip().strip('"')
+        dirty = bool(_git("status", "--porcelain", "--untracked-files=no")[1])
+        return {"version": version, "behind": int(behind), "dirty": dirty, "branch": upstream, "kind": "git",
+                "url": f"https://github.com/{REPO}/commits/{upstream.split('/', 1)[-1]}"}
+    except (OSError, ValueError, __import__("subprocess").TimeoutExpired):
+        return {}
+
+
+def git_pull_argv():
+    return ["git", "-C", str(ROOT), "pull", "--ff-only", "--quiet"]
+
+
+def mode():
+    """How this copy gets new versions: "git", "package" (pacman / Flatpak) or "self" (the .run)."""
+    if from_source():
+        return "git"
+    if managed() and not (host.IN_FLATPAK and flatpak_bundle()):
+        return "package"
+    return "self"
+
+
 def managed():
     """Installed by a package manager (the AUR package lives in /usr/lib) or Flatpak: that is
     what updates it. Installing the .run on top would leave a second copy shadowing it."""

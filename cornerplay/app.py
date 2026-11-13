@@ -17,6 +17,7 @@ import shlex
 import sys
 
 from . import achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -69,6 +70,10 @@ def _t(text):
 def _translatable_names():
     """Never called: lists names that reach _t() through variables, so lupdate finds them."""
     return (QCoreApplication.translate("app", "Playing"),
+            QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
+            QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "Checking for a new Cornerplay…"),
+            QCoreApplication.translate("app", "The Cornerplay folder has changes of its own: update it with git yourself"),
             QCoreApplication.translate("app", "Cornerplay does not know your Steam account yet: open Steam once"),
             QCoreApplication.translate("app", "No friends to show (is your friends list public?)"),
             QCoreApplication.translate("app", "Add a Steam Web API key in Settings > Library to see your friends"),
@@ -1383,16 +1388,42 @@ class AioLaunch(QObject):
     _update = {}
     _updating = False
 
-    def _check_update(self):
-        if self.demo or updates.from_source() or not settings.get("update_check"):
+    def _check_update(self, force=False):
+        if self.demo or not (force or settings.get("update_check")) or self._update.get("installed"):
             return
-        if updates.managed() and not host.IN_FLATPAK:
-            return  # pacman keeps it current
+        mode = updates.mode()
+        if mode == "package":
+            if force:
+                self.toast.emit(_t("Your package manager keeps Cornerplay up to date"))
+            return
+        if mode == "git" and not force and time.time() - self._git_checked < updates.TTL:
+            return
 
         def work():
-            info = updates.latest()  # a Flatpak from Flathub gets {} here: Flatpak updates it
-            return lambda: (setattr(self, "_update", info), self.updateChanged.emit())
+            if mode == "git":
+                self._git_checked = time.time()
+                info = updates.git_latest()
+            else:
+                info = updates.latest(force)  # a Flatpak from Flathub gets {} here: Flatpak updates it
+
+            def apply():
+                self._update = info
+                self.updateChanged.emit()
+                if force and not info:
+                    self.toast.emit(_t("You have the newest Cornerplay") + f" ({__version__})")
+            return apply
         self._bg(work)
+
+    _git_checked = 0.0
+
+    @Slot()
+    def checkAppUpdate(self):
+        """Settings > Advanced > Check now."""
+        self.toast.emit(_t("Checking for a new Cornerplay…"))
+        self._check_update(force=True)
+
+    updateMode = Property(str, lambda s: updates.mode(), constant=True)
+    appVersion = Property(str, lambda s: __version__, constant=True)
 
     appUpdate = Property("QVariantMap", lambda s: dict(s._update, busy=s._updating), notify=updateChanged)
 
@@ -1404,6 +1435,19 @@ class AioLaunch(QObject):
             return
         self._updating = True
         self.updateChanged.emit()
+
+        if info.get("kind") == "git":
+            if info.get("dirty"):
+                self._updating = False
+                self.updateChanged.emit()
+                self.toast.emit(_t("The Cornerplay folder has changes of its own: update it with git yourself"))
+                return
+            p = QProcess(self)
+            p.finished.connect(lambda code, _s: self._update_done(code, info["version"]))
+            argv = updates.git_pull_argv()
+            p.start(argv[0], argv[1:])
+            self._update_proc = p
+            return
 
         def work():
             try:
