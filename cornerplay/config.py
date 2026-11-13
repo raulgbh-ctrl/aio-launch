@@ -190,24 +190,32 @@ def read_json(path, default=None):
         return default
 
 
+def _tmp_for(path):
+    """A temporary file next to path, its own for this write: two threads (or two Cornerplays)
+    saving the same file at once each replace it whole instead of tripping over one .tmp."""
+    import tempfile
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix="." + path.name + ".", suffix=".tmp")
+    return fd, Path(name)
+
+
 def write_json(path, data):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data))
-    tmp.replace(path)
+    write_private(path, json.dumps(data), private=False)
 
 
-def write_private(path, text: str):
-    """Write a file only this user can read (settings with API keys, sign-in tokens), atomically."""
+def write_private(path, text: str, private=True):
+    """Write a file atomically; only this user can read it (settings with API keys, sign-in
+    tokens) unless private is False."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(text)
-    os.chmod(tmp, 0o600)  # an older .tmp may have been made with wider rights
-    tmp.replace(path)
+    fd, tmp = _tmp_for(path)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.chmod(tmp, 0o600 if private else 0o644)
+        tmp.replace(path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _lock_down():

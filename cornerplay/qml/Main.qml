@@ -353,18 +353,19 @@ ApplicationWindow {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: win.rail ? 6 : 14 }
                 spacing: 4
                 Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; opacity: sideFlick.contentHeight > sideFlick.height + 1 ? 1 : 0 }
-                NavItem { label: qsTr("TV mode"); icon: "tv"; count: "F11"; onPicked: win.tv = true }
+                NavItem { Layout.fillWidth: true; label: qsTr("TV mode"); icon: "tv"; count: "F11"; onPicked: win.tv = true }
                 // Three things only: the tools (a labelled menu), Accounts and Settings.
                 GridLayout {
                     Layout.fillWidth: !win.rail
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 6
+                    Layout.topMargin: win.rail ? 0 : 6
                     columns: win.rail ? 1 : 4
-                    columnSpacing: 2; rowSpacing: 2
+                    columnSpacing: 2; rowSpacing: win.rail ? 9 : 2  // the rail: the same gap as above, under TV mode
                     Rectangle {
                         id: toolsButton
-                        height: 32; radius: 9
-                        width: win.rail ? 28 : toolsRow.implicitWidth + 20
+                        implicitHeight: 32; radius: 9
+                        implicitWidth: win.rail ? 28 : toolsRow.implicitWidth + 20
+                        Layout.alignment: Qt.AlignHCenter
                         color: toolsMenu.visible ? theme.primaryContainer : toolsHover.hovered ? theme.surfaceContainerHigh : "transparent"
                         Row {
                             id: toolsRow
@@ -652,7 +653,8 @@ ApplicationWindow {
                     property bool alert: false
                     property bool on: false
                     signal picked()
-                    width: 28; height: 32; radius: 9
+                    implicitWidth: 28; implicitHeight: 32; radius: 9
+                    Layout.alignment: Qt.AlignHCenter
                     color: on ? theme.primaryContainer : tiHover.hovered ? theme.surfaceContainerHigh : "transparent"
                     Icon { anchors.centerIn: parent; name: ti.icon; size: 17; color: ti.on ? theme.onPrimaryContainer : theme.onSurfaceVariant }
                     Rectangle { visible: ti.alert; width: 8; height: 8; radius: 4; color: theme.error; anchors { right: parent.right; top: parent.top; margins: 4 } }
@@ -1313,7 +1315,7 @@ ApplicationWindow {
                             x: 8
                             width: parent.width - 16
                             spacing: 10
-                            SectionHead { sid: "continue"; title: qsTr("Continue playing") }
+                            SectionHead { sid: "continue"; title: qsTr("Continue playing"); folded: qsTr("%1 games").arg(app.recentGames.length - 1) }
                             ListView {
                                 id: recentRow
                                 visible: !win.homeFolded("continue")
@@ -5378,11 +5380,13 @@ ApplicationWindow {
         property string title
         property string icon: ""
         property string extra: ""
+        property string folded: ""  // shown next to the title while the section is folded away ("4 games")
         signal extraPicked()
         width: parent ? parent.width : 0
         spacing: 8
         Icon { visible: sh.icon !== ""; name: sh.icon; size: 15; color: app.theme.primary }
         Text { text: sh.title; color: app.theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold }
+        Text { visible: sh.folded !== "" && win.homeFolded(sh.sid); text: "\u00B7  " + sh.folded; color: app.theme.outline; font.pixelSize: 13 }
         Icon { name: win.homeFolded(sh.sid) ? "chevron-right" : "chevron-down"; size: 14; color: app.theme.outline }
         Item { Layout.fillWidth: true }
         Row {

@@ -52,7 +52,7 @@ if cfg is not None:
         import time
         seen = {"stores": ["steam", "epic", "gog", "amazon", "battlenet"], "keys": {k: int(time.time()) - 3600 for k in os.environ["SHOT_SEEN"].split(",")}}
         json.dump(seen, open(d + "/cornerplay/first_seen.json", "w"))
-sys.argv = ["cornerplay", "--demo"] + (["--tv"] if "tv" in acts else [])
+sys.argv = ["cornerplay"] + ([] if os.environ.get("SHOT_REAL") else ["--demo"]) + (["--tv"] if "tv" in acts else [])  # SHOT_REAL=1: your own library (settings still a throwaway copy)
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, Qt, QPointF, QEvent
 from PySide6.QtGui import QGuiApplication, QKeyEvent, QMouseEvent
