@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -379,12 +379,11 @@ class LibraryProxy(QSortFilterProxyModel):
         return bool(group) and (not self._search or any(self._matches(g) for g in group))
 
     def _matches(self, g):
-        """Search: the title, and from the game's details its developer and genres."""
-        if self._search in g.title.lower():
+        """Search: the title (forgiving: search.py), and from the game's details its developer and genres."""
+        if self._search in g.title.lower() or search.matches(self._search, g.title):
             return True
         d = details.cached(g.key) or {}
-        return self._search in (d.get("developer") or "").lower() or \
-            any(self._search in x.lower() for x in d.get("genres") or [])
+        return search.matches(self._search, "", [d.get("developer") or ""] + list(d.get("genres") or []))
 
     def _has_tag(self, model, group, tag):
         if tag == "unplayed":
@@ -3046,12 +3045,28 @@ class AioLaunch(QObject):
                         playtime.record(key, info["since"], now, log_only=True)
                     except OSError:
                         pass
+                    self._recap(key, now - info["since"])
                 if changed:
                     self.nowPlayingChanged.emit()
             return apply
         self._bg(work)
 
     nowPlaying = Property("QVariantList", _now_playing, notify=nowPlayingChanged)
+
+    # A game you played for a while just closed: the window shows a small recap card with
+    # how long it was, the total, and quick ways to rate it, mark it finished or leave a note.
+    sessionRecap = Signal(str, "QVariantMap")
+    RECAP_MIN_SECONDS = 180
+
+    def _recap(self, key, seconds):
+        if not key or seconds < self.RECAP_MIN_SECONDS:
+            return
+        g = self.game(key)
+        if not g:
+            return
+        self.sessionRecap.emit(key, {"title": g.get("title") or "", "minutes": int(seconds // 60),
+                                     "total": float(g.get("playtime") or 0), "covers": g.get("covers") or [],
+                                     "rating": int(g.get("rating") or 0), "status": g.get("status") or ""})
 
     @staticmethod
     def _alive(pid):
@@ -3111,6 +3126,7 @@ class AioLaunch(QObject):
             elif data.get("state") == "done":
                 self._reload_playtime()
                 self._after_session(data)
+                self._recap(data.get("key", ""), (data.get("since") or 0) - (data.get("started") or data.get("since") or 0))
                 res = data.get("sync") or {}
                 title = data.get("title", "")
                 if res.get("status") == "ok":

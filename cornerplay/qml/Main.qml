@@ -78,7 +78,8 @@ ApplicationWindow {
             preview.g = app.game(win.hoverKey)
             const right = card.mapToItem(win.contentItem, card.width - 4, 18)
             const left = card.mapToItem(win.contentItem, 4, 18)
-            preview.x = right.x + preview.width < win.width - 8 ? right.x : left.x - preview.width
+            const libLeft = grid.mapToItem(win.contentItem, 0, 0).x
+            preview.x = right.x + preview.width < win.width - 8 ? right.x : Math.max(libLeft + 4, left.x - preview.width)
             preview.y = Math.max(12, Math.min(right.y, win.height - preview.height - 12))  // always inside the window
             preview.visible = true
         }
@@ -898,7 +899,7 @@ ApplicationWindow {
                     clip: true
                     focus: true
                     model: library
-                    readonly property int columns: Math.max(cardStyle === "logo" ? 1 : 2,
+                    readonly property int columns: Math.max(2,
                                                             Math.floor(width / (app.settingsMap.card_size * (cardStyle === "logo" ? 1.8 : 1))))
                     property int hoverIndex: -1
                     // Only show the keyboard selection once the keys (or a controller) are used.
@@ -907,6 +908,12 @@ ApplicationWindow {
                     cellWidth: Math.floor(width / columns)
                     cellHeight: cardStyle === "logo" ? Math.round(cellWidth * 0.52) : Math.round(cellWidth * 1.46) + (cardStyle === "box" ? 18 : 0)
                     cacheBuffer: app.light ? 0 : cellHeight * 2
+                    // The hover card belongs to the cover under the pointer: it goes when the grid
+                    // scrolls, is searched or filtered, or the view changes.
+                    function dropPreview() { previewTimer.stop(); preview.visible = false }
+                    onCountChanged: dropPreview()
+                    onContentYChanged: if (preview.visible) dropPreview()
+                    onVisibleChanged: dropPreview()
                     keyNavigationEnabled: true
                     // Follow the selection only when it moves (keys, controller). Following it always made
                     // a short window open scrolled past the banner to keep the first card in view.
@@ -1651,9 +1658,15 @@ ApplicationWindow {
                     model: visible ? library : null
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: KScrollBar { }
-                    readonly property var cols: [{ t: "Game", s: "name", w: 0 }, { t: "Store", s: "", w: 140 }, { t: "Status", s: "", w: 120 },
-                                                 { t: "Rating", s: "rating", w: 96 }, { t: "Played", s: "playtime", w: 90 },
-                                                 { t: "Last played", s: "recent", w: 110 }, { t: "Size", s: "size", w: 84 }]
+                    readonly property var cols: [{ t: qsTr("Game"), s: "name", w: 0 }, { t: qsTr("Store"), s: "", w: 140 }, { t: qsTr("Status"), s: "", w: 120 },
+                                                 { t: qsTr("Rating"), s: "rating", w: 96 }, { t: qsTr("Played"), s: "playtime", w: 90 },
+                                                 { t: qsTr("Last played"), s: "recent", w: 110 }, { t: qsTr("Size"), s: "size", w: 84 }]
+                    // A narrow window drops the least needed columns first, so the title keeps room.
+                    readonly property var dropOrder: [6, 3, 5, 2]          // Size, Rating, Last played, Status
+                    readonly property int dropped: width >= 920 ? 0 : width >= 820 ? 1 : width >= 720 ? 2 : width >= 620 ? 3 : 4
+                    function colOn(i) { return dropOrder.indexOf(i) === -1 || dropOrder.indexOf(i) >= dropped }
+                    readonly property int fixedW: cols.reduce((sum, c, i) => sum + (i > 0 && colOn(i) ? c.w : 0), 0)
+                    readonly property int titleW: Math.max(180, width - fixedW)
                     headerPositioning: ListView.OverlayHeader
                     header: Rectangle {
                         width: table.width; height: 38; z: 2
@@ -1665,9 +1678,9 @@ ApplicationWindow {
                                 Item {
                                     required property var modelData
                                     required property int index
-                                    width: modelData.w || (table.width - 640 - 56)
+                                    visible: table.colOn(index)
+                                    width: index === 0 ? table.titleW : modelData.w
                                     height: 38
-                                    x: 0
                                     Text {
                                         anchors { left: parent.left; leftMargin: index === 0 ? 56 : 0; verticalCenter: parent.verticalCenter }
                                         text: modelData.t + (modelData.s && library.sortMode === modelData.s ? qsTr("  \u25BE") : "")
@@ -1703,7 +1716,7 @@ ApplicationWindow {
                         Row {
                             anchors.fill: parent
                             Item {
-                                width: table.width - 640 - 56 + 56; height: parent.height
+                                width: table.titleW; height: parent.height
                                 RoundedArt { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 30; height: 44; radius: 5
                                              ArtImage { anchors.fill: parent; sources: trow.covers || []; sourceSize.width: 60 } }
                                 Text { x: 56; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 64
@@ -1714,15 +1727,15 @@ ApplicationWindow {
                                 StoreTile { anchors.verticalCenter: parent.verticalCenter; size: 18; store: trow.store }
                                 Text { anchors.verticalCenter: parent.verticalCenter; text: trow.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
-                            Text { width: 120; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                            Text { visible: table.colOn(2); width: 120; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: ({ playing: qsTr("Playing"), want: qsTr("Want to play"), finished: qsTr("Finished"), dropped: qsTr("Dropped") })[trow.status] || (trow.installed ? qsTr("Installed") : "") }
-                            Text { width: 96; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 13; color: "#ffd166"
+                            Text { visible: table.colOn(3); width: 96; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 13; color: "#ffd166"
                                    text: trow.rating ? "\u2605".repeat(trow.rating) : "" }
                             Text { width: 90; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.playtime >= 3600 ? Math.round(trow.playtime / 360) / 10 + " h" : trow.playtime > 0 ? Math.round(trow.playtime / 60) + qsTr(" min") : "" }
-                            Text { width: 110; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                            Text { visible: table.colOn(5); width: 110; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.lastPlayed > 0 ? new Date(trow.lastPlayed * 1000).toLocaleDateString(Qt.locale(), "d MMM yyyy") : "" }
-                            Text { width: 84; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
+                            Text { visible: table.colOn(6); width: 84; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.sizeBytes > 0 ? (trow.sizeBytes / 1073741824).toFixed(1) + qsTr(" GB") : "" }
                         }
                         HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
@@ -3198,24 +3211,46 @@ ApplicationWindow {
                     Text { text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
                            color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
                     Item {
+                        id: days14
                         Layout.fillWidth: true
-                        height: 110
-                        readonly property real peak: Math.max(1, ...(statsBox.d.days || [0]))
+                        height: 128
+                        // Fourteen bars, today on the right; empty days still show as low stubs.
+                        readonly property var vals: (statsBox.d.days && statsBox.d.days.length) ? statsBox.d.days : Array(14).fill(0)
+                        readonly property real peak: Math.max(1, ...days14.vals)
                         Row {
                             anchors.fill: parent
                             spacing: 6
                             Repeater {
-                                model: statsBox.d.days || []
+                                model: days14.vals
                                 Item {
+                                    id: dayBar
                                     required property real modelData
+                                    required property int index
+                                    readonly property bool today: index === days14.vals.length - 1
                                     width: (parent.width - 13 * 6) / 14
                                     height: parent.height
                                     Rectangle {
-                                        anchors.bottom: parent.bottom
+                                        id: dayFill
+                                        anchors.bottom: dayName.top; anchors.bottomMargin: 6
                                         width: parent.width
-                                        height: Math.max(3, (parent.height - 4) * parent.modelData / parent.parent.parent.peak)
+                                        height: Math.max(4, (parent.height - 40) * dayBar.modelData / days14.peak)
                                         radius: 4
-                                        color: parent.modelData > 0 ? theme.primary : theme.surfaceContainerHighest
+                                        color: dayBar.modelData > 0 ? theme.primary : theme.surfaceContainerHighest
+                                        Behavior on height { enabled: !app.light; NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+                                    }
+                                    Text {
+                                        visible: dayBar.modelData > 0
+                                        anchors { bottom: dayFill.top; bottomMargin: 3; horizontalCenter: parent.horizontalCenter }
+                                        text: dayBar.modelData >= 1 ? Math.round(dayBar.modelData * 10) / 10 + "h" : Math.round(dayBar.modelData * 60) + "m"
+                                        color: theme.onSurfaceVariant; font.pixelSize: 10
+                                    }
+                                    Text {
+                                        id: dayName
+                                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
+                                        text: new Date(Date.now() - (days14.vals.length - 1 - dayBar.index) * 86400000)
+                                              .toLocaleDateString(Qt.locale(), "ddd").charAt(0).toUpperCase()
+                                        color: dayBar.today ? theme.primary : theme.outline
+                                        font.pixelSize: 11; font.weight: dayBar.today ? Font.Bold : Font.Normal
                                     }
                                 }
                             }
@@ -5703,6 +5738,97 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- toasts
+    // After a session: "You played Celeste for 1 h 12 min", with stars, Finished and a note.
+    Item {
+        id: recap
+        z: 999
+        parent: Overlay.overlay
+        property string key: ""
+        property var d: ({})
+        property bool shown: false
+        width: 380; height: recapBody.implicitHeight + 32
+        anchors { right: parent.right; bottom: parent.bottom; margins: 24 }
+        visible: opacity > 0
+        opacity: shown && !win.tv ? 1 : 0
+        transform: Translate { y: recap.shown ? 0 : 24; Behavior on y { enabled: !app.light; NumberAnimation { duration: 260; easing.type: Easing.OutCubic } } }
+        Behavior on opacity { NumberAnimation { duration: app.light ? 0 : 220 } }
+        Connections {
+            target: app
+            function onSessionRecap(key, d) { recap.key = key; recap.d = d; recapNote.visible = false; recap.shown = true; recapLife.restart() }
+        }
+        function hours(s) { return s >= 3600 ? (Math.round(s / 360) / 10) + " h" : Math.max(1, Math.round(s / 60)) + " min" }
+        function len(m) { return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60 ? m % 60 + " min" : "") : m + " min" }
+        // Stays 14 s, or as long as the pointer is on it or the note is being written.
+        Timer { id: recapLife; interval: 14000; running: false; onTriggered: if (!recapHover.hovered && !recapNote.activeFocus) recap.shown = false; else restart() }
+        HoverHandler { id: recapHover }
+        Rectangle {
+            anchors.fill: parent
+            radius: 20
+            color: theme.surfaceContainerHigh
+            border.width: 1
+            border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.1)
+            RectangularShadow { z: -1; anchors.fill: parent; visible: !app.light && GraphicsInfo.api !== GraphicsInfo.Software
+                                radius: parent.radius; blur: 32; offset.y: 10; color: Qt.alpha("black", 0.45) }
+        }
+        RowLayout {
+            id: recapBody
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+            spacing: 14
+            RoundedArt {
+                Layout.alignment: Qt.AlignTop
+                width: 64; height: 90; radius: 10
+                Rectangle { anchors.fill: parent; color: theme.surfaceContainerHighest }
+                ArtImage { anchors.fill: parent; sources: recap.d.covers || []; sourceSize.width: 128 }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Text { Layout.fillWidth: true; text: qsTr("Good session"); color: theme.primary; font.pixelSize: 11; font.weight: Font.Bold
+                       font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                Text { Layout.fillWidth: true; text: recap.d.title || ""; color: theme.onSurface; font.pixelSize: 16
+                       font.family: app.titleFamily; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                Text { Layout.fillWidth: true; color: theme.onSurfaceVariant; font.pixelSize: 13; wrapMode: Text.WordWrap
+                       text: qsTr("You played ") + recap.len(recap.d.minutes || 0) + (recap.d.total > 0 ? qsTr(" · ") + recap.hours(recap.d.total) + qsTr(" in total") : "") }
+                Row {
+                    spacing: 2
+                    Repeater {
+                        model: 5
+                        Item {
+                            required property int index
+                            width: 24; height: 24
+                            Icon { anchors.centerIn: parent; size: 18
+                                   name: index < (recap.d.rating || 0) ? "star-filled" : "star"
+                                   color: index < (recap.d.rating || 0) ? "#ffd166" : theme.outline }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: { const r = (recap.d.rating || 0) === index + 1 ? 0 : index + 1
+                                                     app.setRating(recap.key, r); recap.d = Object.assign({}, recap.d, { rating: r }); recapLife.restart() } }
+                        }
+                    }
+                }
+                RowLayout {
+                    spacing: 8
+                    KButton { theme: win.theme; implicitHeight: 32; iconName: "check"
+                              text: recap.d.status === "finished" ? qsTr("Finished") : qsTr("I finished it")
+                              primary: recap.d.status === "finished"
+                              onClicked: { app.setStatus(recap.key, "finished"); recap.d = Object.assign({}, recap.d, { status: "finished" }); recapLife.restart() } }
+                    KButton { theme: win.theme; implicitHeight: 32; iconName: "bookmark"; text: qsTr("Note")
+                              onClicked: { recapNote.visible = true; recapNote.text = app.game(recap.key).note || ""; recapNote.forceActiveFocus() } }
+                    Item { Layout.fillWidth: true }
+                    KButton { theme: win.theme; implicitHeight: 32; flat: true; iconName: "x"; onClicked: recap.shown = false }
+                }
+                KField {
+                    id: recapNote
+                    theme: win.theme
+                    Layout.fillWidth: true
+                    visible: false
+                    placeholderText: qsTr("Where you got to, what to try next")
+                    onAccepted: { app.setNote(recap.key, text); visible = false; recapLife.restart() }
+                    onEditingFinished: app.setNote(recap.key, text)
+                }
+            }
+        }
+    }
+
     ListModel { id: toasts }
     Column {
         z: 1000

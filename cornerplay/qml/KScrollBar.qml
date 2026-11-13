@@ -6,6 +6,7 @@ ScrollBar {
     id: sb
     readonly property var theme: app.theme
     implicitWidth: hovered || pressed ? 10 : 6
+    visible: size < 0.995  // nothing to scroll: no bar at all
     Behavior on implicitWidth { enabled: !app.light; NumberAnimation { duration: 120 } }
     padding: 2
     background: Item { }
