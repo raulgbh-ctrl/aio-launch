@@ -30,6 +30,7 @@ Window {
     function begin(storeId, name, url) {
         store = storeId; storeName = name; startUrl = url; done = false; failedUrl = ""
         status.text = ""
+        if (store === "humble") app.humbleWebStart(view.profile)  // collects the cookies as they are set
         view.url = url
         show(); raise(); requestActivate()
     }

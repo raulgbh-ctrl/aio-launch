@@ -1971,33 +1971,56 @@ class AioLaunch(QObject):
         else:
             self.toast.emit(f"Battle.net: {reason}")
 
-    # --- Humble Bundle: the sign-in window hands over its session cookie ----------------
+    # --- Humble Bundle: the sign-in window hands over its session cookies ---------------
+    # Asking the cookie store for everything afterwards (loadAllCookies) only brings back a few
+    # cookies, not the HttpOnly session ones, so the window's cookies are collected as they are set,
+    # from a clean start: the private profile outlives one sign-in.
     @Slot(QObject)
-    def humbleWebDone(self, profile):
-        """The Humble sign-in reached the library: read the humblebundle.com cookies from the
-        window's browser profile (never the password) and sign in with them."""
-        found = {}
+    def humbleWebStart(self, profile):
+        self._humble_jar = {}
         try:
             store = profile.cookieStore()
         except (AttributeError, RuntimeError):
+            self._humble_store = None
+            return
+        old = getattr(self, "_humble_store", None)
+        if old is not None:
+            for sig, fn in ((old.cookieAdded, self._humble_added), (old.cookieRemoved, self._humble_removed)):
+                try:
+                    sig.disconnect(fn)
+                except (RuntimeError, TypeError):
+                    pass
+        store.deleteAllCookies()
+        store.cookieAdded.connect(self._humble_added)
+        store.cookieRemoved.connect(self._humble_removed)
+        self._humble_store = store
+
+    @staticmethod
+    def _humble_cookie(c):
+        if not c.domain().lstrip(".").endswith("humblebundle.com"):
+            return None
+        return bytes(c.name()).decode(), bytes(c.value()).decode()
+
+    def _humble_added(self, c):
+        kv = self._humble_cookie(c)
+        if kv:
+            self._humble_jar[kv[0]] = kv[1]
+
+    def _humble_removed(self, c):
+        kv = self._humble_cookie(c)
+        if kv and self._humble_jar.get(kv[0]) == kv[1]:
+            self._humble_jar.pop(kv[0], None)
+
+    @Slot(QObject)
+    def humbleWebDone(self, profile):
+        """The Humble sign-in reached the library: sign in with the humblebundle.com cookies the
+        window was given (never the password)."""
+        jar = dict(getattr(self, "_humble_jar", {}) or {})
+        if getattr(self, "_humble_store", None) is None:
             return self.loginDone.emit("humble", False, "Could not read the Humble sign-in; paste the cookie instead")
-
-        def seen(c):
-            if c.domain().lstrip(".").endswith("humblebundle.com"):
-                found[bytes(c.name()).decode()] = bytes(c.value()).decode()
-        store.cookieAdded.connect(seen)
-        store.loadAllCookies()
-
-        def check():
-            try:
-                store.cookieAdded.disconnect(seen)
-            except (RuntimeError, TypeError):
-                pass
-            if found:
-                self.loginFinish("humble", "; ".join(f"{k}={v}" for k, v in found.items()))
-            else:
-                self.loginDone.emit("humble", False, "Humble did not keep you signed in; try again")
-        QTimer.singleShot(800, check)
+        if not jar:
+            return self.loginDone.emit("humble", False, "Humble did not keep you signed in; try again")
+        self.loginFinish("humble", "; ".join(f"{k}={v}" for k, v in jar.items()))
 
     @Slot(QObject)
     def blizzardClearCookies(self, profile):
