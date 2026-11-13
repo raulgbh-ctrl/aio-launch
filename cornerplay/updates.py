@@ -16,7 +16,8 @@ from .config import CACHE_DIR, read_json, write_json
 
 REPO = "raulgbh-ctrl/cornerplay"
 FILE = CACHE_DIR / "update_check.json"
-TTL = 86400
+TTL = 6 * 3600       # a known newer release is asked about again after 6 hours
+RECHECK = 3600       # no newer release known yet: ask again after an hour
 
 
 def from_source():
@@ -123,7 +124,8 @@ def _ver(tag):
 
 
 def latest(force=False):
-    """{"version", "url", "notes", "asset"} of the newest release when it is newer than this one, else {}."""
+    """{"version", "url", "notes", "asset"} of the newest release when it is newer than this one, {}
+    when there is none, None when GitHub could not be asked (keep what was offered before)."""
     bundle = host.IN_FLATPAK and flatpak_bundle()
     if managed() and not bundle:
         return {}  # pacman / Flathub (Discover, GNOME Software, `flatpak update`) keep it current
@@ -131,7 +133,10 @@ def latest(force=False):
     cached = read_json(FILE) or {}
     if cached.get("suffix", ".run") != suffix:
         cached = {}  # an earlier check looked for the other kind of file
-    if force or time.time() - cached.get("t", 0) > TTL:
+    age = time.time() - cached.get("t", 0)
+    known_newer = bool(cached.get("tag")) and _ver(cached["tag"]) > _ver(__version__)
+    # What was cached says "nothing newer": a release may have come out since, so ask sooner.
+    if force or age > TTL or (not known_newer and age > RECHECK):
         try:
             r = requests.get(f"https://api.github.com/repos/{REPO}/releases/latest", timeout=15,
                              headers={"Accept": "application/vnd.github+json"})
@@ -144,7 +149,7 @@ def latest(force=False):
                       "sha256": digest.split(":", 1)[1] if digest.startswith("sha256:") else "", "suffix": suffix}
             write_json(FILE, cached)
         except Exception:
-            return {}
+            return None
     tag = cached.get("tag", "")
     if not tag or _ver(tag) <= _ver(__version__) or not cached.get("asset"):
         return {}

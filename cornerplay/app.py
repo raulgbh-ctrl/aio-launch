@@ -72,6 +72,7 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "Could not reach GitHub to check for a new Cornerplay"),
             QCoreApplication.translate("app", "Checking for a new Cornerplay…"),
             QCoreApplication.translate("app", "The Cornerplay folder has changes of its own: update it with git yourself"),
             QCoreApplication.translate("app", "Cornerplay does not know your Steam account yet: open Steam once"),
@@ -1389,6 +1390,11 @@ class AioLaunch(QObject):
     _updating = False
 
     def _check_update(self, force=False):
+        if self._update_timer is None and not self.demo:  # left open (in the tray) for days: look again hourly
+            self._update_timer = QTimer(self)
+            self._update_timer.setInterval(3600 * 1000)
+            self._update_timer.timeout.connect(lambda: self._check_update())
+            self._update_timer.start()
         if self.demo or not (force or settings.get("update_check")) or self._update.get("installed"):
             return
         mode = updates.mode()
@@ -1407,6 +1413,10 @@ class AioLaunch(QObject):
                 info = updates.latest(force)  # a Flatpak from Flathub gets {} here: Flatpak updates it
 
             def apply():
+                if info is None:  # GitHub could not be asked: keep any offer already showing
+                    if force:
+                        self.toast.emit(_t("Could not reach GitHub to check for a new Cornerplay"))
+                    return
                 self._update = info
                 self.updateChanged.emit()
                 if force and not info:
@@ -1415,6 +1425,7 @@ class AioLaunch(QObject):
         self._bg(work)
 
     _git_checked = 0.0
+    _update_timer = None
 
     @Slot()
     def checkAppUpdate(self):
