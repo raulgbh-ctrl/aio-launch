@@ -17,3 +17,17 @@ def load(steam_root):
 
 def local(appid: str) -> bool:
     return bool(appid) and bool(LOCAL & set((_apps.get(str(appid)) or {}).get("cat") or ()))
+
+
+# Steam's categories for playing with other people online (or on a LAN): multi-player, co-op,
+# online co-op and PvP, cross-platform multiplayer, MMO, LAN.
+ONLINE = {1, 9, 20, 27, 36, 38, 47, 48, 49}
+
+
+def online(appid: str) -> bool:
+    return bool(appid) and bool((ONLINE | LOCAL) & set((_apps.get(str(appid)) or {}).get("cat") or ()))
+
+
+def known(appid: str) -> bool:
+    """Steam's app cache describes this app (so a missing category means it really has none)."""
+    return str(appid) in _apps

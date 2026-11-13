@@ -386,6 +386,7 @@ ApplicationWindow {
                                         { i: "gamepad-2", t: qsTr("What should I play?"), k: "Ctrl+P", run: () => picker.show() },
                                         { i: "trophy", t: qsTr("Stats and journal"), k: "Ctrl+I", run: () => statsBox.show() },
                                         { i: "images", t: qsTr("Screenshots"), k: "Ctrl+Shift+S", run: () => shotsPage.show() },
+                                        { i: "user-round", t: qsTr("Play with friends"), k: "", run: () => friendsPage.show() },
                                         { i: "folder-open", t: qsTr("Storage"), k: "", run: () => storage.show() },
                                         { i: "check", t: qsTr("Health check"), k: "", alert: true, run: () => healthBox.show() },
                                         { i: "eye-off", t: qsTr("Hidden games"), k: "", hidden: true,
@@ -2040,6 +2041,150 @@ ApplicationWindow {
         }
     }
 
+    // Play with friends: Steam friends (online first), pick who is in, see the games you share.
+    KDialog {
+        id: friendsPage
+        theme: win.theme
+        heading: qsTr("Play with friends")
+        headingIcon: "user-round"
+        width: Math.min(win.width - 60, 1000)
+        height: Math.min(win.height - 60, 720)
+        property var list: []
+        property string problem: ""
+        property bool loading: false
+        property var picked: ({})
+        property var games: []
+        property bool gamesLoading: false
+        function show() { loading = true; problem = ""; picked = ({}); games = []; open(); app.loadFriends() }
+        function toggle(id) {
+            const p = Object.assign({}, picked)
+            if (p[id]) delete p[id]; else p[id] = true
+            picked = p
+            gamesLoading = true
+            app.loadShared(Object.keys(p))
+        }
+        function nameOf(id) { const f = list.find(x => x.id === id); return f ? f.name : "" }
+        Connections {
+            target: app
+            function onFriendsReady(list, problem) {
+                friendsPage.list = list; friendsPage.problem = problem; friendsPage.loading = false
+                const online = list.filter(f => f.state !== "offline").slice(0, 2)
+                if (online.length) { const p = {}; online.forEach(f => p[f.id] = true); friendsPage.picked = p; friendsPage.gamesLoading = true; app.loadShared(Object.keys(p)) }
+            }
+            function onSharedReady(rows) { friendsPage.games = rows; friendsPage.gamesLoading = false }
+        }
+        contentItem: RowLayout {
+            spacing: 18
+            // Friends
+            ColumnLayout {
+                Layout.preferredWidth: 250
+                Layout.maximumWidth: 250
+                Layout.fillWidth: false
+                Layout.fillHeight: true
+                spacing: 8
+                Text { text: qsTr("Who's in?"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold
+                       font.letterSpacing: 1.1; font.capitalization: Font.AllUppercase }
+                Text { visible: friendsPage.problem !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                       text: friendsPage.problem; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                BusyIndicator { visible: friendsPage.loading; running: visible; Layout.alignment: Qt.AlignHCenter }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 4
+                    model: friendsPage.list
+                    ScrollBar.vertical: KScrollBar { }
+                    delegate: Rectangle {
+                        id: fr
+                        required property var modelData
+                        readonly property bool on: !!friendsPage.picked[modelData.id]
+                        width: ListView.view.width - 8; height: 52; radius: 12
+                        color: on ? Qt.alpha(theme.primary, 0.16) : frHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                        border.width: on ? 1 : 0; border.color: Qt.alpha(theme.primary, 0.35)
+                        Rectangle {
+                            id: av
+                            x: 8; anchors.verticalCenter: parent.verticalCenter
+                            width: 36; height: 36; radius: 18; clip: true
+                            color: theme.surfaceContainerHighest
+                            Text { anchors.centerIn: parent; text: (fr.modelData.name || "?").charAt(0).toUpperCase(); color: theme.onSurface; font.pixelSize: 15; font.weight: Font.Bold }
+                            Image { anchors.fill: parent; source: fr.modelData.avatar || ""; visible: status === Image.Ready; fillMode: Image.PreserveAspectCrop; sourceSize.width: 72 }
+                        }
+                        Rectangle { x: av.x + av.width - 10; y: av.y + av.height - 10; width: 11; height: 11; radius: 6
+                                    border.width: 2; border.color: theme.surfaceContainer
+                                    color: fr.modelData.playing ? "#7bd88f" : fr.modelData.state === "online" ? "#57b5ff" : fr.modelData.state === "offline" ? theme.outline : "#ffcc66" }
+                        Column {
+                            x: 54; width: parent.width - 54 - 34
+                            anchors.verticalCenter: parent.verticalCenter
+                            Text { width: parent.width; text: fr.modelData.name; color: theme.onSurface; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { width: parent.width; elide: Text.ElideRight; font.pixelSize: 11
+                                   text: fr.modelData.playing ? qsTr("Playing ") + fr.modelData.playing : qsTr(fr.modelData.state)
+                                   color: fr.modelData.playing ? "#7bd88f" : theme.onSurfaceVariant }
+                        }
+                        Icon { anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                               name: fr.on ? "check" : "plus"; size: 15; color: fr.on ? theme.primary : theme.outline }
+                        HoverHandler { id: frHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: friendsPage.toggle(fr.modelData.id) }
+                    }
+                }
+            }
+            Rectangle { Layout.fillHeight: true; width: 1; color: theme.outlineVariant }
+            // Games you share
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 8
+                Text {
+                    text: Object.keys(friendsPage.picked).length ? qsTr("Multiplayer games you share") : qsTr("Pick who's in to see the games you share")
+                    color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.1; font.capitalization: Font.AllUppercase
+                }
+                Text { visible: Object.keys(friendsPage.picked).length > 0 && !friendsPage.gamesLoading && friendsPage.games.length === 0
+                       Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                       text: qsTr("No multiplayer game you all own (or their game details are private on Steam).") }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 8
+                    model: friendsPage.games
+                    ScrollBar.vertical: KScrollBar { }
+                    delegate: Rectangle {
+                        id: sg
+                        required property var modelData
+                        width: ListView.view.width - 10; height: 84; radius: 14
+                        color: theme.surfaceContainerHigh
+                        RoundedArt {
+                            x: 10; anchors.verticalCenter: parent.verticalCenter
+                            width: 46; height: 66; radius: 7
+                            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHighest }
+                            ArtImage { anchors.fill: parent; sources: sg.modelData.covers || []; sourceSize.width: 92 }
+                        }
+                        Column {
+                            x: 68; width: parent.width - 68 - sgButtons.width - 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 3
+                            Text { width: parent.width; text: sg.modelData.title; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text { width: parent.width; elide: Text.ElideRight; font.pixelSize: 12
+                                   color: sg.modelData.all ? "#7bd88f" : theme.onSurfaceVariant
+                                   text: (sg.modelData.all ? qsTr("Everyone has it") : qsTr("Has it: ") + sg.modelData.owners.map(friendsPage.nameOf).join(", "))
+                                         + "  \u00B7  " + Math.round(sg.modelData.hours) + qsTr(" h between them") }
+                            Text { text: sg.modelData.installed ? qsTr("Installed") : qsTr("Not installed"); color: theme.outline; font.pixelSize: 11 }
+                        }
+                        Row {
+                            id: sgButtons
+                            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                            spacing: 6
+                            KButton { theme: win.theme; implicitHeight: 34; iconName: "external-link"; text: qsTr("Copy invite")
+                                      onClicked: app.copyInvite(sg.modelData.appid, sg.modelData.title) }
+                            KButton { theme: win.theme; implicitHeight: 34; primary: true; iconName: sg.modelData.installed ? "play" : "download"
+                                      text: sg.modelData.installed ? qsTr("Play") : qsTr("Install"); enabled: !!sg.modelData.key
+                                      onClicked: { const k = sg.modelData.key; friendsPage.close(); sg.modelData.installed ? win.activate(k) : app.install(k) } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Ctrl+K: type a few letters, jump to a game (Enter: its page, Shift+Enter: play) or an action.
     KDialog {
         id: jump
@@ -2056,6 +2201,7 @@ ApplicationWindow {
             { t: qsTr("Add a game"), i: "plus", k: "Ctrl+N", run: () => addBox.show() },
             { t: qsTr("Storage"), i: "folder-open", k: "", run: () => storage.show() },
             { t: qsTr("Screenshots"), i: "images", k: "Ctrl+Shift+S", run: () => shotsPage.show() },
+            { t: qsTr("Play with friends"), i: "user-round", k: "", run: () => friendsPage.show() },
             { t: qsTr("Health check"), i: "check", k: "", run: () => healthBox.show() },
             { t: qsTr("Accounts"), i: "user-round", k: "", run: () => accounts.open() },
             { t: qsTr("TV mode"), i: "tv", k: "F11", run: () => { win.tv = true } },

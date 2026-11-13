@@ -2658,6 +2658,78 @@ class AioLaunch(QObject):
             r["when"] = _short_date(r.get("t", 0))
         return h
 
+    # --- play with friends (friends.py) --------------------------------------------------
+    friendsReady = Signal("QVariantList", str)   # friends, a problem to show ("" when fine)
+    sharedReady = Signal("QVariantList")          # games everyone chosen owns
+
+    DEMO_FRIENDS = [("Ana", "online", "Stardew Valley"), ("Mihai", "online", ""), ("Ioana", "away", ""),
+                    ("Radu", "offline", ""), ("Elena", "offline", "")]
+    DEMO_MULTI = {"1245620", "413150", "105600", "268910", "1091500"}
+
+    def _my_steam_games(self):
+        out = {}
+        for grp in self.model.groups:
+            for g in grp:
+                if g.store == "steam" and not self.model.is_hidden(grp):
+                    out[str(g.id)] = g.title
+        return out
+
+    @Slot()
+    def loadFriends(self):
+        if self.demo:
+            fr = [{"id": f"demo{i}", "name": n, "avatar": "", "state": s, "playing": p, "playingId": ""}
+                  for i, (n, s, p) in enumerate(self.DEMO_FRIENDS)]
+            QTimer.singleShot(200, lambda: self.friendsReady.emit(fr, ""))
+            return
+        st = self.stores.get("steam")
+
+        def work():
+            from . import friends
+            try:
+                me = settings.get("steam_id").strip() or (st._recent_user()[0] if st else "")
+                if not me:
+                    raise friends.FriendsError("Cornerplay does not know your Steam account yet: open Steam once")
+                fr = friends.friends(me)
+                return lambda: self.friendsReady.emit(fr, "" if fr else "No friends to show (is your friends list public?)")
+            except friends.FriendsError as e:
+                return lambda m=str(e): self.friendsReady.emit([], m)
+        self._bg(work)
+
+    @Slot("QVariantList")
+    def loadShared(self, ids):
+        """The multiplayer games you and the chosen friends all (or some) own, best first."""
+        ids = [str(i) for i in ids]
+        mine = self._my_steam_games()
+        demo = self.demo
+
+        def work():
+            from . import friends
+            import random
+            if demo:
+                rnd = random.Random(7)
+                chosen = {i: {a: round(rnd.uniform(2, 90), 1) for a in mine if rnd.random() < 0.7} for i in ids}
+                multi = lambda a: a in self.DEMO_MULTI
+            else:
+                chosen = {i: friends.owned(i) for i in ids}
+                multi = lambda a: couch.online(a) or not couch.known(a)
+            rows = friends.shared(mine, chosen, multi) if ids else []
+            for r in rows:
+                g = self.model.find("steam:" + r["appid"])
+                r["key"] = g.key if g else ""
+                r["covers"] = self.model.value(g, "covers") if g else []
+                r["installed"] = bool(g and g.installed)
+            return lambda: self.sharedReady.emit(rows[:30])
+        self._bg(work)
+
+    @Slot(str, str)
+    def copyInvite(self, appid, title):
+        QGuiApplication.clipboard().setText(f"Game night? Let's play {title} together: steam://run/{appid}")
+        self.toast.emit(f"Invite for {title} copied: paste it in your chat")
+
+    @Slot(str)
+    def messageFriend(self, steamid):
+        self.openUrl(f"steam://friends/message/{steamid}")
+
     # --- will it run on this PC? (compat.py) ---------------------------------------------
     compatReady = Signal(str, "QVariantMap")
 
