@@ -2585,6 +2585,45 @@ class AioLaunch(QObject):
             return lambda: self.screenshotsReady.emit(key, out)
         self._bg(work)
 
+    # --- the Screenshots page: every game's screenshots, newest game first --------------
+    allScreenshotsReady = Signal("QVariantList")
+
+    @Slot()
+    def loadAllScreenshots(self):
+        if self.demo:  # the sample library has no screenshots of yours: the stores' stand in
+            out, t = [], time.time()
+            for i, group in enumerate(self.model.groups[:6]):
+                g = self.model.rep(group)
+                d = details.cached(g.key) or {}
+                shots = [{"thumb": s.get("thumb", ""), "full": s.get("full", ""), "path": "", "time": t - i * 86400 - j * 600,
+                          "when": _short_date(t - i * 86400)} for j, s in enumerate(d.get("screenshots") or [])][:8]
+                if shots:
+                    out.append({"key": g.key, "title": g.title, "count": len(shots), "when": shots[0]["when"], "shots": shots})
+            QTimer.singleShot(300, lambda: self.allScreenshotsReady.emit(out))
+            return
+        st = self.stores.get("steam")
+        titles = {}
+        for group in self.model.groups:
+            for c in group:
+                titles[c.key] = self.model.rep(group).title
+
+        def work():
+            from . import screenshots
+            remote = None
+            if st:
+                try:
+                    sid = settings.get("steam_id").strip() or st._recent_user()[0]
+                    remote = Path(st.root()) / "userdata" / str(int(sid) - 76561197960265728) / "760" / "remote"
+                except (TypeError, ValueError, OSError):
+                    remote = None
+            rows = screenshots.library(playtime.sessions(), remote, lambda k: titles.get(k, ""))
+            out = [{"key": g["key"], "title": g["title"], "count": g["count"], "when": _short_date(g["latest"], True),
+                    "shots": [{"thumb": QUrl.fromLocalFile(r["path"]).toString(), "full": QUrl.fromLocalFile(r["path"]).toString(),
+                               "path": r["path"], "time": r["time"], "when": _short_date(r["time"])} for r in g["shots"]]}
+                   for g in rows]
+            return lambda: self.allScreenshotsReady.emit(out)
+        self._bg(work)
+
     @Slot(str)
     def showInFolder(self, path):
         """The folder a screenshot is in (the file manager selects it where it can)."""

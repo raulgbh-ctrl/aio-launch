@@ -196,3 +196,27 @@ def test_streaks():
     late = [["a", datetime(2026, 11, 3, 23, 30).timestamp(), datetime(2026, 11, 4, 0, 40).timestamp()]]
     assert statsdata.streaks(late, now=day(4, 12)) == {"current": 2, "longest": 2}  # past midnight
     assert statsdata.streaks([], now=day(4)) == {"current": 0, "longest": 0}
+
+
+def test_screenshot_library(tmp_path, monkeypatch):
+    import os
+    from cornerplay import screenshots
+    pics = tmp_path / "pics"
+    pics.mkdir()
+    remote = tmp_path / "remote" / "1245620" / "screenshots"
+    remote.mkdir(parents=True)
+    def pic(folder, name, t):
+        f = folder / name
+        f.write_bytes(b"x")
+        os.utime(f, (t, t))
+    pic(pics, "a.png", 1000)      # during the Celeste session
+    pic(pics, "b.png", 5000)      # during nothing
+    pic(pics, "c.png", 2050)      # Hades
+    pic(remote, "s1.jpg", 3000)   # Steam's own
+    monkeypatch.setattr(screenshots, "folders", lambda: [pics])
+    sessions = [["epic:celeste", 900, 1100], ["gog:hades", 2000, 2100]]
+    titles = {"epic:celeste": "Celeste", "gog:hades": "Hades", "steam:1245620": "Elden Ring"}
+    out = screenshots.library(sessions, tmp_path / "remote", titles.get)
+    assert [g["title"] for g in out] == ["Elden Ring", "Hades", "Celeste"]
+    assert [g["count"] for g in out] == [1, 1, 1]
+    assert out[2]["shots"][0]["path"].endswith("a.png")

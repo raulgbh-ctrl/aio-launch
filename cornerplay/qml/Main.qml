@@ -149,6 +149,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+N"; enabled: !win.tv; onActivated: addBox.show() }
     Shortcut { sequence: "F1"; enabled: !win.tv; onActivated: keysBox.open() }
     Shortcut { sequences: ["Ctrl+K", "Ctrl+G"]; enabled: !win.tv; onActivated: jump.show() }
+    Shortcut { sequence: "Ctrl+Shift+S"; enabled: !win.tv; onActivated: shotsPage.show() }
     Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
     // The smart list whose filters the library shows right now, if any.
@@ -354,6 +355,7 @@ ApplicationWindow {
                     ToolIcon { icon: "gamepad-2"; tip: qsTr("What should I play?"); onPicked: picker.show() }
                     ToolIcon { icon: "trophy"; tip: qsTr("Stats"); onPicked: statsBox.show() }
                     ToolIcon { icon: "folder-open"; tip: qsTr("Storage"); onPicked: storage.show() }
+                    ToolIcon { icon: "images"; tip: qsTr("Screenshots (Ctrl+Shift+S)"); onPicked: shotsPage.show() }
                     ToolIcon { icon: "check"; tip: healthBox.bad > 0 ? qsTr("Health check: ") + healthBox.bad + qsTr(" to fix") : qsTr("Health check")
                                alert: healthBox.bad > 0; onPicked: healthBox.show() }
                     ToolIcon { visible: app.hiddenCount > 0 || library.showHidden; icon: "eye-off"; on: library.showHidden
@@ -1851,6 +1853,111 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- game detail
+    // Screenshots: every game's, newest game first (Steam's F12 ones, and any picture taken
+    // while a game ran). A thumbnail opens the viewer on that game's screenshots.
+    KDialog {
+        id: shotsPage
+        theme: win.theme
+        heading: qsTr("Screenshots")
+        headingIcon: "images"
+        width: Math.min(win.width - 60, 1200)
+        height: win.height - 60
+        property var games: []
+        property bool loading: false
+        property var expanded: ({})   // titles shown in full ("Show all")
+        function show() { loading = true; expanded = ({}); open(); app.loadAllScreenshots() }
+        Connections { target: app; function onAllScreenshotsReady(list) { shotsPage.games = list; shotsPage.loading = false } }
+        readonly property int total: games.reduce((n, g) => n + g.count, 0)
+        contentItem: Item {
+            Text {
+                visible: shotsPage.games.length > 0
+                anchors { right: parent.right; top: parent.top; topMargin: -44; rightMargin: 40 }
+                text: shotsPage.total + qsTr(" screenshots of ") + shotsPage.games.length + qsTr(" games")
+                color: theme.outline; font.pixelSize: 12
+            }
+            Column {
+                visible: !shotsPage.loading && shotsPage.games.length === 0
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 40, 460)
+                spacing: 12
+                EmptyScene { anchors.horizontalCenter: parent.horizontalCenter; width: 240; height: 160; theme: win.theme; kind: "search" }
+                Text { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: qsTr("No screenshots yet")
+                       color: theme.onSurface; font.pixelSize: 20; font.weight: Font.DemiBold }
+                Text { width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                       color: theme.onSurfaceVariant; font.pixelSize: 13
+                       text: qsTr("Take one in a game with F12 (Steam) or your desktop's screenshot key: pictures in ~/Pictures and ~/Pictures/Screenshots taken while a game ran show up here under that game.") }
+            }
+            BusyIndicator { anchors.centerIn: parent; running: shotsPage.loading; visible: running }
+            ListView {
+                id: shotsList
+                anchors.fill: parent
+                visible: shotsPage.games.length > 0
+                clip: true
+                spacing: 26
+                model: shotsPage.games
+                ScrollBar.vertical: KScrollBar { }
+                delegate: Column {
+                    id: shotGame
+                    required property var modelData
+                    readonly property bool full: !!shotsPage.expanded[modelData.title]
+                    readonly property int cols: Math.max(2, Math.floor((shotsList.width - 12) / 236))
+                    readonly property int tileW: Math.floor((shotsList.width - 12 - (cols - 1) * 10) / cols)
+                    width: shotsList.width - 12
+                    spacing: 10
+                    Row {
+                        spacing: 10
+                        Text { text: shotGame.modelData.title; color: theme.onSurface; font.pixelSize: 17; font.weight: Font.DemiBold
+                               font.family: app.titleFamily }
+                        Text { anchors.baseline: parent.children[0].baseline; color: theme.outline; font.pixelSize: 12
+                               text: shotGame.modelData.count + "  \u00B7  " + shotGame.modelData.when }
+                        Text {
+                            anchors.baseline: parent.children[0].baseline
+                            text: qsTr("Game page"); color: theme.primary; font.pixelSize: 12
+                            font.underline: gpHover.hovered
+                            HoverHandler { id: gpHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: { shotsPage.close(); win.select(shotGame.modelData.key) } }
+                        }
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: 10
+                        Repeater {
+                            model: shotGame.full ? shotGame.modelData.shots : shotGame.modelData.shots.slice(0, shotGame.cols * 2)
+                            Item {
+                                id: shotTile
+                                required property var modelData
+                                required property int index
+                                width: shotGame.tileW; height: Math.round(width * 9 / 16)
+                                RoundedArt {
+                                    anchors.fill: parent; radius: 10
+                                    scale: tileHover.hovered && !app.light ? 1.03 : 1
+                                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                                    Image { anchors.fill: parent; source: shotTile.modelData.thumb; fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true; sourceSize.width: 480 }
+                                    Rectangle {
+                                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                        height: 26; visible: tileHover.hovered
+                                        gradient: Gradient { GradientStop { position: 0; color: "transparent" } GradientStop { position: 1; color: Qt.alpha("black", 0.7) } }
+                                        Text { x: 10; anchors.verticalCenter: parent.verticalCenter; text: shotTile.modelData.when || ""; color: "white"; font.pixelSize: 11 }
+                                    }
+                                }
+                                HoverHandler { id: tileHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: viewer.show(shotGame.modelData.shots, shotTile.index) }
+                            }
+                        }
+                    }
+                    KButton {
+                        visible: !shotGame.full && shotGame.modelData.shots.length > shotGame.cols * 2
+                        theme: win.theme; implicitHeight: 32; iconName: "chevron-down"
+                        text: qsTr("Show all ") + shotGame.modelData.count
+                        onClicked: { const o = Object.assign({}, shotsPage.expanded); o[shotGame.modelData.title] = true; shotsPage.expanded = o }
+                    }
+                }
+            }
+        }
+    }
+
     // Ctrl+K: type a few letters, jump to a game (Enter: its page, Shift+Enter: play) or an action.
     KDialog {
         id: jump
@@ -1866,6 +1973,7 @@ ApplicationWindow {
             { t: qsTr("What should I play?"), i: "gamepad-2", k: "Ctrl+P", run: () => picker.show() },
             { t: qsTr("Add a game"), i: "plus", k: "Ctrl+N", run: () => addBox.show() },
             { t: qsTr("Storage"), i: "folder-open", k: "", run: () => storage.show() },
+            { t: qsTr("Screenshots"), i: "images", k: "Ctrl+Shift+S", run: () => shotsPage.show() },
             { t: qsTr("Health check"), i: "check", k: "", run: () => healthBox.show() },
             { t: qsTr("Accounts"), i: "user-round", k: "", run: () => accounts.open() },
             { t: qsTr("TV mode"), i: "tv", k: "F11", run: () => { win.tv = true } },
@@ -2009,6 +2117,7 @@ ApplicationWindow {
                 ["Ctrl+K", qsTr("Jump to a game or an action")],
                 ["Ctrl+P", qsTr("What should I play?")],
                 ["Ctrl+I", qsTr("Stats")],
+                ["Ctrl+Shift+S", qsTr("Screenshots")],
                 ["Ctrl+,", qsTr("Settings")],
                 ["Ctrl+Tab", qsTr("Next tab in Settings")],
                 ["F1 / ?", qsTr("This list")],

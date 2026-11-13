@@ -82,3 +82,59 @@ def for_game(keys, sessions, steam_dir=None) -> list:
                 if lo <= t <= hi and path not in found and any(a <= t <= b for a, b in windows):
                     found[path] = {"path": path, "time": t, "source": "session"}
     return sorted(found.values(), key=lambda r: -r["time"])[:LIMIT]
+
+
+def library(sessions, steam_remote=None, title_of=None, per_game=60, total=1500) -> list:
+    """Every screenshot of every game, for the Screenshots page, grouped by game, the game with
+    the newest shot first: [{"key", "title", "count", "latest", "shots": [{"path", "time", "source"}]}].
+    Folder pictures go to the game whose session they were taken in (one pass over the folders);
+    steam_remote (userdata/<account>/760/remote) adds Steam's own F12 screenshots for every app.
+    title_of(key) -> title, or "" for a game no longer in the library (left out)."""
+    title_of = title_of or (lambda k: k)
+    by_key = {}
+
+    def put(key, path, t, source):
+        by_key.setdefault(key, {})[path] = {"path": path, "time": t, "source": source}
+
+    if steam_remote and Path(steam_remote).is_dir():
+        try:
+            apps = [e for e in os.scandir(steam_remote) if e.is_dir() and e.name.isdigit()]
+        except OSError:
+            apps = []
+        for e in apps:
+            for path, t in _images(Path(e.path) / "screenshots"):
+                put("steam:" + e.name, path, t, "steam")
+    windows = sorted((s - SLACK_BEFORE, e + SLACK_AFTER, k) for k, s, e in sessions)
+    if windows:
+        starts = [w[0] for w in windows]
+        import bisect
+        for folder in folders():
+            for path, t in _images(folder):
+                i = bisect.bisect_right(starts, t) - 1
+                # the latest session that started before the picture; earlier ones may overlap it
+                while i >= 0 and windows[i][0] > t - 86400:
+                    a, b, k = windows[i]
+                    if a <= t <= b:
+                        put(k, path, t, "session")
+                        break
+                    i -= 1
+    games = {}
+    for key, shots in by_key.items():
+        title = title_of(key)
+        if not title:
+            continue
+        g = games.setdefault(title, {"key": key, "title": title, "shots": {}})
+        g["shots"].update(shots)
+    out = []
+    for g in games.values():
+        shots = sorted(g["shots"].values(), key=lambda r: -r["time"])
+        out.append({"key": g["key"], "title": g["title"], "count": len(shots),
+                    "latest": shots[0]["time"], "shots": shots[:per_game]})
+    out.sort(key=lambda g: -g["latest"])
+    kept, n = [], 0
+    for g in out:
+        if n >= total:
+            break
+        kept.append(g)
+        n += len(g["shots"])
+    return kept
