@@ -2194,6 +2194,37 @@ ApplicationWindow {
         }
     }
 
+    // Before a Proton change on a Denuvo game: it may count as a new PC (a few a day are allowed).
+    function protonChange(key, fn, undo) {
+        if (app.usesDenuvo(key)) { denuvoAsk.run = fn; denuvoAsk.undo = undo || null; denuvoAsk.done = false; denuvoAsk.open() } else fn()
+    }
+    KDialog {
+        id: denuvoAsk
+        theme: win.theme
+        heading: qsTr("Change Proton for a Denuvo game?")
+        headingIcon: "shield-alert"
+        width: Math.min(win.width - 60, 520)
+        property var run: null
+        property var undo: null
+        property bool done: false
+        onClosed: if (!done && undo) undo()  // kept: the menu shows the version in use again
+        contentItem: ColumnLayout {
+            spacing: 16
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant; font.pixelSize: 13
+                text: qsTr("This game uses Denuvo. It can take a new Proton version for a new PC, and after a few changes in a day it locks the game until the next day. Change it only if the game does not run as it is.")
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                KButton { theme: win.theme; text: qsTr("Keep it"); onClicked: denuvoAsk.close() }
+                KButton { theme: win.theme; primary: true; text: qsTr("Change it"); iconName: "check"
+                          onClicked: { const f = denuvoAsk.run; denuvoAsk.done = true; denuvoAsk.close(); if (f) f() } }
+            }
+        }
+    }
+
     // Ctrl+K: type a few letters, jump to a game (Enter: its page, Shift+Enter: play) or an action.
     KDialog {
         id: jump
@@ -2989,7 +3020,7 @@ ApplicationWindow {
         // one-click tweaks that often fix things.
         Rectangle {
             id: fitCard
-            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0)
+            visible: !!detail.fit.level && (detail.fit.level !== "unknown" || (detail.fit.linux || []).length > 0 || (detail.fit.tweaks || []).length > 0 || !!detail.fit.denuvo)
             Layout.fillWidth: true
             implicitHeight: fitCol.implicitHeight + 32
             radius: 16
@@ -3011,6 +3042,18 @@ ApplicationWindow {
                     Text { visible: !!(detail.fit.system || {}).gpu; color: theme.outline; font.pixelSize: 12; elide: Text.ElideRight
                            Layout.fillWidth: true
                            text: "  " + ((detail.fit.system || {}).gpu || "") + "  \u00B7  " + Math.round((detail.fit.system || {}).ram || 0) + qsTr(" GB RAM") }
+                }
+                // Denuvo: a change of Proton can count as a new PC, and only a few are allowed a day.
+                RowLayout {
+                    visible: !!detail.fit.denuvo
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Icon { Layout.alignment: Qt.AlignTop; name: "shield-alert"; size: 16; color: "#ffcc66" }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                        text: qsTr("Uses Denuvo: each change of Proton version can count as a new PC, and Denuvo allows only a few a day. Pick one that works and keep it.")
+                        color: theme.onSurfaceVariant; font.pixelSize: 12
+                    }
                 }
                 // Each part: what this PC has against what the game asks for.
                 Repeater {
@@ -3068,7 +3111,8 @@ ApplicationWindow {
                                 Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr(tw.modelData.label); color: theme.onSurface; font.pixelSize: 12 }
                             }
                             HoverHandler { id: twHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: app.setTweak(win.selectedKey, tw.modelData.id, !tw.modelData.on) }
+                            TapHandler { onTapped: { const k = win.selectedKey, id = tw.modelData.id, on = !tw.modelData.on
+                                                     if (id === "ge") win.protonChange(k, () => app.setTweak(k, id, on)); else app.setTweak(k, id, on) } }
                             ToolTip.visible: twHover.hovered; ToolTip.delay: 400; ToolTip.text: qsTr(tw.modelData.why)
                         }
                     }
@@ -6210,7 +6254,7 @@ ApplicationWindow {
                     id: optSteamProton
                     theme: win.theme; Layout.fillWidth: true
                     enabled: gameOpts.steamProton.choices.length > 0 && !app.steamShortcut.busy
-                    onActivated: app.setSteamProton(gameOpts.key, currentValue)
+                    onActivated: { const k = gameOpts.key, v = currentValue; win.protonChange(k, () => app.setSteamProton(k, v), () => optSteamProton.select(gameOpts.steamProton.current)) }
                 }
             }
             Row2 {
@@ -6220,7 +6264,8 @@ ApplicationWindow {
                     id: optProton
                     theme: win.theme; Layout.fillWidth: true
                     model: [{ label: qsTr("Use default"), value: "default" }].concat(app.protonVersions)
-                    onActivated: app.setGameOption(gameOpts.key, "proton", currentValue)
+                    onActivated: { const k = gameOpts.key, v = currentValue; win.protonChange(k, () => app.setGameOption(k, "proton", v),
+                                                    () => optProton.select(gameOpts.opts.proton === undefined ? "default" : gameOpts.opts.proton)) }
                 }
             }
             RowLayout {

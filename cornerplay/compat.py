@@ -232,9 +232,9 @@ def requirements(appid):
     Blocking (worker thread); cached for a month."""
     cache = read_json(REQ_CACHE, {}) or {}
     hit = cache.get(str(appid))
-    if hit and time.time() - hit.get("t", 0) < 30 * 86400:
+    if hit and time.time() - hit.get("t", 0) < 30 * 86400 and "drm" in hit:
         return hit.get("req") or {}
-    req = {}
+    req, drm = {}, ""
     try:
         r = requests.get("https://store.steampowered.com/api/appdetails", timeout=15,
                          params={"appids": appid, "l": "english", "cc": "us", "filters": "basic"})
@@ -242,11 +242,23 @@ def requirements(appid):
         pc = data.get("pc_requirements") or {}
         if isinstance(pc, dict):
             req = {k: parse(pc.get(k, "")) for k in ("minimum", "recommended") if pc.get(k)}
+        drm = re.sub(r"<[^>]+>", " ", str(data.get("drm_notice") or "")).strip()[:200]
     except (requests.RequestException, ValueError):
         return hit.get("req") if hit else {}
-    cache[str(appid)] = {"t": time.time(), "req": req}
+    cache[str(appid)] = {"t": time.time(), "req": req, "drm": drm}
     write_json(REQ_CACHE, cache)
     return req
+
+
+def drm_notice(appid):
+    """Steam's DRM notice for an app ("Denuvo Anti-Tampering"), from the cache only (requirements()
+    fills it); "" when there is none or it was never asked."""
+    return ((read_json(REQ_CACHE, {}) or {}).get(str(appid)) or {}).get("drm", "")
+
+
+def denuvo(appid):
+    """Denuvo can take a change of Proton version for a new PC, and it allows only a few a day."""
+    return "denuvo" in drm_notice(appid).lower()
 
 
 def anticheat(appid):

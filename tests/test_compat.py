@@ -38,3 +38,11 @@ def test_tweaks_env_roundtrip():
     opts = {"env": "DXVK_HUD=fps PROTON_NO_FSYNC=1 PROTON_NO_ESYNC=1"}
     assert compat.tweak_on(t, opts)
     assert compat.parse_env(compat.env_string({"A": "1", "B": "x=y"})) == {"A": "1", "B": "x=y"}
+
+
+def test_denuvo_from_steam_drm_notice(tmp_path, monkeypatch):
+    from cornerplay import compat
+    monkeypatch.setattr(compat, "REQ_CACHE", tmp_path / "req.json")
+    compat.write_json(compat.REQ_CACHE, {"990080": {"t": 0, "req": {}, "drm": "Denuvo Anti-Tampering"},
+                                          "1245620": {"t": 0, "req": {}, "drm": ""}})
+    assert compat.denuvo("990080") and not compat.denuvo("1245620") and not compat.denuvo("1")

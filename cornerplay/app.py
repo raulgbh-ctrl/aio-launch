@@ -2866,8 +2866,17 @@ class AioLaunch(QObject):
                             "suggested": t["id"] in sug}
                            for t in compat.TWEAKS if windows and (t["id"] != "nvapi" or "nvapi" in sug or compat.tweak_on(t, opts))]
             v["system"] = {"gpu": me.get("gpu", ""), "cpu": me.get("cpu", ""), "ram": me.get("ram", 0), "vram": me.get("vram", 0)}
+            v["denuvo"] = bool(appid) and compat.denuvo(appid)
             return lambda: self.compatReady.emit(key, v)
         self._bg(work)
+
+    @Slot(str, result=bool)
+    def usesDenuvo(self, key):
+        """Asked before a Proton change: Denuvo may count it as a new PC (compat cache only)."""
+        from . import compat
+        g = self.model.find(key)
+        appid = _appid(g) if g else ""
+        return bool(appid) and compat.denuvo(appid)
 
     @Slot(str, str, bool)
     def setTweak(self, key, tweak_id, on):
