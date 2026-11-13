@@ -2529,6 +2529,26 @@ class AioLaunch(QObject):
             "statuses": [{"name": n, "count": c} for n, c in statuses.items()],
         }
 
+    @Slot(result="QVariantList")
+    def journal(self):
+        """Stats > Journal: month by month, the games you played (with their covers)."""
+        def title_of(key):
+            grp = self.model.group_of(key)
+            g = self.model.find(key)
+            return self.model.rep(grp).title if grp else (g.title if g else "")
+        finished_at = {}
+        for grp in self.model.groups:
+            if shelves.meta(grp, "status") == "finished":
+                when = next((personal.get(g.key, "finished_at") for g in grp if personal.get(g.key, "finished_at")), 0)
+                if isinstance(when, (int, float)) and when:
+                    finished_at[self.model.rep(grp).key] = when
+        out = statsdata.journal(playtime.sessions(), title_of, finished_at)
+        for m in out:
+            for g in m["games"]:
+                game = self.model.find(g["key"])
+                g["covers"] = self.model.value(game, "covers") if game else []
+        return out
+
     @Slot(int, result="QVariantMap")
     def yearStats(self, year):
         """Your year in Cornerplay. Hours come from the session log; for the current year the

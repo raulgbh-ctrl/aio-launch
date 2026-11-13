@@ -132,3 +132,49 @@ def backlog(counts):
     total = counts.get("playing", 0) + counts.get("want", 0) + counts.get("finished", 0)
     return {"total": total, "done": counts.get("finished", 0),
             "percent": round(100 * counts.get("finished", 0) / total) if total else 0}
+
+
+def journal(log, title_of, finished_at=None, months=24):
+    """Your play journal, month by month, newest first: the hours, each game with its hours and
+    sessions, the games played for the first time that month and the ones finished.
+    [{"year", "month", "label", "hours", "games": [{"key", "title", "hours", "sessions",
+      "first", "finished"}], "started", "finished"}]. A game on two stores counts once (by title)."""
+    first = {}
+    for key, s, e in log:
+        t = title_of(key)
+        if t:
+            first[t] = min(first.get(t, s), s)
+    buckets = {}
+
+    def bucket(t):
+        d = datetime.fromtimestamp(t)
+        return buckets.setdefault((d.year, d.month), {})
+
+    for key, s, e in log:
+        title = title_of(key)
+        if not title or e <= s:
+            continue
+        t = s
+        while t < e:  # a session over midnight at the month's end counts in both months
+            d = datetime.fromtimestamp(t)
+            nxt = datetime(d.year + (d.month == 12), d.month % 12 + 1, 1).timestamp()
+            g = bucket(t).setdefault(title, {"key": key, "title": title, "secs": 0, "sessions": 0})
+            g["secs"] += min(e, nxt) - t
+            if t == s:
+                g["sessions"] += 1
+            t = nxt
+    for key, when in (finished_at or {}).items():
+        title = title_of(key)
+        if title and when:
+            bucket(when).setdefault(title, {"key": key, "title": title, "secs": 0, "sessions": 0})["done"] = True
+    out = []
+    for (y, m) in sorted(buckets, reverse=True)[:months]:
+        games = sorted(buckets[(y, m)].values(), key=lambda g: (-g["secs"], g["title"].lower()))
+        lo = datetime(y, m, 1).timestamp()
+        hi = datetime(y + (m == 12), m % 12 + 1, 1).timestamp()
+        rows = [{"key": g["key"], "title": g["title"], "hours": round(g["secs"] / 3600, 1), "sessions": g["sessions"],
+                 "first": lo <= first.get(g["title"], 0) < hi, "finished": bool(g.get("done"))} for g in games]
+        out.append({"year": y, "month": m, "label": f"{month(m - 1)} {y}",
+                    "hours": round(sum(g["secs"] for g in games) / 3600, 1), "games": rows,
+                    "started": sum(1 for r in rows if r["first"]), "finished": sum(1 for r in rows if r["finished"])})
+    return out

@@ -220,3 +220,19 @@ def test_screenshot_library(tmp_path, monkeypatch):
     assert [g["title"] for g in out] == ["Elden Ring", "Hades", "Celeste"]
     assert [g["count"] for g in out] == [1, 1, 1]
     assert out[2]["shots"][0]["path"].endswith("a.png")
+
+
+def test_journal():
+    from datetime import datetime
+    from cornerplay import statsdata
+    ts = lambda m, d, h=20: datetime(2026, m, d, h).timestamp()
+    log = [["a", ts(9, 3), ts(9, 3) + 7200], ["a", ts(10, 1), ts(10, 1) + 3600], ["b", ts(10, 5), ts(10, 5) + 1800],
+           ["a2", ts(10, 6), ts(10, 6) + 1800]]   # the same game on another store
+    titles = {"a": "Alpha", "a2": "Alpha", "b": "Beta"}
+    out = statsdata.journal(log, titles.get, {"b": ts(10, 20)})
+    assert [m["label"] for m in out] == ["October 2026", "September 2026"]
+    oct_ = out[0]
+    assert oct_["hours"] == 2.0 and [g["title"] for g in oct_["games"]] == ["Alpha", "Beta"]
+    assert oct_["games"][0]["sessions"] == 2 and not oct_["games"][0]["first"]
+    assert oct_["games"][1]["first"] and oct_["games"][1]["finished"] and oct_["started"] == 1
+    assert out[1]["games"][0]["first"]

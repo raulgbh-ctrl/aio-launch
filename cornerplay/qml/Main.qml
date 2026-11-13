@@ -3500,7 +3500,11 @@ ApplicationWindow {
         property var d: ({})
         property var yr: ({})
         property int page: 0
-        function show() { d = app.stats(); yr = d.year || {}; page = 0; open() }
+        property var journal: []
+        function show() { d = app.stats(); yr = d.year || {}; journal = []; page = 0; open() }
+        function go(p) { if (p === 2 && !journal.length) journal = app.journal(); page = p }
+        Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; enabled: statsBox.visible; onActivated: statsBox.go((statsBox.page + 1) % 3) }
+        Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+PgUp"]; enabled: statsBox.visible; onActivated: statsBox.go((statsBox.page + 2) % 3) }
         width: Math.min(win.width - 60, 760)
         height: Math.min(win.height - 60, 720)
         component Tile: Rectangle {
@@ -3529,6 +3533,92 @@ ApplicationWindow {
                     spacing: 8
                     Chip { label: qsTr("Overview"); icon: "trophy"; active: statsBox.page === 0; onPicked: statsBox.page = 0 }
                     Chip { label: qsTr("Your year"); icon: "sparkles"; active: statsBox.page === 1; onPicked: statsBox.page = 1 }
+                    Chip { label: qsTr("Journal"); icon: "history"; active: statsBox.page === 2; onPicked: statsBox.go(2) }
+                }
+                // Journal: month by month, what you played, started and finished.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: statsBox.page === 2
+                    spacing: 0
+                    Text {
+                        visible: statsBox.journal.length === 0
+                        Layout.fillWidth: true; Layout.topMargin: 20
+                        wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
+                        text: qsTr("Your journal fills in as you play: every session of the games Cornerplay starts, and of Steam games while it runs, lands in its month.")
+                    }
+                    Repeater {
+                        model: statsBox.journal
+                        RowLayout {
+                            id: jm
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 16
+                            // The month, its hours and what happened.
+                            Column {
+                                Layout.alignment: Qt.AlignTop
+                                Layout.topMargin: 6
+                                Layout.preferredWidth: 156
+                                spacing: 2
+                                Text { text: jm.modelData.label; color: theme.onSurface; font.pixelSize: 15; font.weight: Font.Bold
+                                       width: 156; elide: Text.ElideRight }
+                                Text { text: jm.modelData.hours + " h  \u00B7  " + jm.modelData.games.length + qsTr(" games"); color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                                Text { visible: jm.modelData.started > 0; text: jm.modelData.started + qsTr(" started"); color: theme.primary; font.pixelSize: 12 }
+                                Text { visible: jm.modelData.finished > 0; text: jm.modelData.finished + qsTr(" finished"); color: "#7bd88f"; font.pixelSize: 12 }
+                            }
+                            // The thread of the timeline, a dot per month.
+                            Item {
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 14
+                                Rectangle { x: 6; width: 2; height: parent.height; color: theme.outlineVariant
+                                            y: jm.index === 0 ? 14 : 0 }
+                                Rectangle { x: 1; y: 9; width: 12; height: 12; radius: 6; color: theme.primary
+                                            border.width: 3; border.color: theme.surfaceContainer }
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 2; Layout.bottomMargin: 22
+                                spacing: 8
+                                Repeater {
+                                    model: jm.modelData.games
+                                    Rectangle {
+                                        id: jg
+                                        required property var modelData
+                                        width: Math.min(260, jgCol.implicitWidth + 58); height: 56; radius: 12
+                                        color: jgHover.hovered ? theme.surfaceContainerHighest : theme.surfaceContainerHigh
+                                        RoundedArt {
+                                            x: 8; anchors.verticalCenter: parent.verticalCenter
+                                            width: 30; height: 42; radius: 5
+                                            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHighest }
+                                            ArtImage { anchors.fill: parent; sources: jg.modelData.covers || []; sourceSize.width: 60 }
+                                        }
+                                        Column {
+                                            id: jgCol
+                                            x: 48; anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.min(implicitWidth, 200)
+                                            spacing: 2
+                                            Text { width: Math.min(implicitWidth, 200); text: jg.modelData.title; color: theme.onSurface
+                                                   font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                            Row {
+                                                spacing: 6
+                                                Text { text: (jg.modelData.hours > 0 ? jg.modelData.hours + " h" : "")
+                                                             + (jg.modelData.sessions > 1 ? "  \u00B7  " + jg.modelData.sessions + qsTr(" sessions") : "")
+                                                       color: theme.onSurfaceVariant; font.pixelSize: 11 }
+                                                Rectangle { visible: jg.modelData.first; height: 16; width: nt.implicitWidth + 10; radius: 8
+                                                            color: Qt.alpha(theme.primary, 0.18)
+                                                            Text { id: nt; anchors.centerIn: parent; text: qsTr("Started"); color: theme.primary; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                                                Rectangle { visible: jg.modelData.finished; height: 16; width: ft.implicitWidth + 10; radius: 8
+                                                            color: Qt.alpha("#7bd88f", 0.18)
+                                                            Text { id: ft; anchors.centerIn: parent; text: qsTr("Finished"); color: "#7bd88f"; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                                            }
+                                        }
+                                        HoverHandler { id: jgHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: { statsBox.close(); win.select(jg.modelData.key) } }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true

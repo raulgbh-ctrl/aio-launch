@@ -196,6 +196,9 @@ To remove it:
 - **What should I play?** (sidebar): a pick from your backlog, by how long you have; never finished or dropped games.
 - **Small windows**: under about 980 px wide the sidebar folds into a rail of icons (names as tooltips), so half a screen or a small laptop still has room for the covers and a game's page.
 - **New games**: a game bought or claimed in the last week wears a small NEW ribbon on its cover until you play it (games you already owned when a store was connected never do).
+- **Smart lists**: pick filters (a store, installed only, never played, Linux version, controller support, play together, ProtonDB Gold+, genres) and Save as a list: it sits under Your lists in the sidebar with a live count, and always shows what those filters find, new games included.
+- **Screenshots page** (Ctrl+Shift+S, the images icon in the sidebar): every game's screenshots in one place, newest game first: Steam's F12 ones for every app, and any picture in your screenshot folders taken while a game ran. Click one to browse that game's shots full size.
+- **Journal** (Stats > Journal): your play history month by month: hours, each game with its hours and sessions, and what you started and finished that month.
 - **Jump anywhere (Ctrl+K)**: type a few letters to jump to a game (Enter opens its page, Shift+Enter plays it) or an action: Settings, Stats, a store, a view, TV mode and more. With nothing typed it lists your recent games.
 - **Your sessions** on a game's page: the last few times you played it (date, time, how long) and its hours in the last 30 days.
 - **Forgiving search**: words in any order, accents and punctuation ignored, roman numerals read as numbers, and a game's initials: "witcher 3", "baldurs gate", "gta 5", "rdr2" and "hk" all find their game (`search.py`).
