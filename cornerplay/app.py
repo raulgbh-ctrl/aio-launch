@@ -48,9 +48,9 @@ def job_detail(job):
     eta = job.get("eta")
     if eta is not None and job.get("etaAt"):
         left = max(0, eta - (time.monotonic() - job["etaAt"]))
-        parts.append("under a minute left" if left < 60 else
-                     f"{round(left / 60)} min left" if left < 3600 else
-                     f"{int(left // 3600)} h {round(left % 3600 / 60)} min left")
+        parts.append(_t("under a minute left") if left < 60 else
+                     _t("%1 min left").replace("%1", str(round(left / 60))) if left < 3600 else
+                     _t("%1 h %2 min left").replace("%1", str(int(left // 3600))).replace("%2", str(round(left % 3600 / 60))))
     return "  \u00B7  ".join(parts)
 
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
@@ -72,6 +72,9 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "under a minute left"),
+            QCoreApplication.translate("app", "%1 min left"),
+            QCoreApplication.translate("app", "%1 h %2 min left"),
             QCoreApplication.translate("app", "Launch options copied: paste them in Steam > Properties > Launch options"),
             QCoreApplication.translate("app", "Settings used in this game's Options"),
             QCoreApplication.translate("app", "This game already has these settings"),
@@ -2494,7 +2497,7 @@ class AioLaunch(QObject):
             return
         on = not shelves.in_group(group, shelves.FAV)
         self.setInCollection(key, shelves.FAV, on)
-        self.toast.emit(f"{group[0].title} {'added to' if on else 'removed from'} Favourites")
+        self.toast.emit(f"{group[0].title} added to Favourites" if on else f"{group[0].title} removed from Favourites")
 
     @Slot(str, result=str)
     def createCollection(self, name):
@@ -3009,6 +3012,12 @@ class AioLaunch(QObject):
         self.gameChanged.emit(key)
         self.toast.emit(_t("Settings used in this game's Options") if changed else _t("This game already has these settings"))
         self.loadCompat(key)
+
+    @Slot(str, result=str)
+    def trToast(self, message):
+        """A toast in the interface language (toastsi18n.py)."""
+        from . import toastsi18n
+        return toastsi18n.translate(message)
 
     @Slot(str, result=bool)
     def usesDenuvo(self, key):

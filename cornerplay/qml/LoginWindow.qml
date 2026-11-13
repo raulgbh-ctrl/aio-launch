@@ -34,7 +34,7 @@ Window {
     function finish(payload) {
         if (done) return
         done = true
-        status.text = "Signing in…"
+        status.text = qsTr("Signing in…")
         if (store === "blizzard") app.blizzardSync()  // reads the games; app.blizzardOwned closes this
         else if (store === "humble") app.humbleWebDone(view.profile)  // reads the session cookie
         else app.loginFinish(store, payload)

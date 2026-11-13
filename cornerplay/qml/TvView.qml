@@ -567,12 +567,12 @@ FocusScope {
                             if (!tv.cur.key) return ""
                             const stores = tv.cur.copies.length ? tv.cur.copies.map(c => c.storeName).join(", ") : tv.cur.storeName
                             const pct = Math.max(0, Math.floor(tv.cur.progress)) + "%"
-                            const state = tv.cur.job === "install" ? "Installing " + pct
-                                        : tv.cur.job === "update" ? "Updating " + pct
-                                        : tv.cur.job === "dlc" ? "Installing DLC " + pct
-                                        : tv.cur.job === "move" ? "Moving " + pct
-                                        : tv.cur.job ? "Removing…"
-                                        : tv.cur.installed ? (tv.cur.update ? "Update available" : "Installed") : "Not installed"
+                            const state = tv.cur.job === "install" ? qsTr("Installing ") + pct
+                                        : tv.cur.job === "update" ? qsTr("Updating ") + pct
+                                        : tv.cur.job === "dlc" ? qsTr("Installing DLC ") + pct
+                                        : tv.cur.job === "move" ? qsTr("Moving ") + pct
+                                        : tv.cur.job ? qsTr("Removing…")
+                                        : tv.cur.installed ? (tv.cur.update ? qsTr("Update available") : qsTr("Installed")) : qsTr("Not installed")
                             return stores + "  ·  " + state
                         }
                     }
@@ -593,8 +593,8 @@ FocusScope {
                     readonly property string played: tv.cur.key ? app.playedText(tv.cur.playtime, tv.cur.lastPlayed) : ""
                     readonly property string trophies: tv.ach.total ? "\u{1F3C6} " + tv.ach.done + " / " + tv.ach.total : ""
                     visible: text !== ""
-                    readonly property string pad: tv.info.controller === "partial" ? "\u{1F3AE} Partial controller support"
-                                                  : tv.info.controller === "" && !!tv.cur.steamAppId ? "\u2328 Mouse and keyboard" : ""
+                    readonly property string pad: tv.info.controller === "partial" ? qsTr("\u{1F3AE} Partial controller support")
+                                                  : tv.info.controller === "" && !!tv.cur.steamAppId ? qsTr("\u2328 Mouse and keyboard") : ""
                     readonly property string stars: tv.cur.rating ? "\u2605".repeat(tv.cur.rating) + "\u2606".repeat(5 - tv.cur.rating) : ""
                     text: [played, trophies, stars, pad].filter(t => !!t).join("   \u00B7   ")
                     color: theme.onSurfaceVariant
@@ -640,7 +640,7 @@ FocusScope {
                         id: playBtn
                         readonly property string label: tv.cur.job ? ({ install: qsTr("Installing"), update: qsTr("Updating"), dlc: qsTr("Installing DLC"), move: qsTr("Moving"), verify: qsTr("Checking files"), fix: qsTr("Fixing"), queued: qsTr("Queued"), paused: qsTr("Paused") }[tv.cur.job] || qsTr("Removing"))
                                                                        + (tv.cur.job !== "uninstall" ? " " + Math.max(0, Math.floor(tv.cur.progress || 0)) + "%" : "")
-                                                        : tv.cur.installed ? (tv.cur.playtime ? "Resume" : "Play") : "Install"
+                                                        : tv.cur.installed ? (tv.cur.playtime ? qsTr("Resume") : qsTr("Play")) : qsTr("Install")
                         height: 56; radius: 28
                         width: playRow.implicitWidth + 44
                         color: tv.tint.primary
@@ -918,7 +918,7 @@ FocusScope {
             spacing: 22
             Repeater {
                 model: {
-                    const play = tv.cur.key && !tv.cur.installed ? "Install" : "Play"
+                    const play = tv.cur.key && !tv.cur.installed ? qsTr("Install") : qsTr("Play")
                     const jump = grid.count > grid.page + 1, stores = tv.storeIds.length > 2, shelves = tv.shelfList.length > 1
                     const all = pad.connected
                         ? [{ b: ["a"], t: play }, { b: ["start"], t: qsTr("More") }, { b: ["guide"], t: qsTr("Menu") }, { b: ["y"], t: tvLibrary.installedOnly ? qsTr("All games") : qsTr("Installed only") },
@@ -933,8 +933,8 @@ FocusScope {
                            { k: qsTr("Esc"), t: tvLibrary.search ? qsTr("Clear search") : qsTr("Back") }]
                     // Four at most: the rest are listed on a game's page (More).
                     // No game in view (an empty shelf, nothing found): nothing to play or open.
-                    const needGame = ["Play", "Install", "Options", "More"]
-                    return all.filter(h => h && !h.pad && ["Play", "Install", "Options", "More", "Menu", "Back", "Clear search"].indexOf(h.t) !== -1
+                    const needGame = [qsTr("Play"), qsTr("Install"), qsTr("Options"), qsTr("More")]
+                    return all.filter(h => h && !h.pad && [qsTr("Play"), qsTr("Install"), qsTr("Options"), qsTr("More"), qsTr("Menu"), qsTr("Back"), qsTr("Clear search")].indexOf(h.t) !== -1
                                            && (tv.cur.key || needGame.indexOf(h.t) === -1))
                 }
                 Hint { required property var modelData; hint: modelData }
@@ -1452,7 +1452,7 @@ FocusScope {
             anchors { left: parent.left; bottom: parent.bottom; margins: 30 }
             visible: tv.width >= 900
             text: pad.connected ? qsTr("Also:  \u2195 shelves   \u00B7   LT / RT jump   \u00B7   LB / RB store   \u00B7   Y installed only   \u00B7   \u29C9 search   \u00B7   Guide + A quick access")
-                                : "Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only   \u00B7   F9 quick access"
+                                : qsTr("Also:  \u2191\u2193 shelves   \u00B7   Shift+\u2190/\u2192 jump   \u00B7   PgUp/PgDn store   \u00B7   F3 installed only   \u00B7   F9 quick access")
             color: theme.outline; font.pixelSize: 14
         }
         // The page's own hints: only what works here.
@@ -1500,16 +1500,16 @@ FocusScope {
     function quickRows() {
         const out = []
         for (const p of app.nowPlaying)
-            out.push({ group: "Now playing", label: qsTr("Quit ") + p.title, icon: "x", act: "quitgame", key: p.key })
+            out.push({ group: qsTr("Now playing"), label: qsTr("Quit ") + p.title, icon: "x", act: "quitgame", key: p.key })
         for (const j of app.jobList())
-            out.push({ group: "Downloads", label: j.title, icon: j.job === "update" ? "arrow-up" : "download", act: "",
-                       value: j.job === "queued" ? "Queued" : j.progress < 0 ? "Starting" : Math.floor(j.progress) + "%", sub: j.detail })
-        if (!out.length) out.push({ group: "Now playing", label: qsTr("Nothing running"), icon: "gamepad-2", act: "" })
-        out.push({ group: "Quick settings", label: qsTr("Sounds"), icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
-        out.push({ group: "Quick settings", label: qsTr("Trailers"), icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
-        out.push({ group: "Quick settings", label: qsTr("Animated art"), icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
-        out.push({ group: "Quick settings", label: qsTr("Music"), icon: "sparkles", act: "set", setting: "tv_music", on: !!app.settingsMap.tv_music })
-        out.push({ group: "Quick settings", label: qsTr("Rumble"), icon: "gamepad-2", act: "set", setting: "tv_rumble", on: !!app.settingsMap.tv_rumble })
+            out.push({ group: qsTr("Downloads"), label: j.title, icon: j.job === "update" ? "arrow-up" : "download", act: "",
+                       value: j.job === "queued" ? qsTr("Queued") : j.progress < 0 ? qsTr("Starting") : Math.floor(j.progress) + "%", sub: j.detail })
+        if (!out.length) out.push({ group: qsTr("Now playing"), label: qsTr("Nothing running"), icon: "gamepad-2", act: "" })
+        out.push({ group: qsTr("Quick settings"), label: qsTr("Sounds"), icon: "sparkles", act: "set", setting: "tv_sounds", on: !!app.settingsMap.tv_sounds })
+        out.push({ group: qsTr("Quick settings"), label: qsTr("Trailers"), icon: "play", act: "set", setting: "tv_trailers", on: !!app.settingsMap.tv_trailers })
+        out.push({ group: qsTr("Quick settings"), label: qsTr("Animated art"), icon: "tv", act: "set", setting: "tv_animated", on: !!app.settingsMap.tv_animated })
+        out.push({ group: qsTr("Quick settings"), label: qsTr("Music"), icon: "sparkles", act: "set", setting: "tv_music", on: !!app.settingsMap.tv_music })
+        out.push({ group: qsTr("Quick settings"), label: qsTr("Rumble"), icon: "gamepad-2", act: "set", setting: "tv_rumble", on: !!app.settingsMap.tv_rumble })
         return out
     }
     SideSheet {

@@ -110,7 +110,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: lc.state_ === "fail" ? qsTr("Could not start it (see the message below)")
-                      : lc.state_ === "ok" ? "Starting… have fun!" : "Getting ready…"
+                      : lc.state_ === "ok" ? qsTr("Starting… have fun!") : qsTr("Getting ready…")
                 color: Qt.alpha("white", 0.8)
                 font.pixelSize: 16
             }

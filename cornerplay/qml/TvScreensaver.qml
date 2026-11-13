@@ -112,7 +112,7 @@ Rectangle {
     Text {
         visible: !saver.games.length
         anchors.centerIn: parent
-        text: "Cornerplay"
+        text: qsTr("Cornerplay")
         color: "white"; opacity: 0.4
         font.pixelSize: Math.round(saver.height * 0.05)
     }

@@ -386,8 +386,8 @@ Item {
                         font.weight: Font.DemiBold
                         text: card.job === "uninstall" ? qsTr("Removing…") : card.job === "queued" ? qsTr("Queued")
                               : card.job === "paused" ? qsTr("Paused") + (card.progress >= 0 ? " · " + Math.floor(card.progress) + "%" : "")
-                              : card.progress < 0 ? "Starting…"
-                              : (card.job === "update" ? "Updating " : card.job === "dlc" ? "DLC " : card.job === "move" ? "Moving " : card.job === "verify" ? "Checking " : card.job === "fix" ? "Fixing " : "Installing ") + Math.floor(card.progress) + "%"
+                              : card.progress < 0 ? qsTr("Starting…")
+                              : (card.job === "update" ? qsTr("Updating ") : card.job === "dlc" ? qsTr("DLC ") : card.job === "move" ? qsTr("Moving ") : card.job === "verify" ? qsTr("Checking ") : card.job === "fix" ? qsTr("Fixing ") : qsTr("Installing ")) + Math.floor(card.progress) + "%"
                     }
                 }
                 Rectangle {

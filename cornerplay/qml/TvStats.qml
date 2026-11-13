@@ -102,7 +102,7 @@ Rectangle {
                                 color: modelData > 0 ? st.tint.primary : Qt.alpha(st.theme.onSurface, 0.1)
                             }
                             Text { id: ml; anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
-                                   text: "JFMAMJJASOND"[index]; color: st.theme.onSurfaceVariant; font.pixelSize: Math.round(st.u * 2) }
+                                   text: qsTr("JFMAMJJASOND")[index]; color: st.theme.onSurfaceVariant; font.pixelSize: Math.round(st.u * 2) }
                         }
                     }
                 }

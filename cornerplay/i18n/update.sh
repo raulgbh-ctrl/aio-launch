@@ -10,7 +10,7 @@ SRC=$(dirname "$DIR")
 BIN=$(dirname "$(command -v lupdate 2>/dev/null || echo /usr/lib/qt6/bin/lupdate)")
 [ -x "$BIN/lupdate" ] || BIN=/usr/lib/qt6/bin
 for ts in "$DIR"/cornerplay_*.ts; do
-    "$BIN/lupdate" -silent -no-obsolete "$SRC"/qml/*.qml "$SRC"/app.py -ts "$ts"
+    "$BIN/lupdate" -silent -no-obsolete "$SRC"/qml/*.qml "$SRC"/app.py "$SRC"/toastsi18n.py -ts "$ts"
     "$BIN/lrelease" -silent -nounfinished "$ts" -qm "${ts%.ts}.qm"
 done
 echo "Updated: $(ls "$DIR"/*.qm | xargs -n1 basename | tr '\n' ' ')"

@@ -101,7 +101,7 @@ ApplicationWindow {
                 else detail.close()
             }
         }
-        function onToast(message) { toasts.append({ message: message }) }
+        function onToast(message) { toasts.append({ message: app.trToast(message) }) }
         function onLoginWeb(store, name, url) {
             if (store === "blizzard") {
                 blizzardSync.active = true
@@ -773,9 +773,9 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Repeater {
-                                    model: [{ v: "grid", i: "layout-grid", t: "Covers" }, { v: "logos", i: "tv", t: "Logos" },
-                                            { v: "boxes", i: "library", t: "Boxes" }, { v: "shelves", i: "bookmark", t: "Shelves" },
-                                            { v: "list", i: "list", t: "List" }]
+                                    model: [{ v: "grid", i: "layout-grid", t: qsTr("Covers") }, { v: "logos", i: "tv", t: qsTr("Logos") },
+                                            { v: "boxes", i: "library", t: qsTr("Boxes") }, { v: "shelves", i: "bookmark", t: qsTr("Shelves") },
+                                            { v: "list", i: "list", t: qsTr("List") }]
                                     Chip2 { required property var modelData; label: modelData.t; icon: modelData.i
                                             on: (app.settingsMap.view || "grid") === modelData.v; onPicked: app.setSetting("view", modelData.v) }
                                 }
@@ -837,7 +837,7 @@ ApplicationWindow {
                     }
                     HoverHandler { id: rfHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { enabled: !app.refreshing; onTapped: app.refresh("", true) }
-                    ToolTip.visible: rfHover.hovered; ToolTip.text: app.refreshing ? "Refreshing…" : "Refresh (Ctrl+R)"; ToolTip.delay: 300
+                    ToolTip.visible: rfHover.hovered; ToolTip.text: app.refreshing ? qsTr("Refreshing…") : qsTr("Refresh (Ctrl+R)"); ToolTip.delay: 300
                 }
             }
 
@@ -868,8 +868,8 @@ ApplicationWindow {
                     library.tags = t
                 }
                 Repeater {
-                    model: [{ t: "unplayed", l: "Never played", i: "sparkles" }, { t: "linux", l: "Linux version", i: "" },
-                            { t: "controller", l: "Full controller support", i: "gamepad-2" }, { t: "couch", l: "Play together (same screen)", i: "user-round" }, { t: "protondb", l: "Runs well (ProtonDB Gold+)", i: "check" }]
+                    model: [{ t: "unplayed", l: qsTr("Never played"), i: "sparkles" }, { t: "linux", l: qsTr("Linux version"), i: "" },
+                            { t: "controller", l: qsTr("Full controller support"), i: "gamepad-2" }, { t: "couch", l: qsTr("Play together (same screen)"), i: "user-round" }, { t: "protondb", l: qsTr("Runs well (ProtonDB Gold+)"), i: "check" }]
                     Chip2 { required property var modelData; label: modelData.l; icon: modelData.i
                             on: ((library && library.tags) || []).indexOf(modelData.t) !== -1; onPicked: chips.toggle(modelData.t) }
                 }
@@ -1472,7 +1472,7 @@ ApplicationWindow {
                                         Text {
                                             width: parent.width
                                             text: freeTile.modelData.now ? qsTr("Free until ") + freeTile.modelData.when
-                                                                         : "Free from " + freeTile.modelData.when
+                                                                         : qsTr("Free from ") + freeTile.modelData.when
                                             color: freeTile.modelData.now ? theme.primary : theme.outline
                                             font.pixelSize: 12
                                         }
@@ -1644,7 +1644,7 @@ ApplicationWindow {
                             x: 8
                             textFormat: Text.StyledText
                             text: (library.shelf === "" ? (win.smartActive ? win.smartActive.name : qsTr("Library")) + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
-                                  : library.shelf === "fav" ? "Favourites"
+                                  : library.shelf === "fav" ? qsTr("Favourites")
                                   : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
                                   : library.shelf.replace(/^c:/, ""))
                             color: theme.onSurface
@@ -1929,8 +1929,8 @@ ApplicationWindow {
                         font.pixelSize: 20
                         font.weight: Font.DemiBold
                         text: library.showHidden ? qsTr("No hidden games")
-                              : app.refreshing ? "Loading your libraries…"
-                              : app.totalCount === 0 ? "Your corner is empty" : "Nothing matches"
+                              : app.refreshing ? qsTr("Loading your libraries…")
+                              : app.totalCount === 0 ? qsTr("Your corner is empty") : qsTr("Nothing matches")
                     }
                     Text {
                         width: parent.width
@@ -1940,10 +1940,10 @@ ApplicationWindow {
                         font.pixelSize: 14
                         visible: !app.refreshing && !library.showHidden
                         text: app.totalCount === 0
-                              ? "Connect your stores in Accounts and every game you own settles in here."
-                              : library.search ? "No game called \u201c" + library.search + "\u201d" + (((library && library.tags) || []).length || library.installedOnly || library.storeFilter || library.shelf ? " with these filters." : ".")
-                              : library.shelf && !((library && library.tags) || []).length && !library.installedOnly ? "This list is empty. Add games to it from a game's page."
-                              : "No games match these filters."
+                              ? qsTr("Connect your stores in Accounts and every game you own settles in here.")
+                              : library.search ? qsTr("No game called \u201c") + library.search + "\u201d" + (((library && library.tags) || []).length || library.installedOnly || library.storeFilter || library.shelf ? qsTr(" with these filters.") : ".")
+                              : library.shelf && !((library && library.tags) || []).length && !library.installedOnly ? qsTr("This list is empty. Add games to it from a game's page.")
+                              : qsTr("No games match these filters.")
                     }
                     Row {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2693,8 +2693,8 @@ ApplicationWindow {
                         color: theme.onSurface
                         font.pixelSize: 13
                         text: win.selected.job === "uninstall" ? qsTr("Removing…")
-                              : win.selected.progress < 0 ? "Starting…"
-                              : (win.selected.job === "update" ? "Updating  " : win.selected.job === "dlc" ? "Installing DLC  " : "Installing  ")
+                              : win.selected.progress < 0 ? qsTr("Starting…")
+                              : (win.selected.job === "update" ? qsTr("Updating  ") : win.selected.job === "dlc" ? qsTr("Installing DLC  ") : qsTr("Installing  "))
                                 + (win.selected.progress || 0).toFixed(1) + "%"
                                 + (win.selected.jobDetail ? "   \u00B7   " + win.selected.jobDetail : "")
                     }
@@ -2717,8 +2717,8 @@ ApplicationWindow {
                     color: theme.onSurfaceVariant
                     font.pixelSize: 12
                     text: win.selected.installed
-                          ? "Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles."
-                          : "Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton."
+                          ? qsTr("Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles.")
+                          : qsTr("Installs Blizzard's launcher under Proton. Its own setup window opens; the first run also downloads Proton.")
                 }
 
                 Flow {
@@ -2912,9 +2912,9 @@ ApplicationWindow {
                     Pill {
                         visible: detail.info.controller !== undefined && !!win.selected.steamAppId
                         label: (detail.info.controller === "full" ? qsTr("\u{1F3AE}  Full controller support")
-                               : detail.info.controller === "partial" ? "\u{1F3AE}  Partial controller support"
-                               : "\u2328  Mouse and keyboard")
-                               + (win.selected.store === "steam" && detail.info.controller !== "full" ? "  \u00B7  set up \u2197" : "")
+                               : detail.info.controller === "partial" ? qsTr("\u{1F3AE}  Partial controller support")
+                               : qsTr("\u2328  Mouse and keyboard"))
+                               + (win.selected.store === "steam" && detail.info.controller !== "full" ? qsTr("  \u00B7  set up \u2197") : "")
                         accent: false
                         HoverHandler { cursorShape: win.selected.store === "steam" && detail.info.controller !== "full" ? Qt.PointingHandCursor : Qt.ArrowCursor }
                         TapHandler {
@@ -3138,7 +3138,7 @@ ApplicationWindow {
                                 visible: peer.hasSettings
                                 Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
                                 font.family: "monospace"; font.pixelSize: 11; color: theme.onSurfaceVariant
-                                text: [peer.modelData.apply.proton ? "Proton: " + peer.modelData.apply.proton : "", peer.modelData.options].filter(t => t).join("   ")
+                                text: [peer.modelData.apply.proton ? qsTr("Proton: ") + peer.modelData.apply.proton : "", peer.modelData.options].filter(t => t).join("   ")
                             }
                             Text {
                                 visible: !!peer.modelData.note
@@ -3291,11 +3291,11 @@ ApplicationWindow {
                                 Text { anchors.baseline: parent.children[0].baseline; text: qsTr("1% low ") + Math.round(modelData.low1)
                                        color: theme.onSurfaceVariant; font.pixelSize: 11 }
                             }
-                            Text { text: modelData.when + "  \u00B7  " + modelData.minutes + " min  \u00B7  " + modelData.proton
+                            Text { text: modelData.when + "  \u00B7  " + modelData.minutes + qsTr(" min  \u00B7  ") + modelData.proton
                                    color: theme.outline; font.pixelSize: 11; width: 150; elide: Text.ElideRight }
                             Text { text: (modelData.stutters ? modelData.stutters + qsTr(" stutters") : qsTr("smooth"))
-                                         + (modelData.gpuTemp ? "  \u00B7  GPU " + modelData.gpuTemp + "\u00B0" : "")
-                                         + (modelData.cpuTemp ? "  \u00B7  CPU " + modelData.cpuTemp + "\u00B0" : "")
+                                         + (modelData.gpuTemp ? qsTr("  \u00B7  GPU ") + modelData.gpuTemp + "\u00B0" : "")
+                                         + (modelData.cpuTemp ? qsTr("  \u00B7  CPU ") + modelData.cpuTemp + "\u00B0" : "")
                                    color: modelData.stutters > 20 ? "#ffcc66" : theme.onSurfaceVariant; font.pixelSize: 11 }
                         }
                     }
@@ -3311,7 +3311,7 @@ ApplicationWindow {
                     Text {
                         required property var modelData
                         required property int index
-                        text: (index === 0 ? "\u2605 " : "   ") + modelData.proton + "  \u2014  " + Math.round(modelData.avgFps) + " fps, 1% low "
+                        text: (index === 0 ? "\u2605 " : "   ") + modelData.proton + "  \u2014  " + Math.round(modelData.avgFps) + qsTr(" fps, 1% low ")
                               + Math.round(modelData.low1) + ", " + modelData.stutters + qsTr(" stutters a session") + "  (" + modelData.sessions + ")"
                         color: index === 0 ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12
                     }
@@ -3601,7 +3601,7 @@ ApplicationWindow {
     FileDialog {
         id: restoreFile
         title: qsTr("Restore which Cornerplay backup?")
-        nameFilters: ["Cornerplay backups (Cornerplay-backup-*.zip)", "Zip files (*.zip)"]
+        nameFilters: [qsTr("Cornerplay backups (Cornerplay-backup-*.zip)"), qsTr("Zip files (*.zip)")]
         onAccepted: app.restoreBackup(selectedFile.toString())
     }
     FolderDialog {
@@ -3986,7 +3986,7 @@ ApplicationWindow {
         heading: qsTr("Save backups")
         headingIcon: "cloud"
         width: Math.min(win.width - 60, 560)
-        function show(k, title) { key = k; heading = "Save backups \u00B7 " + title; rows = []; meta = {}; armed = ""; app.loadSaveBackups(k); open() }
+        function show(k, title) { key = k; heading = qsTr("Save backups \u00B7 ") + title; rows = []; meta = {}; armed = ""; app.loadSaveBackups(k); open() }
         Connections { target: app; function onSavesReady(key, list) { if (key !== savesBox.key) return
                                                                      savesBox.meta = list[0] || {}; savesBox.rows = list.slice(1) } }
         contentItem: ColumnLayout {
@@ -3994,9 +3994,9 @@ ApplicationWindow {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
                 text: !savesBox.meta.indexed ? qsTr("Cornerplay is still fetching where games keep their saves; try again in a minute.")
-                      : !savesBox.meta.known ? "Cornerplay does not know where this game keeps its saves (it is not in Ludusavi's list)."
-                      : savesBox.meta.found ? "Backed up before each start (the last " + app.settingsMap.backup_keep + " are kept). Restoring keeps a copy of what is there now."
-                      : "No saves on this PC yet: they are backed up once the game has made some."
+                      : !savesBox.meta.known ? qsTr("Cornerplay does not know where this game keeps its saves (it is not in Ludusavi's list).")
+                      : savesBox.meta.found ? qsTr("Backed up before each start (the last ") + app.settingsMap.backup_keep + qsTr(" are kept). Restoring keeps a copy of what is there now.")
+                      : qsTr("No saves on this PC yet: they are backed up once the game has made some.")
             }
             Repeater {
                 model: savesBox.rows
@@ -4050,7 +4050,7 @@ ApplicationWindow {
             Text {
                 Layout.fillWidth: true
                 text: healthBox.busy ? qsTr("Checking…") : healthBox.bad ? healthBox.bad + (healthBox.bad === 1 ? qsTr(" thing needs") : qsTr(" things need")) + qsTr(" fixing")
-                                                                    : "Everything games need is in place"
+                                                                    : qsTr("Everything games need is in place")
                 color: healthBox.bad ? theme.error : theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold
             }
             ListView {
@@ -4120,8 +4120,8 @@ ApplicationWindow {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 13
                 text: (diskBox.info.need ? qsTr("It needs about ") + diskBox.info.need + ". " : "")
                       + diskBox.info.drive + " has " + diskBox.info.free + " free"
-                      + (diskBox.info.need ? ", so " + diskBox.info.after + " would be left." : ".")
-                      + " Under 10% free slows the PC down and can break updates."
+                      + (diskBox.info.need ? qsTr(", so ") + diskBox.info.after + qsTr(" would be left.") : ".")
+                      + qsTr(" Under 10% free slows the PC down and can break updates.")
             }
             Text { visible: (diskBox.info.suggest || []).length > 0; text: qsTr("Big games you haven't played for three months:"); color: theme.onSurface; font.pixelSize: 13 }
             Repeater { model: diskBox.info.suggest || []; Text { required property string modelData; text: "\u2022  " + modelData; color: theme.onSurfaceVariant; font.pixelSize: 13 } }
@@ -4534,7 +4534,7 @@ ApplicationWindow {
                         wrapMode: Text.WordWrap
                         text: qsTr("Busiest month: ") + parent.yr.busiestMonth + " (" + parent.yr.busiestHours + " h)"
                               + ((parent.yr.longest || {}).title ? qsTr("  ·  Longest session: ") + parent.yr.longest.title + ", "
-                                 + parent.yr.longest.hours + " h on " + parent.yr.longest.date : "")
+                                 + parent.yr.longest.hours + qsTr(" h on ") + parent.yr.longest.date : "")
                         color: theme.onSurface; font.pixelSize: 14
                     }
                     // Hours per month
@@ -4561,7 +4561,7 @@ ApplicationWindow {
                                         color: modelData > 0 ? theme.primary : theme.surfaceContainerHighest
                                     }
                                     Text { id: mLabel; anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
-                                           text: "JFMAMJJASOND"[index]; color: theme.outline; font.pixelSize: 10 }
+                                           text: qsTr("JFMAMJJASOND")[index]; color: theme.outline; font.pixelSize: 10 }
                                 }
                             }
                         }
@@ -4840,13 +4840,13 @@ ApplicationWindow {
     FileDialog {
         id: collBgFile
         title: qsTr("A background picture for this collection")
-        nameFilters: ["Pictures (*.png *.jpg *.jpeg *.webp)"]
+        nameFilters: [qsTr("Pictures (*.png *.jpg *.jpeg *.webp)")]
         onAccepted: app.setShelfBackground(removeColl.shelfId, selectedFile.toString())
     }
     FileDialog {
         id: bgFile
         title: qsTr("A background picture")
-        nameFilters: ["Pictures (*.png *.jpg *.jpeg *.webp)"]
+        nameFilters: [qsTr("Pictures (*.png *.jpg *.jpeg *.webp)")]
         onAccepted: app.setBackgroundPicture(selectedFile.toString())
     }
 
@@ -4867,7 +4867,7 @@ ApplicationWindow {
         function show(k, title) {
             key = k; rows = []; note = ""; error = ""; loading = true
             busy = app.game(k).job === "dlc"
-            heading = "DLC · " + title
+            heading = qsTr("DLC · ") + title
             open()
             app.loadDlcs(k)
         }
@@ -4901,8 +4901,8 @@ ApplicationWindow {
                 text: {
                     const c = parent.counts, parts = [dlc.rows.length + " DLC"]
                     if (c.installed) parts.push(c.installed + " installed")
-                    if (c.owned) parts.push(c.owned + " owned, not installed")
-                    if (c.available) parts.push(c.available + " to buy")
+                    if (c.owned) parts.push(c.owned + qsTr(" owned, not installed"))
+                    if (c.available) parts.push(c.available + qsTr(" to buy"))
                     return parts.join("  ·  ")
                 }
             }
@@ -5101,8 +5101,8 @@ ApplicationWindow {
                                     color: modelData.problem ? theme.error : theme.onSurfaceVariant
                                 text: modelData.problem ? modelData.problem
                                       : modelData.loggedIn ? ("Connected" + (modelData.account ? " · " + modelData.account : ""))
-                                      : modelData.id === "battlenet" ? "Install the Battle.net app from the library, or link your Blizzard account to list your games"
-                                      : "Not connected"
+                                      : modelData.id === "battlenet" ? qsTr("Install the Battle.net app from the library, or link your Blizzard account to list your games")
+                                      : qsTr("Not connected")
                                 }
                             }
                             // Steam without a Web API key: say what is listed, and where to get the rest.
@@ -5823,7 +5823,7 @@ ApplicationWindow {
                             label: qsTr("Retro games (ROM folders)")
                             hint: (app.settingsMap.rom_dirs || []).length
                                   ? (app.settingsMap.rom_dirs || []).join("  ·  ") + (app.retroProblem ? "  —  " + app.retroProblem : "")
-                                  : "Add a folder with ROMs (a folder per system works best: snes, psx, gba ...). They play in RetroArch, with box art, playtime and TV mode."
+                                  : qsTr("Add a folder with ROMs (a folder per system works best: snes, psx, gba ...). They play in RetroArch, with box art, playtime and TV mode.")
                             RowLayout {
                                 spacing: 8
                                 KButton { theme: win.theme; iconName: "folder-open"; text: qsTr("Add folder"); onClicked: romDest.open() }
@@ -5914,9 +5914,9 @@ ApplicationWindow {
                                                 font.pixelSize: 12
                                                 color: app.cachyStatus.error ? theme.error : theme.onSurfaceVariant
                                                 text: app.cachyStatus.error ? app.cachyStatus.error
-                                                      : app.cachyStatus.busy ? "Downloading " + Math.floor(app.cachyStatus.progress) + "%  (about 400 MB)"
-                                                      : (app.cachyStatus.installed ? "Installed: " + app.cachyStatus.installed.replace("proton-cachyos-", "") : "Performance-tuned Proton from CachyOS; often faster. Not downloaded yet")
-                                                        + (app.cachyStatus.latest ? (app.cachyStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.cachyStatus.latest) : "")
+                                                      : app.cachyStatus.busy ? qsTr("Downloading ") + Math.floor(app.cachyStatus.progress) + qsTr("%  (about 400 MB)")
+                                                      : (app.cachyStatus.installed ? qsTr("Installed: ") + app.cachyStatus.installed.replace("proton-cachyos-", "") : qsTr("Performance-tuned Proton from CachyOS; often faster. Not downloaded yet"))
+                                                        + (app.cachyStatus.latest ? (app.cachyStatus.upToDate ? qsTr("  ·  up to date") : qsTr("  ·  newest: ") + app.cachyStatus.latest) : "")
                                             }
                                         }
                                         KButton {
@@ -5958,9 +5958,9 @@ ApplicationWindow {
                                                 font.pixelSize: 12
                                                 color: app.geStatus.error ? theme.error : theme.onSurfaceVariant
                                                 text: app.geStatus.error ? app.geStatus.error
-                                                      : app.geStatus.busy ? "Downloading " + Math.floor(app.geStatus.progress) + "%  (about 570 MB)"
-                                                      : (app.geStatus.installed ? "Installed: " + app.geStatus.installed.replace("-x86_64", "") : "Not downloaded yet")
-                                                        + (app.geStatus.latest ? (app.geStatus.upToDate ? "  ·  up to date" : "  ·  newest: " + app.geStatus.latest) : "")
+                                                      : app.geStatus.busy ? qsTr("Downloading ") + Math.floor(app.geStatus.progress) + qsTr("%  (about 570 MB)")
+                                                      : (app.geStatus.installed ? qsTr("Installed: ") + app.geStatus.installed.replace("-x86_64", "") : qsTr("Not downloaded yet"))
+                                                        + (app.geStatus.latest ? (app.geStatus.upToDate ? qsTr("  ·  up to date") : qsTr("  ·  newest: ") + app.geStatus.latest) : "")
                                             }
                                         }
                                         KButton {
@@ -6000,8 +6000,8 @@ ApplicationWindow {
                             Row2 {
                                 label: qsTr("Gamescope for every game")
                                 hint: app.hasGamescope
-                                      ? "Runs Epic, GOG, Amazon and added games inside Valve's gamescope: a clean full-screen window at your screen's resolution, or drawn smaller and upscaled with FSR for more frames. Each game can choose its own under Options. Steam games: use Steam's launch options."
-                                      : "gamescope is not installed (on Arch: sudo pacman -S gamescope). Until it is, games start without it."
+                                      ? qsTr("Runs Epic, GOG, Amazon and added games inside Valve's gamescope: a clean full-screen window at your screen's resolution, or drawn smaller and upscaled with FSR for more frames. Each game can choose its own under Options. Steam games: use Steam's launch options.")
+                                      : qsTr("gamescope is not installed (on Arch: sudo pacman -S gamescope). Until it is, games start without it.")
                                 KCombo {
                                     theme: win.theme; Layout.fillWidth: true
                                     model: [{ label: qsTr("Off"), value: "" }, { label: qsTr("Full screen at screen resolution"), value: "fullscreen" },
@@ -6097,7 +6097,7 @@ ApplicationWindow {
                                           enabled: !app.syncState.busy; onClicked: app.syncPersonal() }
                                 KButton { theme: win.theme; text: qsTr("Stop syncing"); onClicked: app.setSyncDir("") }
                                 Text { text: app.syncState.error ? qsTr("Last sync failed: ") + app.syncState.error
-                                             : app.syncState.when ? "Last synced " + app.syncState.when : ""
+                                             : app.syncState.when ? qsTr("Last synced ") + app.syncState.when : ""
                                        color: app.syncState.error ? theme.error : theme.onSurfaceVariant; font.pixelSize: 12 }
                             }
                             Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; visible: app.inFlatpak }
@@ -6126,7 +6126,7 @@ ApplicationWindow {
                                         validator: DoubleValidator { bottom: 0; top: 10000; decimals: 1; notation: DoubleValidator.StandardNotation }
                                         onEditingFinished: app.setSetting("download_limit", parseFloat(text.replace(",", ".")) || 0)
                                     }
-                                    Text { text: "MB/s"; color: theme.onSurfaceVariant; font.pixelSize: 13 }
+                                    Text { text: qsTr("MB/s"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
                                 }
                             }
                             Row2 {
@@ -6161,12 +6161,12 @@ ApplicationWindow {
                                                 color: theme.onSurfaceVariant
                                                 readonly property var st: parent.parent.parent.parent.st
                                                 text: st.busy ? qsTr("Working… ") + (st.progress || "")
-                                                      : !st.steam ? "Steam isn't installed or hasn't been signed in to yet."
-                                                      : st.accounts === 0 ? "Sign in to Steam once, then come back here."
-                                                      : st.games === 0 ? "No installed Epic, GOG, Amazon or Battle.net games yet."
-                                                      : st.inSync ? "All " + st.games + " installed games are in Steam with cover, banner, background and logo."
-                                                      : st.gamesInSteam + " of " + st.games + " installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode."
-                                                        + (st.running ? " Steam is closed and reopened to do this." : "")
+                                                      : !st.steam ? qsTr("Steam isn't installed or hasn't been signed in to yet.")
+                                                      : st.accounts === 0 ? qsTr("Sign in to Steam once, then come back here.")
+                                                      : st.games === 0 ? qsTr("No installed Epic, GOG, Amazon or Battle.net games yet.")
+                                                      : st.inSync ? qsTr("All ") + st.games + qsTr(" installed games are in Steam with cover, banner, background and logo.")
+                                                      : st.gamesInSteam + " of " + st.games + qsTr(" installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode.")
+                                                        + (st.running ? qsTr(" Steam is closed and reopened to do this.") : "")
                                             }
                                         }
                                         KButton {
@@ -6445,8 +6445,8 @@ ApplicationWindow {
                 visible: gameOpts.game.store === "steam"
                 label: qsTr("Proton version (Steam's setting)")
                 hint: gameOpts.steamProton.choices.length
-                      ? "The same as the game's Properties → Compatibility in Steam. Cornerplay closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam."
-                      : "Steam is not set up on this PC yet: start Steam and sign in once."
+                      ? qsTr("The same as the game's Properties → Compatibility in Steam. Cornerplay closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam.")
+                      : qsTr("Steam is not set up on this PC yet: start Steam and sign in once.")
                 KCombo {
                     id: optSteamProton
                     theme: win.theme; Layout.fillWidth: true
@@ -6484,8 +6484,8 @@ ApplicationWindow {
                 visible: gameOpts.game.store === "gog" && !!gameOpts.game.linuxVersion
                 label: qsTr("Version")
                 hint: gameOpts.game.installed
-                      ? "Installed: the " + (gameOpts.game.platform === "linux" ? "Linux" : "Windows") + " version. To switch, pick the other one, then uninstall and install again."
-                      : "The Linux version runs without Proton (lighter, but old ones can need extra libraries); the Windows version runs through Proton."
+                      ? qsTr("Installed: the ") + (gameOpts.game.platform === "linux" ? qsTr("Linux") : qsTr("Windows")) + qsTr(" version. To switch, pick the other one, then uninstall and install again.")
+                      : qsTr("The Linux version runs without Proton (lighter, but old ones can need extra libraries); the Windows version runs through Proton.")
                 KCombo { id: optPlatform; theme: win.theme; Layout.fillWidth: true
                          model: [{ label: qsTr("Use default (Settings)"), value: "default" }, { label: qsTr("Linux version (native)"), value: "linux" },
                                  { label: qsTr("Windows version (Proton)"), value: "windows" }]
@@ -6518,7 +6518,7 @@ ApplicationWindow {
                 Row2 {
                     label: qsTr("Gamescope")
                     hint: app.hasGamescope ? qsTr("Full screen at your screen's resolution, or drawn at 2/3 size and upscaled with FSR.")
-                                           : "gamescope is not installed, so this has no effect yet."
+                                           : qsTr("gamescope is not installed, so this has no effect yet.")
                     KCombo { id: optScope; theme: win.theme; Layout.fillWidth: true
                              model: [{ label: qsTr("Use default"), value: "default" }, { label: qsTr("Off"), value: "off" },
                                      { label: qsTr("Full screen"), value: "fullscreen" }, { label: qsTr("FSR upscaling"), value: "fsr" }]
@@ -6613,8 +6613,8 @@ ApplicationWindow {
                 visible: !!gameOpts.game.installed && gameOpts.game.store !== "steam"
                 label: qsTr("Fix it")
                 hint: gameOpts.resetArmed
-                      ? "A fresh Proton prefix starts Windows settings from scratch. The old one is kept beside it (renamed), so saves stored there are not lost."
-                      : "Repair checks every file and downloads the broken or missing ones."
+                      ? qsTr("A fresh Proton prefix starts Windows settings from scratch. The old one is kept beside it (renamed), so saves stored there are not lost.")
+                      : qsTr("Repair checks every file and downloads the broken or missing ones.")
                 Flow {
                     Layout.fillWidth: true
                     spacing: 8
@@ -6646,7 +6646,7 @@ ApplicationWindow {
     FileDialog {
         id: coverPicker
         title: qsTr("Choose a cover image")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
+        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg *.webp)")]
         onAccepted: {
             app.setGameOption(gameOpts.key, "cover", selectedFile.toString())
             optCover.text = app.gameOptions(gameOpts.key).cover || ""
