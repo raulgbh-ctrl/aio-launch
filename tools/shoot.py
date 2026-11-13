@@ -90,10 +90,6 @@ def run(*_):
                 for ch in v:
                     for typ in (QEvent.KeyPress, QEvent.KeyRelease):
                         QGuiApplication.sendEvent(w, QKeyEvent(typ, 0, Qt.NoModifier, ch))
-            elif k == "shift":
-                w = QGuiApplication.focusWindow() or w
-                for typ in (QEvent.KeyPress, QEvent.KeyRelease):
-                    QGuiApplication.sendEvent(w, QKeyEvent(typ, getattr(Qt, "Key_" + v), Qt.ShiftModifier))
             elif k == "cshift":
                 for typ in (QEvent.KeyPress, QEvent.KeyRelease):
                     QGuiApplication.sendEvent(w, QKeyEvent(typ, ord(v.upper()), Qt.ControlModifier | Qt.ShiftModifier))

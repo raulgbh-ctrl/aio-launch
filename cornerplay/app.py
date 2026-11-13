@@ -2786,65 +2786,6 @@ class AioLaunch(QObject):
     # --- your screenshots of a game (screenshots.py) ------------------------------------
     screenshotsReady = Signal(str, "QVariantList")  # key, [{"thumb", "full", "path", "time", "source"}]
 
-    # "Previously in ...": a game not played for a while gets a short recap on the launch card
-    # while it starts: when and how long you last played, your note, the screenshots you took
-    # then, and how far through it you are. Nothing new to do: it fills the seconds Proton takes.
-    previouslyReady = Signal(str, "QVariantMap")
-    PREVIOUSLY_DAYS = 10
-
-    @Slot(str)
-    def loadPreviously(self, key):
-        g = self.model.find(key)
-        group = self.model.group_of(key) or ([g] if g else [])
-        if not g or not settings.get("previously"):
-            return
-        d = self.game(key) or {}
-        now = time.time()
-        if self.demo:
-            demo = {"steam:1245620": ("Beat Margit at last. Next: Stormveil Castle, then find the Roundtable Hold.", 47, 41)}
-            if key in demo:
-                note, mins, days = demo[key]
-                QTimer.singleShot(150, lambda: self.previouslyReady.emit(key, {
-                    "days": days, "minutes": mins, "note": note, "shots": [], "hours": round(float(d.get("playtime") or 0) / 3600),
-                    "progress": -1, "achieved": 0.24, "when": _short_date(now - days * 86400)}))
-            return
-        last = float(d.get("lastPlayed") or 0)
-        if not last or now - last < self.PREVIOUSLY_DAYS * 86400:
-            return
-        keys = {x.key for x in group}
-        steam = next((x for x in group if x.store == "steam"), None)
-        st = self.stores.get("steam")
-        note = d.get("note") or ""
-        hours = float(d.get("playtime") or 0) / 3600
-        achieved = float(d.get("achieved") if d.get("achieved") is not None else -1)
-
-        def work():
-            from . import screenshots
-            mine = [x for x in playtime.sessions() if x[0] in keys]
-            mine.sort(key=lambda x: x[2])
-            lastsess = mine[-1] if mine else None
-            minutes = int((lastsess[2] - lastsess[1]) // 60) if lastsess else 0
-            steam_dir = None
-            if steam and st:
-                try:
-                    sid = settings.get("steam_id").strip() or st._recent_user()[0]
-                    steam_dir = screenshots.steam_folder(st.root(), int(sid) - 76561197960265728, steam.id)
-                except (TypeError, ValueError, IndexError):
-                    steam_dir = None
-            lo = (lastsess[1] if lastsess else last - 6 * 3600) - 60
-            hi = (lastsess[2] if lastsess else last) + 120
-            shots = [r for r in screenshots.for_game(keys, mine[-1:], steam_dir) if lo <= r["time"] <= hi][:3]
-            ttb = (details.cached(key) or {}).get("ttb") or {}
-            main = ttb.get("main") or ttb.get("extra") or 0
-            progress = int(min(99, hours / main * 100)) if main and hours > 0.5 else -1
-            info = {"days": int((now - last) // 86400), "minutes": minutes, "note": note, "hours": round(hours),
-                    "shots": [QUrl.fromLocalFile(r["path"]).toString() for r in shots], "progress": progress,
-                    "achieved": achieved, "when": _short_date(last)}
-            if not (note or shots or minutes or progress >= 0):
-                return None
-            return lambda: self.previouslyReady.emit(key, info)
-        self._bg(work)
-
     @Slot(str)
     def loadScreenshots(self, key):
         group = self.model.group_of(key) or ([self.model.find(key)] if self.model.find(key) else [])
@@ -3498,11 +3439,6 @@ class AioLaunch(QObject):
 
     @Slot(str)
     def play(self, key):
-        g = self.model.find(key)
-        if self.demo and g and g.installed:  # the sample library still shows the launch moment
-            self._launch_state(key, "start")
-            QTimer.singleShot(3000, lambda: self._launch_state(key, "ok"))
-            return
         self._play(key, "download")
 
     @Slot(str, str)
