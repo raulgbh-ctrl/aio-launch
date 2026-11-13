@@ -10,6 +10,7 @@ def all_stores():
     from .gog import Gog
     from .humble import Humble
     from .itch import Itch
+    from .prism import Prism
     from .retro import Retro
     from .steam import Steam
-    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Humble(), Itch(), Retro(), Custom()]
+    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Humble(), Itch(), Prism(), Retro(), Custom()]

@@ -2664,6 +2664,19 @@ class AioLaunch(QObject):
                 "update": "queued to update"}.get(action, "")
         self.toast.emit(_t("Games") + f": {n} " + _t(done))
 
+    @Slot(str)
+    def openInPrism(self, key):
+        """A Minecraft instance's window in Prism Launcher (mods, worlds, resource packs)."""
+        g = self.model.find(key)
+        if not g or g.store != "prism" or self.demo:
+            return
+        try:
+            cmd = self.stores["prism"].open_instance(g)
+        except StoreError as e:
+            self.toast.emit(str(e))
+            return
+        self._detach(cmd.argv, cmd.env, cmd.cwd, g.key + ".prism")
+
     @Slot(str, str)
     def setStatus(self, key, status):
         group = self.model.group_of(key)

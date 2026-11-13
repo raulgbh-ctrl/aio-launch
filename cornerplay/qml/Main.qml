@@ -3662,6 +3662,8 @@ ApplicationWindow {
             }
             MenuRow { icon: "bookmark"; text: qsTr("Add to a collection")
                       onPicked: { const k = gameMenu.key, t = gameMenu.g.title; gameMenu.close(); collPick.show(k, t) } }
+            MenuRow { visible: gameMenu.g.store === "prism"; icon: "folder-open"; text: qsTr("Open in Prism Launcher (mods, worlds)")
+                      onPicked: { const k = gameMenu.key; gameMenu.close(); app.openInPrism(k) } }
             MenuRow { icon: "settings-2"; text: qsTr("Options"); onPicked: { const k = gameMenu.key; gameMenu.close(); gameOpts.show(k) } }
             MenuRow { icon: "cloud"; text: qsTr("Save backups")
                       onPicked: { const k = gameMenu.key, t = gameMenu.g.title; gameMenu.close(); savesBox.show(k, t) } }

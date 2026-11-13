@@ -148,6 +148,9 @@ def fill(games) -> str:
 
     hints = {g.title: g.extra.get("steam_appid") for g in todo if g.extra.get("steam_appid")}
 
+    def art_title(g):  # a Minecraft instance is named by you; its art is Minecraft's
+        return g.extra.get("art_title") or g.title
+
     def one(title):
         try:
             return title, _lookup(title, key, hints.get(title))
@@ -168,7 +171,7 @@ def fill(games) -> str:
             return False  # a miss from before Lutris was asked
         return k in cache and now - stamp < (LOOKUP_TTL if cache[k] else MISS_TTL)
 
-    missing = sorted({g.title for g in todo if not fresh(cache_key(g.title))})
+    missing = sorted({art_title(g) for g in todo if not fresh(cache_key(art_title(g)))})
     if missing:
         with ThreadPoolExecutor(4) as pool:
             for title, url in pool.map(one, missing):
@@ -181,7 +184,7 @@ def fill(games) -> str:
             merged.update(cache)
             write_json(CACHE_FILE, merged)
     for g in todo:
-        url = cache.get(cache_key(g.title))
+        url = cache.get(cache_key(art_title(g)))
         if url:
             g.cover = url
     return warning[0] if warning else ""
