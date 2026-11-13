@@ -574,7 +574,8 @@ ApplicationWindow {
                     model: app.storesInfo
                     NavItem {
                         required property var modelData
-                        visible: modelData.count > 0 || (modelData.inAccounts && modelData.loggedIn)
+                        // Prism Launcher shows as soon as it is on the PC, even before its first instance.
+                        visible: modelData.count > 0 || (modelData.loggedIn && (modelData.inAccounts || modelData.id === "prism"))
                         label: modelData.name
                         dot: modelData.color
                         store: modelData.id
