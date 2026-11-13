@@ -12,6 +12,9 @@ Window {
     property string storeName: ""
     property string startUrl: ""
     property bool done: false
+    // The page a sign-in just failed on: not taken again on its own. Some stores send a signed-in
+    // visitor straight back there, and finishing again each time made the window reload in a loop.
+    property string failedUrl: ""
     // A profile that outlives the window (Blizzard: kept so Refresh can read the games later).
     property var keptProfile: null
     signal fallback()
@@ -25,7 +28,7 @@ Window {
     modality: Qt.ApplicationModal
 
     function begin(storeId, name, url) {
-        store = storeId; storeName = name; startUrl = url; done = false
+        store = storeId; storeName = name; startUrl = url; done = false; failedUrl = ""
         status.text = ""
         view.url = url
         show(); raise(); requestActivate()
@@ -42,8 +45,8 @@ Window {
 
     // Each store ends its login on a recognisable page; that page carries the code.
     function inspect(url) {
-        if (done) return
         const u = url.toString()
+        if (done || (failedUrl && u === failedUrl)) return
         if (store === "blizzard") {
             // Signed in once the account site itself (not its login or OAuth pages) has loaded.
             if (u.indexOf("https://account.battle.net/") === 0 && u.indexOf("oauth2") === -1
@@ -71,7 +74,11 @@ Window {
         function onLoginDone(storeId, ok, message) {
             if (storeId !== w.store) return
             if (ok) w.close()
-            else { w.done = false; status.text = message; view.url = w.startUrl }
+            else {
+                w.done = false; status.text = message
+                w.failedUrl = view.url.toString()
+                view.url = w.startUrl
+            }
         }
     }
 

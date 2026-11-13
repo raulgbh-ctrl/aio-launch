@@ -37,6 +37,17 @@ ETA = re.compile(r"ETA:\s*(\d+):(\d\d):(\d\d)")
 _UNITS = {"b": 1, "kib": 1024, "mib": 1024 ** 2, "gib": 1024 ** 3, "kb": 1000, "mb": 1000 ** 2, "gb": 1000 ** 3}
 
 
+def web_types():
+    """Load PySide's Qt WebEngine Quick types before a sign-in window's profile is handed to Python.
+    Without them PySide passes the profile as a plain QObject (no cookieStore()), and keeps that
+    wrapper for good. Start-up skips this on purpose (it loads Chromium); by the time a sign-in
+    window opens, QML loads the engine anyway."""
+    try:
+        import PySide6.QtWebEngineQuick  # noqa: F401
+    except ImportError:
+        pass
+
+
 def job_detail(job):
     """'12.3 MB/s · 4 min left' (either part only when known), or ''."""
     if not job or job.get("kind") in ("queued", "paused"):
@@ -1999,6 +2010,7 @@ class AioLaunch(QObject):
     @Slot()
     def blizzardUnlink(self):
         battlenet.forget_owned()
+        web_types()
         self.blizzardForget.emit()
         self.toast.emit("Blizzard account unlinked")
         self.refresh("battlenet")
@@ -2146,7 +2158,7 @@ class AioLaunch(QObject):
                     self.toast.emit(f"Opening {store.name}; sign in there, then press Refresh")
                 return start
             if self.web_login and not browser:
-                return lambda: self.loginWeb.emit(store_id, store.name, info["url"])
+                return lambda: (web_types(), self.loginWeb.emit(store_id, store.name, info["url"]))
             return lambda: (self.loginReady.emit(store_id, info["url"], info["prompt"]))
         self._bg(work)
 
