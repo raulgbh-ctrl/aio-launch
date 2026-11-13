@@ -3,6 +3,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -16,7 +17,7 @@ import shlex
 
 import sys
 
-from . import humbleshop, patchnotes, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import humbleshop, patchnotes, mods, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
@@ -1835,6 +1836,253 @@ class AioLaunch(QObject):
                 "bundlesUrl": humbleshop.BUNDLES_URL}
 
     humbleShop = Property("QVariantMap", _humble_shop_info, notify=humbleShopChanged)
+
+    # --- mods (mods.py): Thunderstore and Nexus Mods, profiles, on and off ----------
+    modsReady = Signal(str, "QVariantMap")         # key, everything the Mods page shows
+    modSearchReady = Signal(str, str, "QVariantList")  # key, query, results
+    modBusy = Signal(str, str)                     # key, what is happening ("" when done)
+
+    def _mod_game(self, key):
+        """(game, gid) for a library key: the copy of the game that is installed, if any."""
+        g = self.model.find(key)
+        if not g:
+            return None, ""
+        group = self.model.group_of(key) or [g]
+        for c in sorted(group, key=lambda c: not c.installed):
+            gid = mods.game_for(c.title, _appid(c))
+            if gid:
+                return c, gid
+        return g, ""
+
+    @Slot(str, result="QVariantMap")
+    def modSupport(self, key):
+        """{gid, name, source, installed, enabled}, or {} when Cornerplay can't mod this game."""
+        g, gid = self._mod_game(key)
+        if not gid or self.demo:
+            return {}
+        return {"gid": gid, "name": mods.GAMES[gid]["name"], "source": mods.GAMES[gid]["source"], **mods.summary(gid)}
+
+    def _mod_playing(self, g):
+        return bool(self._playing.get(g.key) or self._steam_playing.get(g.key))
+
+    def _mods_view(self, key, g, gid, ups=None):
+        s = mods.load(gid)
+        on = mods.enabled(s)
+        rows = []
+        for mid, m in s["mods"].items():
+            rows.append({"id": mid, "name": m.get("name") or mid, "author": m.get("author") or "",
+                         "version": m.get("version") or "", "icon": m.get("icon") or "", "url": m.get("url") or "",
+                         "source": m.get("source") or "", "enabled": mid in on, "auto": bool(m.get("auto")),
+                         "order": on.index(mid) if mid in on else 999, "update": (ups or {}).get(mid, ""),
+                         "neededBy": mods.needed_by(s, mid), "options": m.get("options") or []})
+        rows.sort(key=lambda r: (r["auto"], r["order"], r["name"].lower()))
+        path = g.install_path if g.installed else ""
+        acct = mods.nexus_account()
+        return {"key": key, "gid": gid, "game": mods.GAMES[gid]["name"], "source": mods.GAMES[gid]["source"],
+                "profile": s["profile"], "profiles": list(s["profiles"]), "mods": rows,
+                "enabledCount": len([r for r in rows if r["enabled"]]),
+                "notes": mods.setup_notes(gid, path, mods.needs_proton(path)) if path else [],
+                "installed": bool(path), "playing": self._mod_playing(g),
+                "nexus": {"hasKey": bool(acct.get("key")), "name": acct.get("name", ""), "premium": bool(acct.get("premium"))}}
+
+    @Slot(str)
+    @Slot(str, bool)
+    def loadMods(self, key, check_updates=True):
+        """modsReady follows (quickly), and again with updates once they are checked."""
+        g, gid = self._mod_game(key)
+        if not gid:
+            return
+        self.modsReady.emit(key, self._mods_view(key, g, gid, getattr(self, "_mod_updates", {}).get(gid)))
+        if check_updates:
+            def work():
+                ups = mods.updates(gid)
+                def done():
+                    self._mod_updates = {**getattr(self, "_mod_updates", {}), gid: ups}
+                    self.modsReady.emit(key, self._mods_view(key, g, gid, ups))
+                return done
+            self._bg(work)
+
+    @Slot(str, str)
+    def searchMods(self, key, query):
+        g, gid = self._mod_game(key)
+        if not gid:
+            return
+
+        def work():
+            find = mods.ts_search if mods.GAMES[gid]["source"] == "thunderstore" else mods.nexus_search
+            try:
+                rows = find(gid, query.strip())
+            except Exception as e:
+                rows, err = [], f"Couldn't search for mods ({type(e).__name__})"
+                return lambda: (self.modSearchReady.emit(key, query, rows), self.toast.emit(err))
+            have = mods.load(gid)["mods"]
+            rows = [dict(r, installed=r["id"] in have) for r in rows]
+            return lambda: self.modSearchReady.emit(key, query, rows)
+        self._bg(work)
+
+    def _mod_job(self, key, label, fn, deploy=True):
+        """Run fn(g, gid, progress) in the background, then put the profile into the game folder."""
+        g, gid = self._mod_game(key)
+        if not gid:
+            return
+        if deploy and self._mod_playing(g):
+            return self.toast.emit(f"Close {g.title} first: mods can't change while it runs")
+        self.modBusy.emit(key, label)
+
+        def work():
+            last = [0.0]
+
+            def progress(frac):
+                if frac - last[0] >= 0.05 or frac >= 1:
+                    last[0] = frac
+                    self._after.emit(lambda t=f"{label} {int(frac * 100)}%": self.modBusy.emit(key, t))
+            msg = ""
+            try:
+                msg = fn(g, gid, progress) or ""
+                if deploy and g.installed and g.install_path:
+                    from .savebackup import prefix_for
+                    mods.deploy(gid, g.install_path, prefix_for(g, _appid(g)) if mods.GAMES[gid]["kind"] == "bethesda" else "")
+            except mods.ModError as e:
+                msg = str(e)
+            except Exception as e:
+                msg = f"Mods: {type(e).__name__}: {e}"
+
+            def done():
+                self.modBusy.emit(key, "")
+                if msg:
+                    self.toast.emit(msg)
+                self.loadMods(key, False)
+            return done
+        self._bg(work)
+
+    @Slot(str, str)
+    def installMod(self, key, mod_id):
+        """A search result: Thunderstore installs at once (with its dependencies); Nexus needs the
+        API key, and a free account is sent to the mod's files page for "Mod Manager Download"."""
+        g, gid = self._mod_game(key)
+        if not gid:
+            return
+        if mod_id.startswith("nx:"):
+            acct = mods.nexus_account()
+            if not acct.get("key"):
+                return self.toast.emit("Add your Nexus Mods API key in the Mods page first")
+            if not acct.get("premium"):
+                self.openUrl(mods.nexus_files_url(gid, int(mod_id[3:])))
+                return self.toast.emit("On the Nexus page, press “Mod Manager Download” on the file you want: "
+                                       "Cornerplay installs it from there")
+
+            def nexus(g, gid, progress):
+                name = mods.nexus_install(gid, int(mod_id[3:]), progress=progress)
+                return f"Installed {name}"
+            return self._mod_job(key, "Downloading", nexus)
+
+        def thunderstore(g, gid, progress):
+            mods.ts_install(gid, mod_id[3:], progress)
+            return f"Installed {mod_id.split('-', 1)[-1].replace('_', ' ')}"
+        self._mod_job(key, "Downloading", thunderstore)
+
+    @Slot(str, str)
+    def updateMod(self, key, mid):
+        def upd(g, gid, progress):
+            m = mods.load(gid)["mods"].get(mid) or {}
+            if m.get("source") == "thunderstore":
+                mods.ts_install(gid, m["package"], progress, auto=bool(m.get("auto")))
+            else:
+                acct = mods.nexus_account()
+                if not acct.get("premium"):
+                    self._after.emit(lambda: self.openUrl(m.get("url", "") + "?tab=files"))
+                    return "On the Nexus page, press “Mod Manager Download” on the new file"
+                mods.nexus_install(gid, int(mid[3:]), progress=progress)
+            getattr(self, "_mod_updates", {}).get(gid, {}).pop(mid, None)
+            return f"Updated {m.get('name', '')}"
+        self._mod_job(key, "Updating", upd)
+
+    @Slot(str, str, bool)
+    def toggleMod(self, key, mid, on):
+        self._mod_job(key, "Applying", lambda g, gid, p: mods.set_enabled(gid, mid, on))
+
+    @Slot(str, str)
+    def removeMod(self, key, mid):
+        self._mod_job(key, "Removing", lambda g, gid, p: mods.uninstall(gid, mid))
+
+    @Slot(str, str, str)
+    def modProfile(self, key, action, name):
+        """action: use | new | copy | delete."""
+        def run(g, gid, p):
+            if action == "use":
+                mods.use_profile(gid, name)
+            elif action in ("new", "copy"):
+                mods.new_profile(gid, name, copy=action == "copy")
+            elif action == "delete":
+                mods.delete_profile(gid, name)
+        self._mod_job(key, "Switching profile", run)
+
+    @Slot(str)
+    def turnOffMods(self, key):
+        """Every file the mods placed out of the game folder (the mods stay installed)."""
+        self._mod_job(key, "Turning mods off", lambda g, gid, p: (mods.undeploy(gid), None)[1], deploy=False)
+
+    @Slot(str, str)
+    def setNexusKey(self, key, api_key):
+        def work():
+            try:
+                info = mods.nexus_set_key(api_key)
+                msg = (f"Nexus Mods: signed in as {info['name']}" + (" (Premium)" if info.get("premium") else "")) if info else "Nexus Mods key removed"
+            except mods.ModError as e:
+                msg = str(e)
+            except Exception as e:
+                msg = f"Couldn't reach Nexus Mods ({type(e).__name__})"
+            return lambda: (self.toast.emit(msg), self.loadMods(key, False))
+        self._bg(work)
+
+    @Slot(result=bool)
+    def nxmHandled(self):
+        """Is Cornerplay the handler for Nexus Mods' "Mod Manager Download" links?"""
+        try:
+            out = subprocess.run(["xdg-mime", "query", "default", "x-scheme-handler/nxm"], capture_output=True, text=True, timeout=5)
+            return out.stdout.strip() == "cornerplay-nxm.desktop"
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    @Slot()
+    def handleNxmLinks(self):
+        """Make Cornerplay open nxm:// links: a hidden desktop entry for them, set as the default."""
+        launcher = shutil.which("cornerplay") or os.path.expanduser("~/.local/bin/cornerplay")
+        apps = os.path.expanduser("~/.local/share/applications")
+        os.makedirs(apps, exist_ok=True)
+        with open(os.path.join(apps, "cornerplay-nxm.desktop"), "w") as f:
+            f.write("[Desktop Entry]\nType=Application\nName=Cornerplay (Nexus Mods downloads)\n"
+                    f"Exec={launcher} --nxm %u\nIcon=cornerplay\nNoDisplay=true\nTerminal=false\n"
+                    "MimeType=x-scheme-handler/nxm;\n")
+        try:
+            subprocess.run(["update-desktop-database", apps], capture_output=True, timeout=20)
+            subprocess.run(["xdg-mime", "default", "cornerplay-nxm.desktop", "x-scheme-handler/nxm"], capture_output=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        self.toast.emit("Nexus Mods' “Mod Manager Download” buttons now open in Cornerplay")
+        self.storesChanged.emit()
+
+    @Slot(str)
+    def openNxm(self, url):
+        """An nxm:// link from Nexus Mods' website (handed over by `cornerplay --nxm`)."""
+        try:
+            d = mods.parse_nxm(url)
+        except mods.ModError as e:
+            return self.toast.emit(str(e))
+        g = next((c for c in self.model.games if c.installed and mods.game_for(c.title, _appid(c)) == d["gid"]), None) \
+            or next((c for c in self.model.games if mods.game_for(c.title, _appid(c)) == d["gid"]), None)
+        if not g:
+            return self.toast.emit(f"{mods.GAMES[d['gid']]['name']} isn't in your library")
+        if not mods.nexus_key():
+            return self.toast.emit("Add your Nexus Mods API key in the game's Mods page, then press the button on Nexus again")
+
+        def nexus(g, gid, progress):
+            name = mods.nexus_install(gid, d["mod"], d["file"], d["key"], d["expires"], progress)
+            return f"Installed {name} for {mods.GAMES[gid]['name']}"
+        self.modsOpenRequested.emit(g.key)
+        self._mod_job(g.key, "Downloading", nexus)
+
+    modsOpenRequested = Signal(str)  # key: show that game's Mods page
 
     # --- wishlist sales ---------------------------------------------------------
     _wishlist = []

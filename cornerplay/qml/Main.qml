@@ -542,7 +542,8 @@ ApplicationWindow {
                     }
                     Text {
                         anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                        visible: !win.rail && !(nav.removable && navHover.hovered) && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
+                        visible: !win.rail && !(nav.removable && navHover.hovered) && nav.count !== "0"
+                                 && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
                         text: nav.count
                         color: nav.active ? theme.primary : theme.onSurfaceVariant
                         font.pixelSize: 12
@@ -740,7 +741,9 @@ ApplicationWindow {
                 }
                 // How many games, when it tells you something (a search, a filter, a store or a list).
                 Text {
-                    visible: !!library.search || ((library && library.tags) || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf
+                    // (Not "0 games" on the Humble page, where the shop window is what there is to see.)
+                    visible: (!!library.search || ((library && library.tags) || []).length > 0 || library.installedOnly || !!library.storeFilter || !!library.shelf)
+                             && !(grid.count === 0 && library.storeFilter === "humble" && !library.search)
                     text: grid.count + (grid.count === 1 ? qsTr(" game") : qsTr(" games"))
                     color: theme.onSurfaceVariant
                     font.pixelSize: 13
@@ -2536,6 +2539,7 @@ ApplicationWindow {
             function onAchievementsReady(key, d) { if (key === win.selectedKey) detail.ach = d }
             function onDlcsReady(key, rows, note) { if (key === win.selectedKey) detail.dlcCount = rows.length }
             function onPatchNotesReady(key, rows) { if (key === win.selectedKey) detail.notes = rows }
+            function onModsReady(key, view) { if (key === win.selectedKey) detail.modInfo = app.modSupport(key) }
         }
         // Description, genres, developer and year (see details.py); filled in when they arrive.
         property var info: ({})
@@ -2543,6 +2547,7 @@ ApplicationWindow {
         property var ach: ({})      // Steam achievements: {done, total}
         property int dlcCount: -1   // -1 until known
         property var notes: []      // patch notes and news from the developer (patchnotes.py)
+        property var modInfo: ({})  // {gid, name, source, installed, enabled} when it can be modded
         property int noteOpen: -1   // the one shown in full
         onOpened: {
             accent = app.gameColour(win.selectedKey); info = app.gameDetails(win.selectedKey)
@@ -2557,6 +2562,7 @@ ApplicationWindow {
             fit = ({}); app.loadCompat(win.selectedKey)
             ran = app.perfHistory(win.selectedKey)
             notes = []; noteOpen = -1; app.loadPatchNotes(win.selectedKey)
+            modInfo = app.modSupport(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -2777,6 +2783,14 @@ ApplicationWindow {
                         text: detail.dlcCount > 0 ? qsTr("DLC · ") + detail.dlcCount : qsTr("DLC")
                         iconName: "puzzle"
                         onClicked: dlc.show(win.selectedKey, win.selected.title)
+                    }
+                    // Mods, for the games Cornerplay can mod (mods.py): how many are switched on.
+                    KButton {
+                        theme: detail.tint
+                        visible: detail.modInfo.gid !== undefined
+                        text: detail.modInfo.enabled ? qsTr("Mods \u00B7 ") + detail.modInfo.enabled : qsTr("Mods")
+                        iconName: "sparkles"
+                        onClicked: modsPage.show(win.selectedKey)
                     }
                     KButton {
                         theme: detail.tint
@@ -3469,6 +3483,14 @@ ApplicationWindow {
         Item { Layout.preferredHeight: 20 }
         }
         }
+    }
+
+    // -------------------------------------------------------------------- mods
+    ModsPage { id: modsPage; theme: win.theme }
+    Connections {
+        target: app
+        // A Nexus "Mod Manager Download" link arrived: show that game's mods while it installs.
+        function onModsOpenRequested(key) { if (!modsPage.opened || modsPage.gameKey !== key) modsPage.show(key) }
     }
 
     // -------------------------------------------------------------------- save conflict

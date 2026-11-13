@@ -68,8 +68,9 @@ class Instance(QObject):
 
     def _read(self, conn):
         for line in bytes(conn.readAll()).decode("utf-8", "replace").splitlines():
-            if line.strip() in ("show", "tv", "overlay"):
-                self._on_message(line.strip())
+            msg = line.strip()
+            if msg in ("show", "tv", "overlay") or msg.startswith("nxm:nxm://"):  # nxm: a Nexus Mods download link
+                self._on_message(msg)
         conn.disconnectFromServer()
 
 

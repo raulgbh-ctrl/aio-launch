@@ -230,6 +230,8 @@ def main():
                     help="start in the tray, without the window (used when starting with the PC)")
     ap.add_argument("--overlay", action="store_true",
                     help="open or close the in-game panel of the Cornerplay that is running (bind it to a key)")
+    ap.add_argument("--nxm", metavar="URL",
+                    help="install a mod from a Nexus Mods \"Mod Manager Download\" link (nxm://...)")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
     ap.add_argument("--check", action="store_true", help="compile every QML file and report errors, then exit")
     args = ap.parse_args()
@@ -320,6 +322,8 @@ def main():
             return 0
         print("Cornerplay is not running", file=sys.stderr)
         return 1
+    if args.nxm and not args.demo and tray.hand_over("nxm:" + args.nxm.strip()):
+        return 0  # the running Cornerplay installs it
     if not args.demo and tray.hand_over("tv" if args.tv else "show"):
         return 0  # Cornerplay was already running (perhaps in the tray): it shows its window instead
     _note_screen_size(app)
@@ -368,11 +372,17 @@ def main():
         def on_message(msg):
             if msg == "overlay":
                 cornerplay.overlayRequested.emit()
+            elif msg.startswith("nxm:"):
+                the_tray.show_window(tv=False)
+                cornerplay.openNxm(msg[4:])
             else:
                 the_tray.show_window(tv=msg == "tv")
         instance = tray.Instance(on_message, app)  # noqa: F841 (kept alive)
     elif args.background:
         window.setProperty("hiddenAtStart", False)
+    if args.nxm and not args.demo:  # started by the link itself: install once the library is there
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1500, lambda: cornerplay.openNxm(args.nxm))
     app.aboutToQuit.connect(cornerplay.shutdown)
     code = app.exec()
     del engine
