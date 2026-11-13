@@ -72,6 +72,8 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "Graphics driver updated: getting games' shaders ready in the background"),
+            QCoreApplication.translate("app", "Shaders are ready again for games:"),
             QCoreApplication.translate("app", "Could not reach GitHub to check for a new Cornerplay"),
             QCoreApplication.translate("app", "Checking for a new Cornerplay…"),
             QCoreApplication.translate("app", "The Cornerplay folder has changes of its own: update it with git yourself"),
@@ -592,7 +594,9 @@ class AioLaunch(QObject):
         self._scheme_timer.start()
         self._night = QTimer(self, interval=10 * 60 * 1000)
         self._night.timeout.connect(self._night_tick)
+        self._night.timeout.connect(self._shader_tick)
         self._night.start()
+        QTimer.singleShot(3 * 60 * 1000, self._shader_tick)
         self._worker_toast.connect(self.toast)
         self._after.connect(lambda fn: fn())
 
@@ -1344,6 +1348,39 @@ class AioLaunch(QObject):
             import shutil
             shutil.rmtree(real, ignore_errors=True)
             return lambda: (self.toast.emit(f"Deleted {os.path.basename(real)}"), self.loadPrefixes())
+        self._bg(work)
+
+    # --- shaders ready again after a driver update (shaders.py) ----------------------------
+    _warming = False
+
+    def _shader_tick(self):
+        """Every 10 minutes: when the graphics driver changed since games' shaders were built,
+        build them again, one game at a time, on mains power and while nothing is played."""
+        if self._warming or self.demo or not settings.get("shader_warmup") or self._playing or self._steam_playing:
+            return
+        batt = self.battery()
+        if batt and not batt.get("charging"):
+            return
+        from . import shaders
+        self._warming = True
+
+        def work():
+            todo = shaders.pending() if shaders.available() else []
+            if not todo:
+                return lambda: setattr(self, "_warming", False)
+            self._worker_toast.emit(_t("Graphics driver updated: getting games' shaders ready in the background"))
+            driver = shaders.driver_id()
+            done = 0
+            for d in todo:
+                if self._playing or self._steam_playing:
+                    break  # a game started: the rest waits for the next quiet moment
+                done += bool(shaders.replay(d, driver))
+
+            def finish():
+                self._warming = False
+                if done:
+                    self.toast.emit(_t("Shaders are ready again for games:") + f" {done}")
+            return finish
         self._bg(work)
 
     # --- updates overnight ---------------------------------------------------------------
@@ -3645,6 +3682,10 @@ class AioLaunch(QObject):
                              (perf.record(gg.key, gg.store, gg.id, s0, s1, os.path.basename(pr.rstrip("/"))), None)[1])
                 if done_game and self._shares_saves(done_game):
                     self._bg(lambda gg=done_game: (savebackup.share(gg, _appid(gg)), None)[1])
+                if done_game and done_game.store != "steam" and settings.get("shader_warmup"):
+                    from . import shaders  # it just built its shaders with this driver
+                    if shaders.folder(done_game.store, done_game.id).is_dir():
+                        self._bg(lambda gg=done_game: (shaders.mark_warm(gg.store, gg.id), None)[1])
                 self._recap(data.get("key", ""), (data.get("since") or 0) - (data.get("started") or data.get("since") or 0))
                 res = data.get("sync") or {}
                 title = data.get("title", "")

@@ -6088,6 +6088,8 @@ ApplicationWindow {
                                 }
                             }
                             Toggle { label: qsTr("Keep each game's shader cache (less stutter after the first run)"); settingKey: "shader_cache" }
+                            Toggle { label: qsTr("After a graphics driver update, get games' shaders ready again in the background (Steam's Fossilize; not for Steam games, Steam does it)")
+                                     settingKey: "shader_warmup" }
                             Row2 {
                                 label: qsTr("Environment variables for every game")
                                 hint: qsTr("Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button.")

@@ -132,6 +132,9 @@ def perf_env(store: str, game_id: str) -> dict:
         env.update({"DXVK_STATE_CACHE_PATH": cache, "VKD3D_SHADER_CACHE_PATH": cache,
                     "MESA_SHADER_CACHE_MAX_SIZE": "10G", "__GL_SHADER_DISK_CACHE_SIZE": "10737418240",
                     "__GL_SHADER_DISK_CACHE_SKIP_CLEANUP": "1"})
+    if settings.get("shader_warmup"):
+        from . import shaders
+        env.update(shaders.record_env(store, game_id))
     return env
 
 

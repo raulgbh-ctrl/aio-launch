@@ -73,6 +73,7 @@ DEFAULTS = {
     "tv_reflection": True,   # TV mode: covers reflected on the shelf below
     "tv_intro": False,       # TV mode: a short start-up animation and chime
     "tv_animated": True,   # animated covers and banners in TV mode (SteamGridDB key; only when plugged in)
+    "shader_warmup": True,  # record games' shaders (Steam's Fossilize) and build them again after a driver update
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
     "show_fps": False,
