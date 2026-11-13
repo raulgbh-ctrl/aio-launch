@@ -69,6 +69,10 @@ def _t(text):
 def _translatable_names():
     """Never called: lists names that reach _t() through variables, so lupdate finds them."""
     return (QCoreApplication.translate("app", "Playing"),
+            QCoreApplication.translate("app", "Cornerplay does not know your Steam account yet: open Steam once"),
+            QCoreApplication.translate("app", "No friends to show (is your friends list public?)"),
+            QCoreApplication.translate("app", "Add a Steam Web API key in Settings > Library to see your friends"),
+            QCoreApplication.translate("app", "Steam did not accept the Web API key, or your friends list is private"),
             QCoreApplication.translate("app", "Want to play"),
             QCoreApplication.translate("app", "Finished"),
             QCoreApplication.translate("app", "Dropped"),
@@ -2702,9 +2706,9 @@ class AioLaunch(QObject):
                 if not me:
                     raise friends.FriendsError("Cornerplay does not know your Steam account yet: open Steam once")
                 fr = friends.friends(me)
-                return lambda: self.friendsReady.emit(fr, "" if fr else "No friends to show (is your friends list public?)")
+                return lambda: self.friendsReady.emit(fr, "" if fr else _t("No friends to show (is your friends list public?)"))
             except friends.FriendsError as e:
-                return lambda m=str(e): self.friendsReady.emit([], m)
+                return lambda m=str(e): self.friendsReady.emit([], _t(m))
         self._bg(work)
 
     @Slot("QVariantList")
