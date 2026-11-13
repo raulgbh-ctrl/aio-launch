@@ -164,7 +164,7 @@ FocusScope {
         }
         out.push({ label: cur.favourite ? qsTr("Remove from favourites") : qsTr("Add to favourites"), act: "fav", key: cur.key })
         // Backlog status: one row that steps through the choices.
-        const names = { "": "None", playing: "Playing", want: "Want to play", finished: "Finished", dropped: "Dropped" }
+        const names = { "": qsTr("None"), playing: qsTr("Playing"), want: qsTr("Want to play"), finished: qsTr("Finished"), dropped: qsTr("Dropped") }
         out.push({ label: qsTr("Status: ") + names[cur.status || ""] + "  \u25B8", act: "status", key: cur.key })
         out.push({ label: cur.hidden ? qsTr("Unhide game") : qsTr("Hide game"), act: cur.hidden ? "unhide" : "hide", key: cur.key })
         out.push({ label: qsTr("Close"), act: "close", key: "" })
@@ -921,16 +921,16 @@ FocusScope {
                     const play = tv.cur.key && !tv.cur.installed ? "Install" : "Play"
                     const jump = grid.count > grid.page + 1, stores = tv.storeIds.length > 2, shelves = tv.shelfList.length > 1
                     const all = pad.connected
-                        ? [{ b: ["a"], t: play }, { b: ["start"], t: "More" }, { b: ["guide"], t: "Menu" }, { b: ["y"], t: tvLibrary.installedOnly ? "All games" : "Installed only" },
-                           shelves ? { b: ["\u2195"], t: "Shelf", pad: true } : null, jump ? { b: ["lt", "rt"], t: "Jump" } : null,
-                           stores ? { b: ["lb", "rb"], t: "Store" } : null, { b: ["back"], t: "Search" },
-                           { b: ["b"], t: tvLibrary.search ? "Clear search" : "Back" }]
+                        ? [{ b: ["a"], t: play }, { b: ["start"], t: qsTr("More") }, { b: ["guide"], t: qsTr("Menu") }, { b: ["y"], t: tvLibrary.installedOnly ? qsTr("All games") : qsTr("Installed only") },
+                           shelves ? { b: ["\u2195"], t: qsTr("Shelf"), pad: true } : null, jump ? { b: ["lt", "rt"], t: qsTr("Jump") } : null,
+                           stores ? { b: ["lb", "rb"], t: qsTr("Store") } : null, { b: ["back"], t: qsTr("Search") },
+                           { b: ["b"], t: tvLibrary.search ? qsTr("Clear search") : qsTr("Back") }]
                         : pad.deck  // Steam Deck in Desktop Mode: only the buttons Steam's desktop layout sends
-                        ? [{ b: ["a"], t: play }, { k: "F2", t: "More" }, { b: ["y"], t: "Installed only" }, { b: ["b"], t: "Back" }]
-                        : [{ k: "Enter", t: play }, { k: "F2", t: "More" }, { k: "F10", t: "Menu" }, { k: "F3", t: tvLibrary.installedOnly ? "All games" : "Installed only" },
-                           shelves ? { k: "\u2191 \u2193", t: "Shelf" } : null, jump ? { k: "Shift \u2190/\u2192", t: "Jump" } : null,
-                           stores ? { k: "PgUp / PgDn", t: "Store" } : null, { k: "Type", t: "Search" },
-                           { k: "Esc", t: tvLibrary.search ? "Clear search" : "Back" }]
+                        ? [{ b: ["a"], t: play }, { k: "F2", t: qsTr("More") }, { b: ["y"], t: qsTr("Installed only") }, { b: ["b"], t: qsTr("Back") }]
+                        : [{ k: qsTr("Enter"), t: play }, { k: "F2", t: qsTr("More") }, { k: "F10", t: qsTr("Menu") }, { k: "F3", t: tvLibrary.installedOnly ? qsTr("All games") : qsTr("Installed only") },
+                           shelves ? { k: "\u2191 \u2193", t: qsTr("Shelf") } : null, jump ? { k: qsTr("Shift \u2190/\u2192"), t: qsTr("Jump") } : null,
+                           stores ? { k: qsTr("PgUp / PgDn"), t: qsTr("Store") } : null, { k: qsTr("Type"), t: qsTr("Search") },
+                           { k: qsTr("Esc"), t: tvLibrary.search ? qsTr("Clear search") : qsTr("Back") }]
                     // Four at most: the rest are listed on a game's page (More).
                     // No game in view (an empty shelf, nothing found): nothing to play or open.
                     const needGame = ["Play", "Install", "Options", "More"]
@@ -1218,8 +1218,8 @@ FocusScope {
                 spacing: 22
                 Repeater {
                     model: pad.connected
-                        ? [{ b: ["a"], t: "Type" }, { b: ["x"], t: "Delete" }, { b: ["y"], t: "Space" }, { b: ["back"], t: "Done" }, { b: ["b"], t: "Back" }]
-                        : [{ k: "Type", t: "or use the keys" }, { k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                        ? [{ b: ["a"], t: qsTr("Type") }, { b: ["x"], t: qsTr("Delete") }, { b: ["y"], t: qsTr("Space") }, { b: ["back"], t: qsTr("Done") }, { b: ["b"], t: qsTr("Back") }]
+                        : [{ k: qsTr("Type"), t: qsTr("or use the keys") }, { k: qsTr("Enter"), t: qsTr("Choose") }, { k: qsTr("Esc"), t: qsTr("Back") }]
                     Hint { required property var modelData; hint: modelData }
                 }
             }
@@ -1460,8 +1460,8 @@ FocusScope {
             anchors { right: parent.right; bottom: parent.bottom; margins: 28 }
             spacing: 22
             Repeater {
-                model: pad.connected || pad.deck ? [{ b: ["a"], t: "Choose" }, { b: ["b"], t: "Back" }]
-                                                 : [{ k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                model: pad.connected || pad.deck ? [{ b: ["a"], t: qsTr("Choose") }, { b: ["b"], t: qsTr("Back") }]
+                                                 : [{ k: qsTr("Enter"), t: qsTr("Choose") }, { k: qsTr("Esc"), t: qsTr("Back") }]
                 Hint { required property var modelData; hint: modelData }
             }
         }
@@ -1724,8 +1724,8 @@ FocusScope {
                 Row {
                     spacing: 22
                     Repeater {
-                        model: pad.connected || pad.deck ? [{ b: ["a"], t: "Choose" }, { b: ["b"], t: "Back" }]
-                                                         : [{ k: "Enter", t: "Choose" }, { k: "Esc", t: "Back" }]
+                        model: pad.connected || pad.deck ? [{ b: ["a"], t: qsTr("Choose") }, { b: ["b"], t: qsTr("Back") }]
+                                                         : [{ k: qsTr("Enter"), t: qsTr("Choose") }, { k: qsTr("Esc"), t: qsTr("Back") }]
                         Hint { required property var modelData; hint: modelData }
                     }
                 }

@@ -598,7 +598,7 @@ ApplicationWindow {
                         Icon { anchors.centerIn: parent; name: "plus"; size: 15; color: theme.onSurfaceVariant }
                         HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: newColl.ask("") }
-                        ToolTip.visible: addHover.hovered; ToolTip.text: "New collection"; ToolTip.delay: 400
+                        ToolTip.visible: addHover.hovered; ToolTip.text: qsTr("New collection"); ToolTip.delay: 400
                     }
                 }
                 // Smart lists: saved filters, with how many games they find right now.
@@ -782,8 +782,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Repeater {
-                                    model: [{ v: "name", t: "Name" }, { v: "recent", t: "Recently played" }, { v: "playtime", t: "Most played" },
-                                            { v: "rating", t: "My rating" }, { v: "size", t: "Size" }]
+                                    model: [{ v: "name", t: qsTr("Name") }, { v: "recent", t: qsTr("Recently played") }, { v: "playtime", t: qsTr("Most played") },
+                                            { v: "rating", t: qsTr("My rating") }, { v: "size", t: qsTr("Size") }]
                                     Chip2 { required property var modelData; label: modelData.t
                                             on: library.sortMode === modelData.v; onPicked: library.sortMode = modelData.v }
                                 }
@@ -3972,7 +3972,7 @@ ApplicationWindow {
             ScrollBar.vertical: KScrollBar { }
             ColumnLayout {
                 id: statsCol
-                width: parent.width
+                width: parent.width - 14  // clear of the scroll bar
                 spacing: 16
                 Row {
                     spacing: 8
@@ -4072,10 +4072,10 @@ ApplicationWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 10
-                        Tile { big: (statsBox.d.totalHours || 0) + " h"; small: "played in total" }
-                        Tile { big: String(statsBox.d.played || 0); small: "of " + (statsBox.d.games || 0) + " games played" }
-                        Tile { big: String(statsBox.d.neverPlayed || 0); small: "never started" }
-                        Tile { big: String(statsBox.d.installed || 0); small: "installed" }
+                        Tile { big: (statsBox.d.totalHours || 0) + " h"; small: qsTr("played in total") }
+                        Tile { big: String(statsBox.d.played || 0); small: qsTr("of %1 games played").arg(statsBox.d.games || 0) }
+                        Tile { big: String(statsBox.d.neverPlayed || 0); small: qsTr("never started") }
+                        Tile { big: String(statsBox.d.installed || 0); small: qsTr("installed") }
                     }
                     // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
                     RowLayout {

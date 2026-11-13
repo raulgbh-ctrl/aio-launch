@@ -45,3 +45,10 @@ def test_score_ranks_title_starts_first():
     from cornerplay.search import score
     assert score("dead cells", "Dead Cells") > score("dead", "Dead Cells") > score("dc", "Dead Cells") > score("cells", "Dead Cells") > 0
     assert score("xyz", "Dead Cells") == 0
+
+
+def test_calm_softens_shouted_sentences_only():
+    from cornerplay.details import calm
+    assert calm("THE CRITICALLY ACCLAIMED FANTASY ACTION RPG. Rise, Tarnished.") == \
+        "The critically acclaimed fantasy action RPG. Rise, Tarnished."
+    assert calm("Play with friends. It is OK.") == "Play with friends. It is OK."

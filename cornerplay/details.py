@@ -36,7 +36,27 @@ def cached(key):
         return None
     if "ttb" not in d and timetobeat.configured() and time.time() - d.get("ttb_tried", 0) > 86400:
         return None  # an IGDB key was added since (or IGDB could not be asked a day ago): fetch again
+    if d.get("description") and not d.get("calm"):  # fetched before shouting was softened
+        d["description"], d["calm"] = calm(d["description"]), True
     return d
+
+
+ACRONYMS = {"RPG", "JRPG", "ARPG", "FPS", "RTS", "MMO", "MMORPG", "PVP", "PVE", "CO-OP", "VR", "AI", "TV", "UK", "USA", "DLC",
+            "II", "III", "IV", "VI", "VII", "VIII", "IX", "XI", "XII", "2D", "3D", "4K", "HD"}
+
+
+def calm(text):
+    """A shouted sentence ("THE CRITICALLY ACCLAIMED FANTASY ACTION RPG.") in sentence case;
+    the rest of the text, and short shouty words like RPG, left as they are."""
+    def fix(m):
+        part = m.group(0)
+        words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", part)]
+        if len(words) < 3 or any(w != w.upper() for w in words):
+            return part
+        out = re.sub(r"[A-Za-z][A-Za-z'-]*", lambda w: w.group(0) if w.group(0).strip("'-") in ACRONYMS else w.group(0).lower(), part)
+        i = next((k for k, c in enumerate(out) if c.isalpha()), None)
+        return out if i is None else out[:i] + out[i].upper() + out[i + 1:]
+    return re.sub(r"[^.!?\n]+[.!?]*", fix, text or "")
 
 
 def clean(text):
@@ -48,6 +68,7 @@ def clean(text):
     text = re.sub(r"<[^>]*>?", "", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n\s*\n+", "\n\n", text).strip()
+    text = calm(text)
     if len(text) > MAX_TEXT:
         cut = text[:MAX_TEXT]
         end = max(cut.rfind(". "), cut.rfind(".\n"), cut.rfind("! "), cut.rfind("? "))
