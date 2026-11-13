@@ -263,6 +263,9 @@ def sync():
                 for theirs in remote_dir.glob(f"{kind}-*.json"):
                     if theirs.name != own.name:
                         write_json(local / theirs.name, read_json(theirs))
+        # each game's settings (Proton, MangoHud, launch options ...): the same on every PC
+        from . import gamesync
+        gamesync.sync(root)
         # profiles made on another PC
         known = {slug(p) for p in profiles()}
         for d in root.iterdir() if root.exists() else []:

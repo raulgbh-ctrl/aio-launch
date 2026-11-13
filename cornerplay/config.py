@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+import time
 from pathlib import Path
 
 APP = "cornerplay"
@@ -241,6 +242,9 @@ class GameOptions:
     def __init__(self):
         self.path = CONFIG_DIR / "games.json"
         self.data = read_json(self.path, {}) or {}
+        self.times_path = CONFIG_DIR / "games_changed.json"  # when each game's options last changed (gamesync.py)
+        self.times = read_json(self.times_path, {}) or {}
+        self.listeners = []  # called after a change (the app syncs it out to other PCs)
 
     def get(self, key) -> dict:
         return dict(self.data.get(key, {}))
@@ -262,6 +266,15 @@ class GameOptions:
         if not entry:
             self.data.pop(key, None)
         write_private(self.path, json.dumps(self.data))
+        self.times[key] = time.time()
+        write_json(self.times_path, self.times)
+        for fn in self.listeners:
+            fn()
+
+    def save(self):
+        """After gamesync.py changed several games at once."""
+        write_private(self.path, json.dumps(self.data))
+        write_json(self.times_path, self.times)
 
 
 

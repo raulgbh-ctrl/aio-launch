@@ -597,6 +597,7 @@ class AioLaunch(QObject):
         self._last_local = 0.0
         self._fetched.connect(self._on_fetched)
         personal.on_change(self._personal_changed)
+        game_options.listeners.append(self._personal_changed)  # a game's settings travel too (gamesync.py)
         self._scheme_timer = QTimer(self, interval=20000)  # light/dark following the desktop or the clock
         self._scheme_timer.timeout.connect(self._check_scheme)
         self._scheme_timer.start()
@@ -2422,6 +2423,7 @@ class AioLaunch(QObject):
             def done():
                 self._syncing = False
                 self._personal_reloaded()
+                self.storesChanged.emit()  # a game hidden on another PC
                 self.syncChanged.emit()
                 if err:
                     self.toast.emit(f"Sync: {err}")
