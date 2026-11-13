@@ -5698,6 +5698,8 @@ ApplicationWindow {
                             Toggle { label: qsTr("Warmer colours in the evening and at night"); settingKey: "evening_warmth" }
                             Toggle { label: qsTr("TV mode: covers reflected on the shelf"); settingKey: "tv_reflection" }
                             Toggle { label: qsTr("TV mode: start-up animation and chime"); settingKey: "tv_intro" }
+                            Toggle { label: qsTr("\"Previously\": while a game you have not played for a while starts, recall where you were (your note, last screenshots, how far you got)")
+                                     settingKey: "previously" }
                             KButton {
                                 theme: win.theme
                                 text: app.settingsMap.card_size >= 250 ? qsTr("Back to normal tiles") : qsTr("Large tiles (touchscreens)")

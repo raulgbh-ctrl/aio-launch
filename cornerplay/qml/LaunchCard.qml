@@ -12,6 +12,8 @@ Item {
     property string state_: ""   // "start", "ok", "fail"
     property color glow: theme.primary
     property Item blurSource: null   // what to frost behind the card (the library)
+    property var prev: ({})          // "Previously in ...": a recap when the game was not played for a while
+    readonly property bool recap: prev.days !== undefined
     anchors.fill: parent
     z: 200
     visible: opacity > 0.01
@@ -19,11 +21,12 @@ Item {
     Behavior on opacity { NumberAnimation { duration: app.light ? 0 : 260; easing.type: Easing.OutCubic } }
 
     function show(k) {
-        key = k; game = app.game(k); state_ = "start"
+        key = k; game = app.game(k); state_ = "start"; prev = ({})
+        app.loadPreviously(k)
         const c = app.gameColour(k); glow = c || theme.primary
         lift.restart(); giveUp.restart()
     }
-    function done() { key = ""; giveUp.stop(); fade.stop() }
+    function done() { key = ""; giveUp.stop(); fade.stop(); giveUp.interval = 20000 }
 
     Connections {
         target: app
@@ -31,10 +34,16 @@ Item {
             if (st === "start") lc.show(k)
             else if (k === lc.key) {
                 if (st === "cancel") lc.done()
-                else { lc.state_ = st; fade.interval = st === "ok" ? 4000 : 3500; fade.restart() }
+                else { lc.state_ = st; fade.interval = st === "ok" ? (lc.recap ? 10000 : 4000) : 3500; fade.restart() }
             }
         }
         function onGameColourReady(k, c) { if (k === lc.key && c) lc.glow = c }
+        function onPreviouslyReady(k, info) {
+            if (k !== lc.key) return
+            lc.prev = info
+            giveUp.interval = 40000          // time to read it while the game loads
+            if (fade.running) fade.interval = 10000
+        }
     }
     // The game is up: its window has the focus now.
     Connections {
@@ -65,8 +74,11 @@ Item {
         color: Qt.alpha("black", 0.72)
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: lc.done(); onWheel: w => w.accepted = true }
     }
+    Row {
+    anchors.centerIn: parent
+    spacing: 56
     Column {
-        anchors.centerIn: parent
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 26
         Item {
             id: coverBox
@@ -110,7 +122,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: lc.state_ === "fail" ? qsTr("Could not start it (see the message below)")
-                      : lc.state_ === "ok" ? "Starting… have fun!" : "Getting ready…"
+                      : lc.state_ === "ok" ? qsTr("Starting… have fun!") : qsTr("Getting ready…")
                 color: Qt.alpha("white", 0.8)
                 font.pixelSize: 16
             }
@@ -134,5 +146,72 @@ Item {
                 }
             }
         }
+    }
+
+    // Previously in ...: where you were, from your own notes and screenshots.
+    Column {
+        id: recapBox
+        visible: lc.recap
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.min(460, lc.width - coverBox.width - 56 - 120)
+        spacing: 16
+        opacity: lc.recap ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: app.light ? 0 : 400 } }
+        Text {
+            text: qsTr("PREVIOUSLY")
+            color: lc.glow; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 2.5
+        }
+        Text {
+            width: parent.width; wrapMode: Text.WordWrap
+            color: "white"; font.pixelSize: 18; font.weight: Font.DemiBold
+            text: (lc.prev.days >= 60 ? qsTr("You last played %1 months ago").arg(Math.round(lc.prev.days / 30))
+                   : qsTr("You last played %1 days ago").arg(lc.prev.days || 0))
+                  + (lc.prev.minutes > 0 ? qsTr(", for %1 min").arg(lc.prev.minutes) : "")
+        }
+        Rectangle {  // your note: where you got to, what was next
+            visible: !!lc.prev.note
+            width: parent.width
+            height: noteText.implicitHeight + 28
+            radius: 14
+            color: Qt.alpha("white", 0.08)
+            Rectangle { width: 3; radius: 2; height: parent.height - 24; x: 12; y: 12; color: lc.glow }
+            Text {
+                id: noteText
+                x: 26; y: 14; width: parent.width - 40
+                text: lc.prev.note || ""; textFormat: Text.PlainText
+                wrapMode: Text.WordWrap; maximumLineCount: 6; elide: Text.ElideRight
+                color: Qt.alpha("white", 0.92); font.pixelSize: 15; font.italic: true
+            }
+        }
+        Row {  // the screenshots you took last time
+            visible: (lc.prev.shots || []).length > 0
+            spacing: 10
+            Repeater {
+                model: lc.prev.shots || []
+                RoundedArt {
+                    required property string modelData
+                    width: Math.floor((recapBox.width - 20) / 3); height: Math.round(width * 9 / 16)
+                    radius: 10
+                    Rectangle { anchors.fill: parent; color: Qt.alpha("white", 0.06) }
+                    Image { anchors.fill: parent; source: parent.modelData; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 320 }
+                }
+            }
+        }
+        Flow {
+            width: parent.width
+            spacing: 8
+            Repeater {
+                model: [lc.prev.hours > 0 ? qsTr("%1 h played").arg(lc.prev.hours) : "",
+                        lc.prev.progress >= 0 ? qsTr("about %1% of the main story").arg(lc.prev.progress) : "",
+                        lc.prev.achieved >= 0 ? qsTr("%1% of achievements").arg(Math.round(lc.prev.achieved * 100)) : ""].filter(t => t)
+                Rectangle {
+                    required property string modelData
+                    height: 28; radius: 14; width: chip.implicitWidth + 24
+                    color: Qt.alpha(lc.glow, 0.22)
+                    Text { id: chip; anchors.centerIn: parent; text: parent.modelData; color: "white"; font.pixelSize: 12; font.weight: Font.DemiBold }
+                }
+            }
+        }
+    }
     }
 }
