@@ -2480,7 +2480,7 @@ class AioLaunch(QObject):
             "games": len(groups), "played": len(played), "neverPlayed": len(groups) - len(played),
             "installed": sum(1 for g in groups if any(x.installed for x in g)),
             "weekHours": round(week / 3600, 1), "monthHours": round(month / 3600, 1),
-            "sessions": len(log), "days": days,
+            "sessions": len(log), "days": days, "streak": statsdata.streaks(log, now),
             "perStore": [{"name": n, "hours": round(v / 3600)} for n, v in sorted(per_store.items(), key=lambda kv: -kv[1])],
             "top": [{"key": r[2].key, "title": r[2].title, "hours": round(r[0] / 3600, 1),
                      "cover": _cover(r[2]), "covers": _covers(r[2])} for r in top],

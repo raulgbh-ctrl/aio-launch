@@ -51,6 +51,32 @@ def weekly(log, now=None, weeks=12):
     return out
 
 
+def streaks(log, now=None, min_minutes=10):
+    """Days in a row you played (at least min_minutes that day, local time): the current streak
+    (still alive if you played today or yesterday) and the longest. {"current": 3, "longest": 9}"""
+    now = now or time.time()
+    per_day = {}
+    for _, s, e in log:
+        t = s
+        while t < e:  # a session past midnight counts on both days
+            d = date.fromtimestamp(t)
+            nxt = datetime.combine(d + timedelta(days=1), datetime.min.time()).timestamp()
+            per_day[d] = per_day.get(d, 0) + min(e, nxt) - t
+            t = nxt
+    days = sorted(d for d, secs in per_day.items() if secs >= min_minutes * 60)
+    longest, run, prev = 0, 0, None
+    for d in days:
+        run = run + 1 if prev and d - prev == timedelta(days=1) else 1
+        longest, prev = max(longest, run), d
+    today = date.fromtimestamp(now)
+    current = 0
+    if days and today - days[-1] <= timedelta(days=1):
+        current, d = 1, days[-1]
+        while d - timedelta(days=1) in set(days):
+            current, d = current + 1, d - timedelta(days=1)
+    return {"current": current, "longest": longest}
+
+
 def years(log):
     """The years the log has sessions in, newest first."""
     return sorted({datetime.fromtimestamp(s).year for _, s, _e in log}, reverse=True)

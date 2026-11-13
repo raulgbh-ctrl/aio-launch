@@ -182,3 +182,17 @@ def test_stream_wake_on_lan_and_sunshine_list(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         stream.stream_argv("pc; rm -rf ~")                                    # never a shell
     assert stream.stream_argv("gaming-pc")[-3:] == ["stream", "gaming-pc", "Cornerplay (TV mode)"]
+
+
+def test_streaks():
+    from datetime import datetime
+    from cornerplay import statsdata
+    day = lambda d, h=20: datetime(2026, 11, d, h).timestamp()
+    log = [["a", day(1), day(1) + 3600], ["a", day(2), day(2) + 1800], ["b", day(3), day(3) + 900],
+           ["a", day(5), day(5) + 120],                       # 2 minutes: does not count
+           ["a", day(8), day(8) + 3600], ["a", day(9), day(9) + 3600]]
+    assert statsdata.streaks(log, now=day(10, 12)) == {"current": 2, "longest": 3}
+    assert statsdata.streaks(log, now=day(12, 12))["current"] == 0      # missed a day: broken
+    late = [["a", datetime(2026, 11, 3, 23, 30).timestamp(), datetime(2026, 11, 4, 0, 40).timestamp()]]
+    assert statsdata.streaks(late, now=day(4, 12)) == {"current": 2, "longest": 2}  # past midnight
+    assert statsdata.streaks([], now=day(4)) == {"current": 0, "longest": 0}

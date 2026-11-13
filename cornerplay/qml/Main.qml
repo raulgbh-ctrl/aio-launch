@@ -3401,8 +3401,29 @@ ApplicationWindow {
                         Tile { big: String(statsBox.d.installed || 0); small: "installed" }
                     }
                     // Last 14 days (Cornerplay's own record of Epic, GOG and Amazon sessions).
-                    Text { text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
-                           color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { Layout.fillWidth: true; text: qsTr("Last two weeks  ·  ") + (statsBox.d.weekHours || 0) + qsTr(" h this week, ") + (statsBox.d.monthHours || 0) + qsTr(" h this month")
+                               color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        // Days in a row with at least ten minutes played.
+                        Rectangle {
+                            readonly property var st: statsBox.d.streak || ({})
+                            visible: (st.longest || 0) > 1
+                            height: 26; radius: 13
+                            width: streakRow.implicitWidth + 20
+                            color: (st.current || 0) > 1 ? Qt.alpha(theme.primary, 0.16) : theme.surfaceContainerHigh
+                            Row {
+                                id: streakRow
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Icon { anchors.verticalCenter: parent.verticalCenter; name: "sparkles"; size: 13
+                                       color: (parent.parent.st.current || 0) > 1 ? theme.primary : theme.outline }
+                                Text { anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurface
+                                       text: ((parent.parent.st.current || 0) > 1 ? parent.parent.st.current + qsTr(" days in a row") + "  \u00B7  " : "")
+                                             + qsTr("best ") + (parent.parent.st.longest || 0) }
+                            }
+                        }
+                    }
                     Item {
                         id: days14
                         Layout.fillWidth: true
