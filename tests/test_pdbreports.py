@@ -43,3 +43,7 @@ def test_similar_prefers_same_card_and_skips_other_makers(tmp_path, monkeypatch)
 def test_wrappers_become_options():
     s = p.settings_from({"options": "VKD3D_FEATURE_LEVEL=12_0 gamemoderun mangohud %command%"})
     assert s["env"] == "VKD3D_FEATURE_LEVEL=12_0" and s["gamemode"] and s["mangohud"]
+
+
+def test_default_proton_is_no_setting():
+    assert p.settings_from({"proton": "Default", "options": ""})["proton"] == ""

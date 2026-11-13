@@ -205,5 +205,7 @@ def settings_from(report):
             env.append(w)  # options written without %command%: keep the variables
     pre = opts.split("%command%")[0].lower() if "%command%" in opts else ""
     proton = report.get("proton") or ("GE-Proton" if report.get("variant") == "ge" else "")
+    if proton.strip().lower() in ("default", "none", "n/a", "-"):
+        proton = ""  # "the default one": nothing to change
     return {"env": " ".join(env), "args": " ".join(shlex.quote(a) for a in args), "proton": proton, "raw": opts,
             "gamemode": "gamemoderun" in pre, "mangohud": "mangohud" in pre}

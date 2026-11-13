@@ -23,6 +23,9 @@ Popup {
     // A snapshot of the app, taken as the pop-up opens and blurred once (not a live blur).
     readonly property bool frost: !!blurTarget && !app.light && GraphicsInfo.api !== GraphicsInfo.Software
     onAboutToShow: if (frost) Qt.callLater(() => { if (d.snap) d.snap.scheduleUpdate() })
+    // Opened from another pop-up (Ctrl+K, a menu) that hands the focus back as it closes: take
+    // it, so Esc and the keys reach this one. A field the dialog focused itself keeps it.
+    onOpened: Qt.callLater(() => { if (d.opened && !d.activeFocus) d.forceActiveFocus() })
     property var snap: null
     Overlay.modal: Item {
         ShaderEffectSource {

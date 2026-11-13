@@ -3138,7 +3138,7 @@ ApplicationWindow {
                                 visible: peer.hasSettings
                                 Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
                                 font.family: "monospace"; font.pixelSize: 11; color: theme.onSurfaceVariant
-                                text: [peer.modelData.proton ? "Proton: " + peer.modelData.proton : "", peer.modelData.options].filter(t => t).join("   ")
+                                text: [peer.modelData.apply.proton ? "Proton: " + peer.modelData.apply.proton : "", peer.modelData.options].filter(t => t).join("   ")
                             }
                             Text {
                                 visible: !!peer.modelData.note
@@ -3430,7 +3430,8 @@ ApplicationWindow {
         Connections { target: app; function onPrefixesReady(rows) { storage.prefixes = rows } }
         Connections { target: app; function onGameChanged(key) { if (storage.opened && key && storage.loading === false && !app.game(key).job) app.loadStorage() } }
         width: Math.min(win.width - 60, 820)
-        height: Math.min(win.height - 60, 760)
+        // As tall as what it holds, up to the window: few games make a short dialog.
+        height: Math.min(win.height - 60, 760, implicitHeight)
         readonly property var shown: (d.games || []).filter(g => !tidy || (g.bytes > 2 * 1024 * 1024 * 1024
                                        && (!g.last || g.last < Date.now() / 1000 - 90 * 86400)))
         contentItem: ColumnLayout {
@@ -3449,7 +3450,7 @@ ApplicationWindow {
                     }
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 10; radius: 5
+                        implicitHeight: 10; radius: 5
                         color: theme.surfaceContainerHighest
                         Rectangle {  // everything used
                             height: parent.height; radius: 5
@@ -3468,7 +3469,10 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                Text { text: storage.loading ? qsTr("Measuring your games…") : (storage.shown.length + qsTr(" games · ") + (storage.d.total || "")); color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.fillWidth: true }
+                // The total, when it says more than the one drive above does.
+                Text { text: storage.loading ? qsTr("Measuring your games…")
+                             : ((storage.d.drives || []).length > 1 || storage.tidy) ? (storage.shown.length + qsTr(" games · ") + (storage.d.total || "")) : ""
+                       color: theme.onSurfaceVariant; font.pixelSize: 13; Layout.fillWidth: true }
                 KButton {
                     theme: win.theme
                     text: storage.tidy ? qsTr("Show all") : qsTr("Free up space")
@@ -3480,7 +3484,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 visible: storage.prefixes.length > 0
-                height: pfx.implicitHeight + 20
+                implicitHeight: pfx.implicitHeight + 20
                 radius: 12
                 color: theme.surfaceContainerHigh
                 ColumnLayout {
@@ -3511,12 +3515,19 @@ ApplicationWindow {
                 visible: storage.tidy
                 wrapMode: Text.WordWrap
                 text: storage.shown.length ? qsTr("Games over 2 GB you haven't played for three months, biggest first.")
-                                           : "Nothing to clear: every big game was played lately."
+                                           : qsTr("Nothing to clear: every big game was played lately.")
+                color: theme.outline; font.pixelSize: 12
+            }
+            Text {
+                visible: !storage.loading && !storage.tidy && storage.shown.length === 0
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: qsTr("No games installed yet: what you install shows here by size.")
                 color: theme.outline; font.pixelSize: 12
             }
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.preferredHeight: contentHeight
                 clip: true
                 spacing: 6
                 model: storage.shown
@@ -3541,7 +3552,7 @@ ApplicationWindow {
                             spacing: 6
                             StoreIcon { size: 12; store: modelData.store; color: modelData.storeColor; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: live.job === "move" ? qsTr("Moving ") + Math.max(0, Math.floor(live.progress)) + "%"
-                                         : modelData.size + "  ·  played " + modelData.lastText
+                                         : modelData.size + "  ·  " + qsTr("played ") + modelData.lastText
                                    color: live.job ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12 }
                         }
                     }
