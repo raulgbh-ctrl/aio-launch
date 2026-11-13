@@ -5695,7 +5695,7 @@ ApplicationWindow {
         property var game: ({})
         property var opts: ({})
         property var steamProton: ({ choices: [], current: "" })
-        readonly property bool compat: ["epic", "gog", "amazon", "custom", "itch"].includes(game.store) || key === "battlenet:battlenet-app"
+        readonly property bool compat: ["epic", "gog", "amazon", "custom", "itch", "humble"].includes(game.store) || key === "battlenet:battlenet-app"
         // Runs without Proton: a GOG Linux version, or a Linux program added by hand.
         readonly property bool runsNative: game.platform === "linux"
         heading: qsTr("Options · ") + (game.title || "")

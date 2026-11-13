@@ -8,7 +8,8 @@ def all_stores():
     from .custom import Custom
     from .epic import Epic
     from .gog import Gog
+    from .humble import Humble
     from .itch import Itch
     from .retro import Retro
     from .steam import Steam
-    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Itch(), Retro(), Custom()]
+    return [Steam(), Epic(), Gog(), Amazon(), BattleNet(), Humble(), Itch(), Retro(), Custom()]

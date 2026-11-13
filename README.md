@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/banner.jpg" alt="Cornerplay: your games, in one cozy place"></p>
 
 <p align="center">
-  <b>Steam, Epic Games, GOG, Amazon Games and Battle.net in one cosy library on Linux,<br>
+  <b>Steam, Epic Games, GOG, Amazon Games, Battle.net, Humble Bundle and itch.io in one cosy library on Linux,<br>
   with a couch-friendly TV mode for your controller.</b>
 </p>
 
@@ -70,6 +70,7 @@ themselves, and the old `aiolaunch` command keeps working.*
 | **GOG** | Accounts > GOG > Sign in. Installs go through [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl); Linux versions are used when a game has one. | Nothing else. |
 | **Amazon Games** | Accounts > Amazon Games > Sign in, through [nile](https://github.com/imLinguin/nile). | Nothing else. |
 | **Battle.net** | See below. | The Battle.net app, under Proton. |
+| **Humble Bundle** | Accounts > Humble Bundle > Sign in: log in on Humble's page in the sign-in window (or paste your `_simpleauth_sess` cookie). Every DRM-free game in your library (bundles, the store, Humble Choice) is listed; the Linux download installs when there is one (archives and MojoSetup `.sh` installers are unpacked without running them), otherwise the Windows one through Proton (an installer runs once in its own window). Steam keys show up through Steam once redeemed. | Nothing else. |
 | **itch.io** | Accounts > itch.io > Sign in: make an API key at [itch.io/user/settings/api-keys](https://itch.io/user/settings/api-keys) and paste it. Games you bought or claimed are listed; the Linux build installs when there is one, otherwise the Windows build runs through Proton. | Nothing else. |
 
 **Steam Web API key (optional).** Without one, Cornerplay lists the Steam games in your Steam

@@ -12,7 +12,7 @@ from . import personal
 from .config import read_json, write_json
 
 # Per profile and per PC (personal.py): this PC writes its own files; synced PCs' files are added in.
-TIMED = ("epic", "gog", "amazon", "custom", "itch", "retro")  # games Cornerplay starts itself and waits for
+TIMED = ("epic", "gog", "amazon", "custom", "itch", "humble", "retro")  # games Cornerplay starts itself and waits for
 MIN_SECONDS = 10  # a shorter run is a failed start, not play
 
 

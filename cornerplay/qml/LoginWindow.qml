@@ -36,6 +36,7 @@ Window {
         done = true
         status.text = "Signing in…"
         if (store === "blizzard") app.blizzardSync()  // reads the games; app.blizzardOwned closes this
+        else if (store === "humble") app.humbleWebDone(view.profile)  // reads the session cookie
         else app.loginFinish(store, payload)
     }
 
@@ -49,6 +50,8 @@ Window {
                     && u.indexOf("login") === -1 && !view.loading)
                 finish(u)
         }
+        else if (store === "humble" && u.indexOf("https://www.humblebundle.com/home/library") === 0 && !view.loading)
+            finish(u)
         else if (store === "gog" && u.indexOf("on_login_success") !== -1 && u.indexOf("code=") !== -1)
             finish(u)
         else if (store === "amazon" && u.indexOf("openid.oa2.authorization_code=") !== -1)

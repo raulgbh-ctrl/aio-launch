@@ -85,7 +85,7 @@ def checks(stores, gamepad_available=True):
         {} if has_steam else {"kind": "command", "command": _pm_install("steam")})
 
     # Sign-ins
-    for sid in ("steam", "epic", "gog", "amazon", "battlenet", "itch"):
+    for sid in ("steam", "epic", "gog", "amazon", "battlenet", "humble", "itch"):
         s = stores.get(sid)
         if not s:
             continue

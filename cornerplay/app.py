@@ -1285,7 +1285,7 @@ class AioLaunch(QObject):
         # Every game that may run through Proton keeps its prefix: also games added by hand
         # (their prefix holds their saves) and itch.io games.
         wanted = {os.path.basename(runner.prefix_path(g.store, g.id)) for g in self.model.games
-                  if g.installed and g.store in ("epic", "gog", "amazon", "custom", "itch")}
+                  if g.installed and g.store in ("epic", "gog", "amazon", "custom", "itch", "humble")}
         if self.stores["battlenet"].launcher_exe():
             wanted.add(os.path.basename(runner.prefix_path("battlenet", "launcher")))
 
@@ -1797,6 +1797,35 @@ class AioLaunch(QObject):
             self.storesChanged.emit()
         else:
             self.toast.emit(f"Battle.net: {reason}")
+
+    # --- Humble Bundle: the sign-in window hands over its session cookie ----------------
+    @Slot(QObject)
+    def humbleWebDone(self, profile):
+        """The Humble sign-in reached the library: read the session cookie from the window's
+        browser profile (never the password) and sign in with it."""
+        from .stores.humble import COOKIE
+        found = {}
+        try:
+            store = profile.cookieStore()
+        except (AttributeError, RuntimeError):
+            return self.loginDone.emit("humble", False, "Could not read the Humble sign-in; paste the cookie instead")
+
+        def seen(c):
+            if bytes(c.name()).decode() == COOKIE and "humblebundle.com" in c.domain():
+                found["v"] = bytes(c.value()).decode()
+        store.cookieAdded.connect(seen)
+        store.loadAllCookies()
+
+        def check():
+            try:
+                store.cookieAdded.disconnect(seen)
+            except (RuntimeError, TypeError):
+                pass
+            if found.get("v"):
+                self.loginFinish("humble", found["v"])
+            else:
+                self.loginDone.emit("humble", False, "Humble did not keep you signed in; try again")
+        QTimer.singleShot(800, check)
 
     @Slot(QObject)
     def blizzardClearCookies(self, profile):
@@ -3075,7 +3104,7 @@ class AioLaunch(QObject):
 
     def _vulkan_warning(self, g):
         """Before a Proton game: say so when the GPU has no Vulkan driver (it would just crash)."""
-        if g.store in ("epic", "gog", "amazon", "battlenet", "custom", "itch") and g.extra.get("platform") != "linux":
+        if g.store in ("epic", "gog", "amazon", "battlenet", "custom", "itch", "humble") and g.extra.get("platform") != "linux":
             msg = runner.vulkan_problem()
             if msg:
                 self.toast.emit(msg)
@@ -3129,7 +3158,7 @@ class AioLaunch(QObject):
             except Exception as e:  # a store said no (sign-in expired, files missing): say so at once
                 msg = str(e) or type(e).__name__
                 return lambda: (self._launch_state(key, "fail"), self.toast.emit(f"Could not start {g.title}: {msg}"))
-            if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom", "itch"):
+            if opts.get("args") and g.store in ("epic", "gog", "amazon", "custom", "itch", "humble"):
                 cmd.argv += shlex.split(opts["args"])
             return lambda: self._start(g, cmd, saves.enabled_for(g))
         self._bg(work)
