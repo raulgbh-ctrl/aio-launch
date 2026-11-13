@@ -49,20 +49,13 @@ ApplicationWindow {
         if (g.copies.filter(c => c.installed).length > 1)
             toasts.append({ message: qsTr("Installed from several stores: pick the launcher to use") })
     }
-    // Home sections: folded away or not, and their order (Settings keys home_collapsed / home_order).
+    // Home sections folded away or not (Settings key home_collapsed).
     function homeFolded(id) { return (app.settingsMap.home_collapsed || []).indexOf(id) !== -1 }
     function toggleHome(id) {
         const now = (app.settingsMap.home_collapsed || []).slice()
         const i = now.indexOf(id)
         if (i === -1) now.push(id); else now.splice(i, 1)
         app.setSetting("home_collapsed", now)
-    }
-    function moveHome(id, step) {
-        const order = (app.settingsMap.home_order || ["continue", "free"]).slice()
-        const i = order.indexOf(id), j = i + step
-        if (i < 0 || j < 0 || j >= order.length) return
-        order[i] = order[j]; order[j] = id
-        app.setSetting("home_order", order)
     }
     // The cover under the pointer: its colour tints the library; resting on it shows a preview.
     property bool showFilters: false
@@ -900,7 +893,7 @@ ApplicationWindow {
             }
             Text {
                 Layout.leftMargin: 22; Layout.bottomMargin: 6
-                readonly property var free: library.search ? app.epicFree.filter(g => g.title.toLowerCase().indexOf(library.search) !== -1) : []
+                readonly property var free: library.search ? app.epicFreeAll.filter(g => g.title.toLowerCase().indexOf(library.search) !== -1) : []
                 visible: free.length > 0
                 text: qsTr("Also free on Epic right now: ") + free.map(g => g.title).join(", ")
                 color: theme.primary; font.pixelSize: 12
@@ -1321,16 +1314,8 @@ ApplicationWindow {
                                 }
                             }
 
-                            // The two sections sit in these slots, in the order the user chose.
-                            readonly property bool continueFirst: (app.settingsMap.home_order || ["continue"])[0] === "continue"
-                            readonly property bool continueShown: app.recentGames.length > 1
-                            readonly property bool freeShown: app.epicFree.length > 0
-                            Item { id: homeSlotA; width: parent.width; height: childrenRect.height
-                                   visible: parent.continueFirst ? parent.continueShown : parent.freeShown }
-                            Item { id: homeSlotB; width: parent.width; height: childrenRect.height
-                                   visible: parent.continueFirst ? parent.freeShown : parent.continueShown }
+                            // Continue playing (free games, sales and bundles are on the Store page).
                             Column {
-                                parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotA : homeSlotB
                                 visible: app.recentGames.length > 1
                                 x: 8
                                 width: parent.width - 16
@@ -1434,231 +1419,6 @@ ApplicationWindow {
                                 }
                             }
 
-                            // Epic's free games this week (and next): Get opens the store page.
-                            Column {
-                                parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotB : homeSlotA
-                                visible: app.epicFree.length > 0
-                                x: 8
-                                width: parent.width - 16
-                                spacing: 10
-                                bottomPadding: 18
-                                SectionHead {
-                                    sid: "free"; icon: "gift"
-                                    readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
-                                    title: qsTr("Free on Epic") + (nowFree ? "  \u00B7  " + nowFree + qsTr(" this week") : "")
-                                    hideNow: qsTr("Hide until next week")
-                                }
-                                ListView {
-                                    visible: !win.homeFolded("free")
-                                    width: parent.width
-                                    height: 132
-                                    orientation: ListView.Horizontal
-                                    spacing: 12
-                                    clip: true
-                                    boundsBehavior: Flickable.StopAtBounds
-                                    model: app.epicFree
-                                    delegate: Rectangle {
-                                        id: freeTile
-                                        required property var modelData
-                                        width: 300; height: 132
-                                        radius: 12
-                                        color: theme.surfaceContainerHigh
-                                        RoundedArt {
-                                            anchors.fill: parent
-                                            radius: freeTile.radius
-                                            ArtImage {
-                                                width: 94; height: parent.height
-                                                sources: [freeTile.modelData.tall, freeTile.modelData.wide].filter(u => !!u)
-                                                sourceSize.width: 188
-                                            }
-                                        }
-                                        Rectangle {
-                                            anchors.fill: parent; radius: freeTile.radius; color: "transparent"; z: 1
-                                            border.width: freeHover.hovered ? 2 : 0
-                                            border.color: freeHover.hovered ? theme.primary : theme.outlineVariant
-                                        }
-                                        Column {
-                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                            spacing: 6
-                                            Text {
-                                                width: parent.width
-                                                text: freeTile.modelData.title
-                                                font.family: app.titleFamily
-                                                color: theme.onSurface
-                                                font.pixelSize: 14; font.weight: Font.DemiBold
-                                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                            }
-                                            Text {
-                                                width: parent.width
-                                                text: freeTile.modelData.now ? qsTr("Free until ") + freeTile.modelData.when
-                                                                             : qsTr("Free from ") + freeTile.modelData.when
-                                                color: freeTile.modelData.now ? theme.primary : theme.outline
-                                                font.pixelSize: 12
-                                            }
-                                            KButton {
-                                                theme: win.theme
-                                                visible: freeTile.modelData.now
-                                                primary: !freeTile.modelData.owned
-                                                enabled: !freeTile.modelData.owned
-                                                text: freeTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
-                                                iconName: freeTile.modelData.owned ? "check" : "external-link"
-                                                onClicked: app.openUrl(freeTile.modelData.url)
-                                            }
-                                        }
-                                        HoverHandler { id: freeHover; cursorShape: Qt.PointingHandCursor }
-                                    }
-                                }
-                            }
-
-                            // Free to keep on other stores (IsThereAnyDeal's giveaways; needs its key).
-                            Column {
-                                visible: app.otherFree.length > 0 && !library.search
-                                x: 8
-                                width: parent.width - 16
-                                spacing: 10
-                                bottomPadding: 18
-                                SectionHead {
-                                    sid: "otherfree"; icon: "gift"
-                                    title: qsTr("Free on other stores  \u00B7  ") + app.otherFree.length
-                                }
-                                ListView {
-                                    visible: !win.homeFolded("otherfree")
-                                    width: parent.width
-                                    height: 132
-                                    orientation: ListView.Horizontal
-                                    spacing: 12
-                                    clip: true
-                                    boundsBehavior: Flickable.StopAtBounds
-                                    model: app.otherFree
-                                    delegate: Rectangle {
-                                        id: giftTile
-                                        required property var modelData
-                                        width: 300; height: 132
-                                        radius: 12
-                                        color: theme.surfaceContainerHigh
-                                        RoundedArt {
-                                            anchors.fill: parent
-                                            radius: giftTile.radius
-                                            ArtImage {
-                                                width: 94; height: parent.height
-                                                sources: [giftTile.modelData.tall, giftTile.modelData.wide].filter(u => !!u)
-                                                sourceSize.width: 188
-                                            }
-                                        }
-                                        Rectangle {
-                                            anchors.fill: parent; radius: giftTile.radius; color: "transparent"; z: 1
-                                            border.width: giftHover.hovered ? 2 : 0; border.color: theme.primary
-                                        }
-                                        Column {
-                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                            spacing: 6
-                                            Text { width: parent.width; text: giftTile.modelData.title; font.family: app.titleFamily
-                                                   color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
-                                                   wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                                            Text { width: parent.width; elide: Text.ElideRight
-                                                   text: giftTile.modelData.shop + (giftTile.modelData.when ? qsTr("  \u00B7  until ") + giftTile.modelData.when : "")
-                                                   color: theme.primary; font.pixelSize: 12 }
-                                            KButton {
-                                                theme: win.theme
-                                                primary: !giftTile.modelData.owned
-                                                enabled: !giftTile.modelData.owned
-                                                width: Math.min(implicitWidth, parent.width)
-                                                text: giftTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
-                                                iconName: giftTile.modelData.owned ? "check" : "external-link"
-                                                onClicked: app.openUrl(giftTile.modelData.url)
-                                            }
-                                        }
-                                        HoverHandler { id: giftHover; cursorShape: Qt.PointingHandCursor }
-                                    }
-                                }
-                            }
-
-                            // Games on your Steam / GOG wishlist that are on sale right now.
-                            Column {
-                                visible: app.wishlistSales.length > 0 && !library.search
-                                x: 8
-                                width: parent.width - 16
-                                spacing: 10
-                                bottomPadding: 18
-                                SectionHead {
-                                    sid: "sales"; icon: "tag"
-                                    title: qsTr("On sale from your wishlist  \u00B7  ") + app.wishlistSales.length
-                                    hideNow: qsTr("Hide until there are new sales")
-                                }
-                                ListView {
-                                    visible: !win.homeFolded("sales")
-                                    width: parent.width
-                                    height: 132
-                                    orientation: ListView.Horizontal
-                                    spacing: 12
-                                    clip: true
-                                    boundsBehavior: Flickable.StopAtBounds
-                                    model: app.wishlistSales
-                                    delegate: Rectangle {
-                                        id: saleTile
-                                        required property var modelData
-                                        // IsThereAnyDeal's cheapest deal, when it is deeper than the wishlist store's own sale.
-                                        readonly property var best: modelData.best && modelData.best.cut > (modelData.discount || 0) ? modelData.best : null
-                                        width: 300; height: 132
-                                        radius: 12
-                                        color: theme.surfaceContainerHigh
-                                        RoundedArt {
-                                            anchors.fill: parent
-                                            radius: saleTile.radius
-                                            ArtImage {
-                                                width: 94; height: parent.height
-                                                sources: [saleTile.modelData.tall, saleTile.modelData.wide].filter(u => !!u)
-                                                sourceSize.width: 188
-                                            }
-                                        }
-                                        Rectangle {
-                                            anchors.fill: parent; radius: saleTile.radius; color: "transparent"; z: 1
-                                            border.width: saleHover.hovered ? 2 : 0
-                                            border.color: theme.primary
-                                        }
-                                        Column {
-                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                            spacing: 6
-                                            Text {
-                                                width: parent.width
-                                                text: saleTile.modelData.title
-                                                font.family: app.titleFamily
-                                                textFormat: Text.PlainText
-                                                color: theme.onSurface
-                                                font.pixelSize: 14; font.weight: Font.DemiBold
-                                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                            }
-                                            Row {
-                                                spacing: 8
-                                                Rectangle {
-                                                    width: pct.implicitWidth + 12; height: 20; radius: 6
-                                                    color: theme.primary
-                                                    Text { id: pct; anchors.centerIn: parent; text: "-" + (saleTile.best ? saleTile.best.cut : saleTile.modelData.discount) + "%"
-                                                           color: theme.onPrimary; font.pixelSize: 11; font.weight: Font.Bold }
-                                                }
-                                                Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.price : saleTile.modelData.price
-                                                       textFormat: Text.PlainText; color: theme.onSurface; font.pixelSize: 13 }
-                                                Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.was : saleTile.modelData.was
-                                                       textFormat: Text.PlainText; color: theme.outline; font.pixelSize: 11; font.strikeout: true }
-                                            }
-                                            Text {
-                                                visible: !!(saleTile.best && saleTile.best.low)
-                                                text: qsTr("Lowest price ever")
-                                                color: theme.primary; font.pixelSize: 11; font.weight: Font.DemiBold
-                                            }
-                                            KButton {
-                                                theme: win.theme
-                                                width: Math.min(implicitWidth, parent.width)
-                                                text: saleTile.best ? saleTile.best.shop
-                                                      : saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
-                                                iconName: "external-link"
-                                                onClicked: app.openUrl(saleTile.best ? saleTile.best.url : saleTile.modelData.url)
-                                            }
-                                        }
-                                        HoverHandler { id: saleHover; cursorShape: Qt.PointingHandCursor }
-                                    }
-                                }
-                            }
 
                             Text {
                                 x: 8
@@ -5671,7 +5431,6 @@ ApplicationWindow {
         property string icon: ""
         property string extra: ""
         property string folded: ""  // shown next to the title while the section is folded away ("4 games")
-        property string hideNow: ""  // set: an x offers "hide for now" (this text) and "always hide"
         signal extraPicked()
         width: parent ? parent.width : 0
         spacing: 8
@@ -5680,61 +5439,11 @@ ApplicationWindow {
         Text { visible: sh.folded !== "" && win.homeFolded(sh.sid); text: "\u00B7  " + sh.folded; color: app.theme.outline; font.pixelSize: 13 }
         Icon { name: win.homeFolded(sh.sid) ? "chevron-right" : "chevron-down"; size: 14; color: app.theme.outline }
         Item { Layout.fillWidth: true }
-        Row {
-            spacing: 2
-            opacity: shHover.hovered ? 1 : 0
-            visible: sh.sid !== "sales"  // the two movable sections only
-            Behavior on opacity { NumberAnimation { duration: 120 } }
-            Repeater {
-                model: [{ i: "chevron-up", d: -1 }, { i: "chevron-down", d: 1 }]
-                Rectangle {
-                    required property var modelData
-                    width: 24; height: 22; radius: 6
-                    color: mvHover.hovered ? app.theme.surfaceContainerHigh : "transparent"
-                    Icon { anchors.centerIn: parent; name: modelData.i; size: 14; color: app.theme.onSurfaceVariant }
-                    HoverHandler { id: mvHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: win.moveHome(sh.sid, modelData.d) }
-                }
-            }
-        }
         Text {  // an extra, quiet action
             visible: sh.extra !== "" && shHover.hovered
             text: sh.extra; color: app.theme.primary; font.pixelSize: 12
             TapHandler { onTapped: sh.extraPicked() }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
-        }
-        // Always there on sections you may not want (Free on Epic, wishlist sales): an x that
-        // offers to hide them for now or for good.
-        Rectangle {
-            visible: sh.hideNow !== ""
-            width: 28; height: 28; radius: 14
-            color: xHover.hovered || hideMenu.visible ? app.theme.surfaceContainerHigh : "transparent"
-            Icon { anchors.centerIn: parent; name: "x"; size: 15; color: xHover.hovered ? app.theme.onSurface : app.theme.outline }
-            HoverHandler { id: xHover; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: hideMenu.open() }
-            ToolTip.visible: xHover.hovered && !hideMenu.visible; ToolTip.text: qsTr("Hide this"); ToolTip.delay: 300
-            Popup {
-                id: hideMenu
-                y: parent.height + 4
-                x: parent.width - width
-                padding: 6
-                background: Rectangle { radius: 12; color: app.theme.surfaceContainerHigh; border.width: 1; border.color: app.theme.outlineVariant }
-                contentItem: Column {
-                    spacing: 2
-                    Repeater {
-                        model: [{ t: sh.hideNow, always: false }, { t: qsTr("Always hide (back in Settings \u203a Library)"), always: true }]
-                        Rectangle {
-                            required property var modelData
-                            width: Math.max(hmText.implicitWidth + 24, 260); height: 34; radius: 8
-                            color: hmHover.hovered ? app.theme.surfaceContainerHighest : "transparent"
-                            Text { id: hmText; anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
-                                   text: modelData.t; color: app.theme.onSurface; font.pixelSize: 13 }
-                            HoverHandler { id: hmHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: { hideMenu.close(); app.hideHomeSection(sh.sid, modelData.always) } }
-                        }
-                    }
-                }
-            }
         }
         HoverHandler { id: shHover }
         TapHandler { onTapped: win.toggleHome(sh.sid) }
@@ -6144,9 +5853,7 @@ ApplicationWindow {
                                           onClicked: { app.setSetting("rom_dirs", []); app.refresh("retro") } }
                             }
                         }
-                        Toggle { label: qsTr("Show this week's free Epic games on the home page"); settingKey: "epic_free_shown" }
                         Toggle { label: qsTr("Show games from my Steam and GOG wishlists that are on sale"); settingKey: "wishlist_sales" }
-                        Toggle { visible: !!app.settingsMap.wishlist_sales; label: qsTr("Also on the home page (the Store page always has them)"); settingKey: "sales_on_home" }
                         Row2 {
                             visible: !!app.settingsMap.wishlist_sales
                             label: qsTr("Country for store prices")
