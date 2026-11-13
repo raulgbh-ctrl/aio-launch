@@ -150,6 +150,9 @@ ApplicationWindow {
     Shortcut { sequence: "F1"; enabled: !win.tv; onActivated: keysBox.open() }
     Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
+    // A narrow window folds the sidebar into a rail of icons (names show as tooltips).
+    readonly property bool rail: width < 980
+
     // TV mode is built the first time it is opened (it costs ~45 ms at start otherwise), then kept.
     property bool tvUsed: startTv
 
@@ -304,7 +307,9 @@ ApplicationWindow {
         Rectangle {
             id: sidebar
             Layout.fillHeight: true
-            Layout.preferredWidth: 236
+            Layout.preferredWidth: win.rail ? 68 : 236
+            Behavior on Layout.preferredWidth { enabled: !app.light; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            clip: true
             color: win.backdropOn ? Qt.alpha(theme.surfaceContainerLow, 0.55) : theme.surfaceContainerLow
             // Lamplight: a warm glow pooling in the sidebar's bottom corner, like the icon.
             Rectangle {
@@ -319,14 +324,16 @@ ApplicationWindow {
             // Always in view: TV mode and the tools, below the scrolling lists.
             ColumnLayout {
                 id: sideBottom
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: win.rail ? 6 : 14 }
                 spacing: 4
                 Rectangle { Layout.fillWidth: true; height: 1; color: theme.outlineVariant; opacity: sideFlick.contentHeight > sideFlick.height + 1 ? 1 : 0 }
                 NavItem { label: qsTr("TV mode"); icon: "tv"; count: "F11"; onPicked: win.tv = true }
-                RowLayout {
-                    Layout.fillWidth: true
+                GridLayout {
+                    Layout.fillWidth: !win.rail
+                    Layout.alignment: Qt.AlignHCenter
                     Layout.topMargin: 6
-                    spacing: 1
+                    columns: win.rail ? 2 : 20
+                    columnSpacing: 1; rowSpacing: 2
                     ToolIcon { icon: "gamepad-2"; tip: qsTr("What should I play?"); onPicked: picker.show() }
                     ToolIcon { icon: "trophy"; tip: qsTr("Stats"); onPicked: statsBox.show() }
                     ToolIcon { icon: "folder-open"; tip: qsTr("Storage"); onPicked: storage.show() }
@@ -335,7 +342,7 @@ ApplicationWindow {
                     ToolIcon { visible: app.hiddenCount > 0 || library.showHidden; icon: "eye-off"; on: library.showHidden
                                tip: qsTr("Hidden games (") + app.hiddenCount + ")"
                                onPicked: { library.storeFilter = ""; library.shelf = ""; library.showHidden = !library.showHidden } }
-                    Item { Layout.fillWidth: true }
+                    Item { visible: !win.rail; Layout.fillWidth: true }
                     ToolIcon { icon: "keyboard"; tip: qsTr("Keyboard shortcuts (F1)"); onPicked: keysBox.open() }
                     ToolIcon { icon: "user-round"; tip: qsTr("Accounts"); onPicked: accounts.open() }
                     ToolIcon { icon: "sliders-horizontal"; tip: qsTr("Settings"); onPicked: prefs.open() }
@@ -347,7 +354,7 @@ ApplicationWindow {
             Flickable {
                 id: sideFlick
                 anchors { left: parent.left; right: parent.right; top: parent.top; bottom: sideBottom.top
-                          leftMargin: 14; rightMargin: 14; topMargin: 14 }
+                          leftMargin: win.rail ? 6 : 14; rightMargin: win.rail ? 6 : 14; topMargin: 14 }
                 contentHeight: sideCol.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -363,11 +370,12 @@ ApplicationWindow {
                     Layout.margins: 8
                     Layout.bottomMargin: 16
                     spacing: 10
-                    WordMark { size: 20 }
+                    WordMark { size: 20; visible: !win.rail }
+                    BrandMark { size: 34; visible: win.rail; Layout.leftMargin: -2 }
                 }
                 // Who is playing: only shown once there is more than one person.
                 Flow {
-                    visible: app.profiles.length > 1
+                    visible: app.profiles.length > 1 && !win.rail
                     Layout.fillWidth: true
                     Layout.leftMargin: 8; Layout.bottomMargin: 10
                     spacing: 6
@@ -425,7 +433,7 @@ ApplicationWindow {
                     }
                     StoreTile {
                         visible: nav.dot !== ""
-                        x: 10; anchors.verticalCenter: parent.verticalCenter
+                        x: win.rail ? Math.round((parent.width - size) / 2) : 10; anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: navHover.hovered && !app.light ? -1 : 0
                         size: 22
                         store: nav.store
@@ -436,11 +444,12 @@ ApplicationWindow {
                     }
                     Icon {
                         visible: nav.dot === "" && nav.icon !== ""
-                        x: 13; anchors.verticalCenter: parent.verticalCenter
+                        x: win.rail ? Math.round((parent.width - size) / 2) : 13; anchors.verticalCenter: parent.verticalCenter
                         name: nav.icon; size: 17
                         color: nav.active ? theme.primary : theme.onSurfaceVariant
                     }
                     Text {
+                        visible: !win.rail
                         x: nav.dot !== "" || nav.icon !== "" ? 38 : 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: nav.label
@@ -451,16 +460,19 @@ ApplicationWindow {
                     }
                     Text {
                         anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                        visible: !(nav.removable && navHover.hovered) && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
+                        visible: !win.rail && !(nav.removable && navHover.hovered) && (navHover.hovered || nav.active || nav.count === "…" || nav.count === "!")
                         text: nav.count
                         color: nav.active ? theme.primary : theme.onSurfaceVariant
                         font.pixelSize: 12
                     }
                     HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: nav.picked() }
+                    ToolTip.visible: win.rail && navHover.hovered
+                    ToolTip.text: nav.label + (nav.count !== "" && nav.count !== "0" ? "  \u00B7  " + nav.count : "")
+                    ToolTip.delay: 250
                     // Remove (collections): an x where the count was, while pointed at.
                     Rectangle {
-                        visible: nav.removable && navHover.hovered
+                        visible: nav.removable && navHover.hovered && !win.rail
                         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                         width: 24; height: 24; radius: 12
                         color: removeHover.hovered ? theme.errorContainer || theme.surfaceContainerHighest : "transparent"
@@ -495,7 +507,7 @@ ApplicationWindow {
                 // Your lists: favourites, collections, and backlog statuses that have games.
                 RowLayout {
                     // Shown once there is a list (make the first one from a game's More > Add to a collection).
-                    visible: app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0
+                    visible: !win.rail && (app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0)
                     Layout.fillWidth: true
                     Layout.topMargin: 14; Layout.leftMargin: 14; Layout.rightMargin: 6; Layout.bottomMargin: 2
                     Text { Layout.fillWidth: true; text: qsTr("YOUR LISTS"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
