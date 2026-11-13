@@ -59,7 +59,8 @@ DEFAULTS = {
     "view": "grid",            # main window: "grid" of covers or "list" (a table)
     "home_collapsed": ["free"],  # home sections folded away: "banner", "continue", "free" (Free on Epic starts as one line)
     "epic_free_hidden_until": 0,  # Free on Epic hidden until the current offers end
-    "epic_free_shown": True,      # Free on Epic on the home page at all
+    "epic_free_shown": True,      # Free on Epic on the home page at all (the Store page always has it)
+    "sales_on_home": True,        # wishlist sales on the home page (the Store page always has them)
     "sales_hidden": [],           # wishlist sales hidden until one that isn't in this list comes
     "home_order": ["continue", "free"],
     "smart_lists": [],         # saved filters shown as lists in the sidebar: [{"name", "store", "installed", "tags"}]

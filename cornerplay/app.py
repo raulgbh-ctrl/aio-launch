@@ -1833,12 +1833,13 @@ class AioLaunch(QObject):
             return lambda: (setattr(self, "_epic_free", games), self.epicFreeChanged.emit())
         self._bg(work)
 
-    def _epic_free_info(self):
-        """This week's free Epic games (and the next ones), marked when already in the library."""
+    def _epic_free_info(self, home=True):
+        """This week's free Epic games (and the next ones), marked when already in the library.
+        home: as the home page shows them (not while hidden there)."""
         owned = {covers.norm(g.title) for g in self.model.games if g.store == "epic"}
         now = time.time()
         out = []
-        if now < (settings.get("epic_free_hidden_until") or 0) or settings.get("epic_free_shown") is False:
+        if home and (now < (settings.get("epic_free_hidden_until") or 0) or settings.get("epic_free_shown") is False):
             return []  # hidden until this week's offers end, or for good (Settings > Library)
         for g in self._epic_free:
             if g.get("end") and g["end"] < now:
@@ -1850,6 +1851,7 @@ class AioLaunch(QObject):
         return out
 
     epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
+    epicFreeAll = Property("QVariantList", lambda s: s._epic_free_info(False), notify=epicFreeChanged)  # the Store page
 
     # --- Humble Bundle's shop window: this month's Choice and the game bundles ----
     _humble_shop = {}
@@ -2364,16 +2366,21 @@ class AioLaunch(QObject):
         best = w.get("best") or {}
         return f"{w.get('title', '')}:{best.get('price') or w.get('price') or ''}"
 
-    def _wishlist_sales(self):
+    def _wishlist_sales(self, home=True):
         owned = {covers.norm(g.title) for g in self.model.games}
         sales = [w for w in self._wishlist
                  if (w.get("discount") or (w.get("best") or {}).get("cut")) and covers.norm(w["title"]) not in owned]
+        if not home:
+            return sales
+        if settings.get("sales_on_home") is False:
+            return []
         hidden = set(settings.get("sales_hidden") or [])
         if hidden and all(self._sale_tag(w) in hidden for w in sales):
             return []  # hidden for now: back when a new sale (or a new price) comes
         return sales
 
     wishlistSales = Property("QVariantList", _wishlist_sales, notify=wishlistChanged)
+    wishlistSalesAll = Property("QVariantList", lambda s: s._wishlist_sales(False), notify=wishlistChanged)  # the Store page
 
     @Slot(str, bool)
     def hideHomeSection(self, which, always):
@@ -2387,7 +2394,7 @@ class AioLaunch(QObject):
             self.epicFreeChanged.emit()
         elif which == "sales":
             if always:
-                settings.set("wishlist_sales", False)
+                settings.set("sales_on_home", False)
             else:
                 settings.set("sales_hidden", [self._sale_tag(w) for w in self._wishlist_sales()])
             self.wishlistChanged.emit()
@@ -4851,6 +4858,9 @@ class AioLaunch(QObject):
             if key == "epic_free_shown":  # back from "always hide": show it again at once
                 settings.set("epic_free_hidden_until", 0)
                 self.epicFreeChanged.emit()
+            if key == "sales_on_home":
+                settings.set("sales_hidden", [])
+                self.wishlistChanged.emit()
             if key == "wishlist_sales":
                 settings.set("sales_hidden", [])
                 if value:

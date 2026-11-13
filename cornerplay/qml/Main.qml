@@ -485,6 +485,8 @@ ApplicationWindow {
                     property string dot: ""
                     property string store: ""
                     property string icon: ""
+                    property string glyph: ""           // an icon on a coloured tile, like a store's (the Store)
+                    property color tint: "transparent"
                     property string count: ""
                     property bool active: false
                     property bool dim: false
@@ -514,7 +516,9 @@ ApplicationWindow {
                         color: theme.primary
                     }
                     StoreTile {
-                        visible: nav.dot !== ""
+                        visible: nav.dot !== "" || nav.glyph !== ""
+                        glyph: nav.glyph
+                        tint: nav.tint
                         x: win.rail ? Math.round((parent.width - size) / 2) : 10; anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: navHover.hovered && !app.light ? -1 : 0
                         size: 22
@@ -525,14 +529,14 @@ ApplicationWindow {
                         Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: 140 } }
                     }
                     Icon {
-                        visible: nav.dot === "" && nav.icon !== ""
+                        visible: nav.dot === "" && nav.glyph === "" && nav.icon !== ""
                         x: win.rail ? Math.round((parent.width - size) / 2) : 13; anchors.verticalCenter: parent.verticalCenter
                         name: nav.icon; size: 17
                         color: nav.active ? theme.primary : theme.onSurfaceVariant
                     }
                     Text {
                         visible: !win.rail
-                        x: nav.dot !== "" || nav.icon !== "" ? 38 : 14
+                        x: nav.dot !== "" || nav.icon !== "" || nav.glyph !== "" ? 38 : 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: nav.label
                         color: theme.onSurface
@@ -569,15 +573,24 @@ ApplicationWindow {
                     label: qsTr("All games")
                     icon: "library"
                     count: app.totalCount
-                    active: library.storeFilter === "" && !library.showHidden && library.shelf === "" && !win.smartActive
-                    onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = "" }
+                    active: library.storeFilter === "" && !library.showHidden && library.shelf === "" && !win.smartActive && !storePage.opened
+                    onPicked: { storePage.close(); library.showHidden = false; library.storeFilter = ""; library.shelf = "" }
+                }
+                // The Store: free games, wishlist sales and bundles from every store on one page.
+                NavItem {
+                    label: qsTr("Store")
+                    glyph: "gift"
+                    tint: "#a32020"  // Humble's red: the Store took over its place
+                    active: storePage.opened
+                    onPicked: storePage.opened ? storePage.close() : storePage.open()
                 }
                 Repeater {
                     model: app.storesInfo
                     NavItem {
                         required property var modelData
                         // Prism Launcher shows as soon as it is on the PC, even before its first instance.
-                        visible: modelData.count > 0 || (modelData.loggedIn && (modelData.inAccounts || modelData.id === "prism"))
+                        // Humble Bundle shows only with games of yours: its Choice and bundles are in the Store.
+                        visible: modelData.count > 0 || (modelData.loggedIn && modelData.id !== "humble" && (modelData.inAccounts || modelData.id === "prism"))
                         label: modelData.name
                         dot: modelData.color
                         store: modelData.id
@@ -3548,6 +3561,20 @@ ApplicationWindow {
         }
     }
 
+    // -------------------------------------------------------------------- store
+    StorePage {
+        id: storePage
+        theme: win.theme
+        x: sidebar.width; y: 0
+        width: win.width - sidebar.width; height: win.height
+    }
+    Connections {  // picking a store or a list in the sidebar goes back to the library
+        target: library
+        function onStoreFilterChanged() { storePage.close() }
+        function onShelfChanged() { storePage.close() }
+        function onShowHiddenChanged() { storePage.close() }
+    }
+
     // -------------------------------------------------------------------- mods
     ModsPage { id: modsPage; theme: win.theme }
     Connections {
@@ -6119,6 +6146,7 @@ ApplicationWindow {
                         }
                         Toggle { label: qsTr("Show this week's free Epic games on the home page"); settingKey: "epic_free_shown" }
                         Toggle { label: qsTr("Show games from my Steam and GOG wishlists that are on sale"); settingKey: "wishlist_sales" }
+                        Toggle { visible: !!app.settingsMap.wishlist_sales; label: qsTr("Also on the home page (the Store page always has them)"); settingKey: "sales_on_home" }
                         Row2 {
                             visible: !!app.settingsMap.wishlist_sales
                             label: qsTr("Country for store prices")
