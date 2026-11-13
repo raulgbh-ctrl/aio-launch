@@ -139,6 +139,99 @@
     </message>
 </context>
 <context>
+    <name>HumbleShop</name>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="14"/>
+        <source>Steam key</source>
+        <translation>Cheie Steam</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="14"/>
+        <source>Battle.net key</source>
+        <translation>Cheie Battle.net</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="14"/>
+        <source>Epic Games key</source>
+        <translation>Cheie Epic Games</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="15"/>
+        <source>GOG key</source>
+        <translation>Cheie GOG</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="15"/>
+        <source>EA app key</source>
+        <translation>Cheie EA app</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="15"/>
+        <source>Ubisoft Connect key</source>
+        <translation>Cheie Ubisoft Connect</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="16"/>
+        <source>Code for another service</source>
+        <translation>Cod pentru alt serviciu</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="16"/>
+        <source>DRM-free download</source>
+        <translation>Descărcare fără DRM</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="106"/>
+        <source>Humble Choice</source>
+        <translation>Humble Choice</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="107"/>
+        <source>%1 games for %2 a month</source>
+        <translation>%1 jocuri pentru %2 pe lună</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="108"/>
+        <source>See Choice</source>
+        <translation>Vezi Choice</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="124"/>
+        <source>In your library</source>
+        <translation>În biblioteca ta</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="124"/>
+        <source>Worth %1 on its own</source>
+        <translation>Valorează %1 separat</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="126"/>
+        <source>Runs on Linux</source>
+        <translation>Merge pe Linux</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="141"/>
+        <source>Game bundles</source>
+        <translation>Pachete de jocuri</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="143"/>
+        <source>All bundles</source>
+        <translation>Toate pachetele</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="160"/>
+        <source>%1 items</source>
+        <translation>%1 produse</translation>
+    </message>
+    <message>
+        <location filename="../qml/HumbleShop.qml" line="161"/>
+        <source>Until </source>
+        <translation>Până pe </translation>
+    </message>
+</context>
+<context>
     <name>LaunchCard</name>
     <message>
         <location filename="../qml/LaunchCard.qml" line="112"/>
@@ -159,22 +252,22 @@
 <context>
     <name>LoginWindow</name>
     <message>
-        <location filename="../qml/LoginWindow.qml" line="23"/>
+        <location filename="../qml/LoginWindow.qml" line="26"/>
         <source>Sign in to </source>
         <translation>Conectează-te la </translation>
     </message>
     <message>
-        <location filename="../qml/LoginWindow.qml" line="37"/>
+        <location filename="../qml/LoginWindow.qml" line="41"/>
         <source>Signing in…</source>
         <translation>Se conectează…</translation>
     </message>
     <message>
-        <location filename="../qml/LoginWindow.qml" line="100"/>
+        <location filename="../qml/LoginWindow.qml" line="108"/>
         <source>Log in below. The window closes by itself when you&apos;re signed in.</source>
         <translation>Conectează-te mai jos. Fereastra se închide singură după conectare.</translation>
     </message>
     <message>
-        <location filename="../qml/LoginWindow.qml" line="107"/>
+        <location filename="../qml/LoginWindow.qml" line="115"/>
         <source>Use my browser instead</source>
         <translation>Folosește browserul meu</translation>
     </message>
@@ -193,29 +286,29 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="356"/>
-        <location filename="../qml/Main.qml" line="2294"/>
-        <location filename="../qml/Main.qml" line="2455"/>
+        <location filename="../qml/Main.qml" line="2312"/>
+        <location filename="../qml/Main.qml" line="2473"/>
         <source>TV mode</source>
         <translation>Mod TV</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="395"/>
-        <location filename="../qml/Main.qml" line="2287"/>
-        <location filename="../qml/Main.qml" line="2448"/>
-        <location filename="../qml/Main.qml" line="3788"/>
+        <location filename="../qml/Main.qml" line="2305"/>
+        <location filename="../qml/Main.qml" line="2466"/>
+        <location filename="../qml/Main.qml" line="3806"/>
         <source>What should I play?</source>
         <translation>Ce să joc?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2286"/>
-        <location filename="../qml/Main.qml" line="2449"/>
+        <location filename="../qml/Main.qml" line="2304"/>
+        <location filename="../qml/Main.qml" line="2467"/>
         <source>Stats</source>
         <translation>Statistici</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="399"/>
-        <location filename="../qml/Main.qml" line="2289"/>
-        <location filename="../qml/Main.qml" line="3435"/>
+        <location filename="../qml/Main.qml" line="2307"/>
+        <location filename="../qml/Main.qml" line="3453"/>
         <source>Storage</source>
         <translation>Spațiu</translation>
     </message>
@@ -226,29 +319,29 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="400"/>
-        <location filename="../qml/Main.qml" line="2292"/>
-        <location filename="../qml/Main.qml" line="4052"/>
+        <location filename="../qml/Main.qml" line="2310"/>
+        <location filename="../qml/Main.qml" line="4070"/>
         <source>Health check</source>
         <translation>Verificare</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="429"/>
-        <location filename="../qml/Main.qml" line="2293"/>
-        <location filename="../qml/Main.qml" line="5072"/>
+        <location filename="../qml/Main.qml" line="2311"/>
+        <location filename="../qml/Main.qml" line="5090"/>
         <source>Accounts</source>
         <translation>Conturi</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2285"/>
-        <location filename="../qml/Main.qml" line="2451"/>
-        <location filename="../qml/Main.qml" line="5520"/>
+        <location filename="../qml/Main.qml" line="2303"/>
+        <location filename="../qml/Main.qml" line="2469"/>
+        <location filename="../qml/Main.qml" line="5538"/>
         <source>Settings</source>
         <translation>Setări</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="568"/>
-        <location filename="../qml/Main.qml" line="1957"/>
-        <location filename="../qml/Main.qml" line="2297"/>
+        <location filename="../qml/Main.qml" line="1975"/>
+        <location filename="../qml/Main.qml" line="2315"/>
         <source>All games</source>
         <translation>Toate jocurile</translation>
     </message>
@@ -269,8 +362,8 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="744"/>
-        <location filename="../qml/Main.qml" line="1985"/>
-        <location filename="../qml/Main.qml" line="4260"/>
+        <location filename="../qml/Main.qml" line="2003"/>
+        <location filename="../qml/Main.qml" line="4278"/>
         <source> games</source>
         <translation> jocuri</translation>
     </message>
@@ -296,32 +389,32 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="795"/>
-        <location filename="../qml/Main.qml" line="3833"/>
+        <location filename="../qml/Main.qml" line="3851"/>
         <source>Installed only</source>
         <translation>Doar instalate</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="798"/>
-        <location filename="../qml/Main.qml" line="5748"/>
+        <location filename="../qml/Main.qml" line="5766"/>
         <source>Cover size</source>
         <translation>Mărimea copertelor</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="807"/>
-        <location filename="../qml/Main.qml" line="3942"/>
-        <location filename="../qml/Main.qml" line="6081"/>
+        <location filename="../qml/Main.qml" line="3960"/>
+        <location filename="../qml/Main.qml" line="6099"/>
         <source>Add</source>
         <translation>Adaugă</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="826"/>
-        <location filename="../qml/Main.qml" line="4623"/>
+        <location filename="../qml/Main.qml" line="4641"/>
         <source>Downloads</source>
         <translation>Descărcări</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="881"/>
-        <location filename="../qml/Main.qml" line="1955"/>
+        <location filename="../qml/Main.qml" line="1973"/>
         <source>Clear filters</source>
         <translation>Șterge filtrele</translation>
     </message>
@@ -332,14 +425,14 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="913"/>
-        <location filename="../qml/Main.qml" line="2176"/>
+        <location filename="../qml/Main.qml" line="2194"/>
         <source>Playing </source>
         <translation>Se joacă </translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="913"/>
         <location filename="../qml/Main.qml" line="913"/>
-        <location filename="../qml/Main.qml" line="1892"/>
+        <location filename="../qml/Main.qml" line="1908"/>
         <source> min</source>
         <translation> min</translation>
     </message>
@@ -365,7 +458,7 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="941"/>
-        <location filename="../qml/Main.qml" line="6122"/>
+        <location filename="../qml/Main.qml" line="6140"/>
         <source>Bring over</source>
         <translation>Adu</translation>
     </message>
@@ -396,1656 +489,1656 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="969"/>
-        <location filename="../qml/Main.qml" line="1283"/>
-        <location filename="../qml/Main.qml" line="1723"/>
-        <location filename="../qml/Main.qml" line="1723"/>
-        <location filename="../qml/Main.qml" line="2741"/>
+        <location filename="../qml/Main.qml" line="1287"/>
+        <location filename="../qml/Main.qml" line="1739"/>
+        <location filename="../qml/Main.qml" line="1739"/>
+        <location filename="../qml/Main.qml" line="2759"/>
         <source>Update</source>
         <translation>Actualizează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1075"/>
+        <location filename="../qml/Main.qml" line="1079"/>
         <source>Back in your corner: </source>
         <translation>Înapoi în colțul tău: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1237"/>
+        <location filename="../qml/Main.qml" line="1241"/>
         <source>BACK IN YOUR CORNER</source>
         <translation>ÎNAPOI ÎN COLȚUL TĂU</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1273"/>
-        <location filename="../qml/Main.qml" line="4697"/>
+        <location filename="../qml/Main.qml" line="1277"/>
+        <location filename="../qml/Main.qml" line="4715"/>
         <source>Resume</source>
         <translation>Continuă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1273"/>
-        <location filename="../qml/Main.qml" line="1721"/>
-        <location filename="../qml/Main.qml" line="1721"/>
-        <location filename="../qml/Main.qml" line="2235"/>
-        <location filename="../qml/Main.qml" line="2731"/>
-        <location filename="../qml/Main.qml" line="3741"/>
-        <location filename="../qml/Main.qml" line="3859"/>
-        <location filename="../qml/Main.qml" line="5042"/>
+        <location filename="../qml/Main.qml" line="1277"/>
+        <location filename="../qml/Main.qml" line="1737"/>
+        <location filename="../qml/Main.qml" line="1737"/>
+        <location filename="../qml/Main.qml" line="2253"/>
+        <location filename="../qml/Main.qml" line="2749"/>
+        <location filename="../qml/Main.qml" line="3759"/>
+        <location filename="../qml/Main.qml" line="3877"/>
+        <location filename="../qml/Main.qml" line="5060"/>
         <source>Install</source>
         <translation>Instalează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1290"/>
+        <location filename="../qml/Main.qml" line="1294"/>
         <source>Updating </source>
         <translation>Se actualizează </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1290"/>
+        <location filename="../qml/Main.qml" line="1294"/>
         <source>Working…</source>
         <translation>Se lucrează…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1296"/>
-        <location filename="../qml/Main.qml" line="3749"/>
-        <location filename="../qml/Main.qml" line="3862"/>
+        <location filename="../qml/Main.qml" line="1300"/>
+        <location filename="../qml/Main.qml" line="3767"/>
+        <location filename="../qml/Main.qml" line="3880"/>
         <source>Details</source>
         <translation>Detalii</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1318"/>
+        <location filename="../qml/Main.qml" line="1322"/>
         <source>Continue playing</source>
         <translation>Continuă să joci</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1428"/>
+        <location filename="../qml/Main.qml" line="1432"/>
         <source>Free on Epic</source>
         <translation>Gratuit pe Epic</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1428"/>
+        <location filename="../qml/Main.qml" line="1432"/>
         <source> this week</source>
         <translation> săptămâna aceasta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1429"/>
+        <location filename="../qml/Main.qml" line="1433"/>
         <source>Hide until next week</source>
         <translation>Ascunde până săptămâna viitoare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1474"/>
+        <location filename="../qml/Main.qml" line="1478"/>
         <source>Free until </source>
         <translation>Gratuit până </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1484"/>
-        <location filename="../qml/Main.qml" line="1547"/>
+        <location filename="../qml/Main.qml" line="1488"/>
+        <location filename="../qml/Main.qml" line="1551"/>
         <source>In your library</source>
         <translation>În biblioteca ta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1484"/>
-        <location filename="../qml/Main.qml" line="1547"/>
+        <location filename="../qml/Main.qml" line="1488"/>
+        <location filename="../qml/Main.qml" line="1551"/>
         <source>Get</source>
         <translation>Obține</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1503"/>
+        <location filename="../qml/Main.qml" line="1507"/>
         <source>Free on other stores  ·  </source>
         <translation>Gratuite în alte magazine  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1540"/>
+        <location filename="../qml/Main.qml" line="1544"/>
         <source>  ·  until </source>
         <translation>  ·  până pe </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1566"/>
+        <location filename="../qml/Main.qml" line="1570"/>
         <source>On sale from your wishlist  ·  </source>
         <translation>La reducere din lista ta de dorințe  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1626"/>
+        <location filename="../qml/Main.qml" line="1630"/>
         <source>Lowest price ever</source>
         <translation>Cel mai mic preț de până acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1633"/>
+        <location filename="../qml/Main.qml" line="1637"/>
         <source>Open on GOG</source>
         <translation>Deschide pe GOG</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1633"/>
+        <location filename="../qml/Main.qml" line="1637"/>
         <source>Open on Steam</source>
         <translation>Deschide pe Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1646"/>
-        <location filename="../qml/Main.qml" line="2439"/>
-        <location filename="../qml/Main.qml" line="2603"/>
-        <location filename="../qml/Main.qml" line="5584"/>
+        <location filename="../qml/Main.qml" line="1650"/>
+        <location filename="../qml/Main.qml" line="2457"/>
+        <location filename="../qml/Main.qml" line="2621"/>
+        <location filename="../qml/Main.qml" line="5602"/>
         <source>Library</source>
         <translation>Bibliotecă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1646"/>
+        <location filename="../qml/Main.qml" line="1650"/>
         <source>  &lt;font color=&apos;</source>
         <translation>  &lt;font color=&apos;</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1646"/>
+        <location filename="../qml/Main.qml" line="1650"/>
         <source> games&lt;/font&gt;</source>
         <translation> jocuri&lt;/font&gt;</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1818"/>
+        <location filename="../qml/Main.qml" line="1834"/>
         <source>Game</source>
         <translation>Joc</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1818"/>
+        <location filename="../qml/Main.qml" line="1834"/>
         <source>Store</source>
         <translation>Magazin</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1719"/>
-        <location filename="../qml/Main.qml" line="1719"/>
-        <location filename="../qml/Main.qml" line="1818"/>
+        <location filename="../qml/Main.qml" line="1735"/>
+        <location filename="../qml/Main.qml" line="1735"/>
+        <location filename="../qml/Main.qml" line="1834"/>
         <source>Status</source>
         <translation>Stare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1819"/>
+        <location filename="../qml/Main.qml" line="1835"/>
         <source>Rating</source>
         <translation>Notă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1819"/>
+        <location filename="../qml/Main.qml" line="1835"/>
         <source>Played</source>
         <translation>Jucat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1820"/>
+        <location filename="../qml/Main.qml" line="1836"/>
         <source>Last played</source>
         <translation>Ultima dată</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="789"/>
-        <location filename="../qml/Main.qml" line="1820"/>
+        <location filename="../qml/Main.qml" line="1836"/>
         <source>Size</source>
         <translation>Mărime</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1843"/>
+        <location filename="../qml/Main.qml" line="1859"/>
         <source>  ▾</source>
         <translation>  ▾</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1888"/>
-        <location filename="../qml/Main.qml" line="6910"/>
+        <location filename="../qml/Main.qml" line="1904"/>
+        <location filename="../qml/Main.qml" line="6928"/>
         <source>Playing</source>
         <translation>Se joacă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1888"/>
-        <location filename="../qml/Main.qml" line="6910"/>
+        <location filename="../qml/Main.qml" line="1904"/>
+        <location filename="../qml/Main.qml" line="6928"/>
         <source>Want to play</source>
         <translation>Vreau să joc</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1888"/>
-        <location filename="../qml/Main.qml" line="4307"/>
-        <location filename="../qml/Main.qml" line="4597"/>
-        <location filename="../qml/Main.qml" line="6910"/>
-        <location filename="../qml/Main.qml" line="7059"/>
+        <location filename="../qml/Main.qml" line="1904"/>
+        <location filename="../qml/Main.qml" line="4325"/>
+        <location filename="../qml/Main.qml" line="4615"/>
+        <location filename="../qml/Main.qml" line="6928"/>
+        <location filename="../qml/Main.qml" line="7077"/>
         <source>Finished</source>
         <translation>Terminat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1888"/>
-        <location filename="../qml/Main.qml" line="6910"/>
+        <location filename="../qml/Main.qml" line="1904"/>
+        <location filename="../qml/Main.qml" line="6928"/>
         <source>Dropped</source>
         <translation>Abandonat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1888"/>
-        <location filename="../qml/Main.qml" line="2226"/>
-        <location filename="../qml/Main.qml" line="2677"/>
-        <location filename="../qml/Main.qml" line="4961"/>
+        <location filename="../qml/Main.qml" line="1904"/>
+        <location filename="../qml/Main.qml" line="2244"/>
+        <location filename="../qml/Main.qml" line="2695"/>
+        <location filename="../qml/Main.qml" line="4979"/>
         <source>Installed</source>
         <translation>Instalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1896"/>
+        <location filename="../qml/Main.qml" line="1912"/>
         <source> GB</source>
         <translation> GB</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1931"/>
+        <location filename="../qml/Main.qml" line="1949"/>
         <source>No hidden games</source>
         <translation>Niciun joc ascuns</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1952"/>
+        <location filename="../qml/Main.qml" line="1970"/>
         <source>Connect stores</source>
         <translation>Conectează magazine</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1953"/>
-        <location filename="../qml/Main.qml" line="2288"/>
-        <location filename="../qml/Main.qml" line="2444"/>
+        <location filename="../qml/Main.qml" line="1971"/>
+        <location filename="../qml/Main.qml" line="2306"/>
+        <location filename="../qml/Main.qml" line="2462"/>
         <source>Add a game</source>
         <translation>Adaugă un joc</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1954"/>
+        <location filename="../qml/Main.qml" line="1972"/>
         <source>Clear search</source>
         <translation>Șterge căutarea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1956"/>
+        <location filename="../qml/Main.qml" line="1974"/>
         <source>Show all games</source>
         <translation>Arată toate jocurile</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="403"/>
-        <location filename="../qml/Main.qml" line="2302"/>
-        <location filename="../qml/Main.qml" line="2435"/>
+        <location filename="../qml/Main.qml" line="2320"/>
+        <location filename="../qml/Main.qml" line="2453"/>
         <source>Keyboard shortcuts</source>
         <translation>Scurtături de tastatură</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2440"/>
+        <location filename="../qml/Main.qml" line="2458"/>
         <source>Search (or just start typing)</source>
         <translation>Caută (sau începe să scrii)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2441"/>
+        <location filename="../qml/Main.qml" line="2459"/>
         <source>Play the selected game</source>
         <translation>Joacă jocul selectat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2442"/>
+        <location filename="../qml/Main.qml" line="2460"/>
         <source>Move between covers</source>
         <translation>Mută-te între coperte</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2295"/>
-        <location filename="../qml/Main.qml" line="2443"/>
+        <location filename="../qml/Main.qml" line="2313"/>
+        <location filename="../qml/Main.qml" line="2461"/>
         <source>Refresh every store</source>
         <translation>Reîmprospătează toate magazinele</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2445"/>
+        <location filename="../qml/Main.qml" line="2463"/>
         <source>Close a page or pop-up</source>
         <translation>Închide o pagină sau o fereastră</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="376"/>
         <location filename="../qml/Main.qml" line="383"/>
-        <location filename="../qml/Main.qml" line="2446"/>
+        <location filename="../qml/Main.qml" line="2464"/>
         <source>Tools</source>
         <translation>Unelte</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2452"/>
+        <location filename="../qml/Main.qml" line="2470"/>
         <source>Next tab in Settings</source>
         <translation>Tabul următor din Setări</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2453"/>
+        <location filename="../qml/Main.qml" line="2471"/>
         <source>This list</source>
         <translation>Lista aceasta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2454"/>
+        <location filename="../qml/Main.qml" line="2472"/>
         <source>Quit</source>
         <translation>Ieșire</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2456"/>
+        <location filename="../qml/Main.qml" line="2474"/>
         <source>Open or leave TV mode</source>
         <translation>Intră în modul TV sau ieși din el</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2457"/>
+        <location filename="../qml/Main.qml" line="2475"/>
         <source>Main menu (the Guide button)</source>
         <translation>Meniul principal (butonul Guide)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2458"/>
+        <location filename="../qml/Main.qml" line="2476"/>
         <source>Quick access</source>
         <translation>Acces rapid</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2459"/>
+        <location filename="../qml/Main.qml" line="2477"/>
         <source>A game’s options</source>
         <translation>Opțiunile unui joc</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2460"/>
+        <location filename="../qml/Main.qml" line="2478"/>
         <source>Back</source>
         <translation>Înapoi</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2226"/>
-        <location filename="../qml/Main.qml" line="2677"/>
-        <location filename="../qml/Main.qml" line="4963"/>
+        <location filename="../qml/Main.qml" line="2244"/>
+        <location filename="../qml/Main.qml" line="2695"/>
+        <location filename="../qml/Main.qml" line="4981"/>
         <source>Not installed</source>
         <translation>Neinstalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2677"/>
+        <location filename="../qml/Main.qml" line="2695"/>
         <source>↑  Update available</source>
         <translation>↑  Actualizare disponibilă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2695"/>
+        <location filename="../qml/Main.qml" line="2713"/>
         <source>Removing…</source>
         <translation>Se elimină…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2235"/>
-        <location filename="../qml/Main.qml" line="2731"/>
-        <location filename="../qml/Main.qml" line="3741"/>
-        <location filename="../qml/Main.qml" line="3859"/>
+        <location filename="../qml/Main.qml" line="2253"/>
+        <location filename="../qml/Main.qml" line="2749"/>
+        <location filename="../qml/Main.qml" line="3759"/>
+        <location filename="../qml/Main.qml" line="3877"/>
         <source>Play</source>
         <translation>Joacă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2748"/>
-        <location filename="../qml/Main.qml" line="3591"/>
-        <location filename="../qml/Main.qml" line="3746"/>
-        <location filename="../qml/Main.qml" line="4699"/>
+        <location filename="../qml/Main.qml" line="2766"/>
+        <location filename="../qml/Main.qml" line="3609"/>
+        <location filename="../qml/Main.qml" line="3764"/>
+        <location filename="../qml/Main.qml" line="4717"/>
         <source>Cancel</source>
         <translation>Anulează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2755"/>
-        <location filename="../qml/Main.qml" line="4884"/>
+        <location filename="../qml/Main.qml" line="2773"/>
+        <location filename="../qml/Main.qml" line="4902"/>
         <source>DLC · </source>
         <translation>DLC · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2755"/>
-        <location filename="../qml/Main.qml" line="4878"/>
+        <location filename="../qml/Main.qml" line="2773"/>
+        <location filename="../qml/Main.qml" line="4896"/>
         <source>DLC</source>
         <translation>DLC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2761"/>
+        <location filename="../qml/Main.qml" line="2779"/>
         <source>Favourited</source>
         <translation>La favorite</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1715"/>
-        <location filename="../qml/Main.qml" line="1715"/>
-        <location filename="../qml/Main.qml" line="2761"/>
+        <location filename="../qml/Main.qml" line="1731"/>
+        <location filename="../qml/Main.qml" line="1731"/>
+        <location filename="../qml/Main.qml" line="2779"/>
         <source>Favourite</source>
         <translation>Favorit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2769"/>
+        <location filename="../qml/Main.qml" line="2787"/>
         <source>More</source>
         <translation>Mai mult</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2781"/>
+        <location filename="../qml/Main.qml" line="2799"/>
         <source>Collections · </source>
         <translation>Colecții · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2781"/>
-        <location filename="../qml/Main.qml" line="3755"/>
+        <location filename="../qml/Main.qml" line="2799"/>
+        <location filename="../qml/Main.qml" line="3773"/>
         <source>Add to a collection</source>
         <translation>Adaugă într-o colecție</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2783"/>
-        <location filename="../qml/Main.qml" line="3759"/>
+        <location filename="../qml/Main.qml" line="2801"/>
+        <location filename="../qml/Main.qml" line="3777"/>
         <source>Options</source>
         <translation>Opțiuni</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2784"/>
-        <location filename="../qml/Main.qml" line="3760"/>
-        <location filename="../qml/Main.qml" line="4000"/>
+        <location filename="../qml/Main.qml" line="2802"/>
+        <location filename="../qml/Main.qml" line="3778"/>
+        <location filename="../qml/Main.qml" line="4018"/>
         <source>Save backups</source>
         <translation>Copii ale salvărilor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2785"/>
-        <location filename="../qml/Main.qml" line="3769"/>
+        <location filename="../qml/Main.qml" line="2803"/>
+        <location filename="../qml/Main.qml" line="3787"/>
         <source>Unhide</source>
         <translation>Reafișează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1725"/>
-        <location filename="../qml/Main.qml" line="1725"/>
-        <location filename="../qml/Main.qml" line="2785"/>
-        <location filename="../qml/Main.qml" line="3769"/>
+        <location filename="../qml/Main.qml" line="1741"/>
+        <location filename="../qml/Main.qml" line="1741"/>
+        <location filename="../qml/Main.qml" line="2803"/>
+        <location filename="../qml/Main.qml" line="3787"/>
         <source>Hide</source>
         <translation>Ascunde</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2792"/>
-        <location filename="../qml/Main.qml" line="3777"/>
+        <location filename="../qml/Main.qml" line="2810"/>
+        <location filename="../qml/Main.qml" line="3795"/>
         <source>Really uninstall?</source>
         <translation>Sigur dezinstalezi?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2792"/>
-        <location filename="../qml/Main.qml" line="3601"/>
-        <location filename="../qml/Main.qml" line="3777"/>
+        <location filename="../qml/Main.qml" line="2810"/>
+        <location filename="../qml/Main.qml" line="3619"/>
+        <location filename="../qml/Main.qml" line="3795"/>
         <source>Uninstall</source>
         <translation>Dezinstalează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2807"/>
-        <location filename="../qml/Main.qml" line="3686"/>
+        <location filename="../qml/Main.qml" line="2825"/>
+        <location filename="../qml/Main.qml" line="3704"/>
         <source>No status</source>
         <translation>Fără stare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2834"/>
+        <location filename="../qml/Main.qml" line="2852"/>
         <source>Your note (where you got to, what to try next)</source>
         <translation>Notița ta (unde ai ajuns, ce să încerci mai departe)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2909"/>
+        <location filename="../qml/Main.qml" line="2927"/>
         <source>🐧  Linux version</source>
         <translation>🐧  Versiune Linux</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2909"/>
+        <location filename="../qml/Main.qml" line="2927"/>
         <source>🐧  Has a Linux version</source>
         <translation>🐧  Are versiune Linux</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2914"/>
+        <location filename="../qml/Main.qml" line="2932"/>
         <source>🎮  Full controller support</source>
         <translation>🎮  Suport complet pentru controller</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2927"/>
+        <location filename="../qml/Main.qml" line="2945"/>
         <source> achievements</source>
         <translation> realizări</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2934"/>
-        <location filename="../qml/Main.qml" line="6913"/>
+        <location filename="../qml/Main.qml" line="2952"/>
+        <location filename="../qml/Main.qml" line="6931"/>
         <source>ProtonDB: </source>
         <translation>ProtonDB: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2946"/>
+        <location filename="../qml/Main.qml" line="2964"/>
         <source>Your screenshots  ·  </source>
         <translation>Capturile tale  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2985"/>
+        <location filename="../qml/Main.qml" line="3003"/>
         <source>From the store</source>
         <translation>Din magazin</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3036"/>
+        <location filename="../qml/Main.qml" line="3054"/>
         <source>You own this on </source>
         <translation>Îl deții pe </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3036"/>
+        <location filename="../qml/Main.qml" line="3054"/>
         <source> stores. Launcher to use:</source>
         <translation> magazine. Lansatorul folosit:</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3047"/>
+        <location filename="../qml/Main.qml" line="3065"/>
         <source> · installed</source>
         <translation> · instalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3340"/>
+        <location filename="../qml/Main.qml" line="3358"/>
         <source>More like this in your library</source>
         <translation>Mai multe asemănătoare în biblioteca ta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3359"/>
+        <location filename="../qml/Main.qml" line="3377"/>
         <source>Not played</source>
         <translation>Nejucat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3388"/>
+        <location filename="../qml/Main.qml" line="3406"/>
         <source>Which saves should </source>
         <translation>Ce salvări să </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3388"/>
+        <location filename="../qml/Main.qml" line="3406"/>
         <source> use?</source>
         <translation> folosească?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3399"/>
+        <location filename="../qml/Main.qml" line="3417"/>
         <source>Saves changed both on this PC and in the cloud since the last sync, probably because you played on another computer. The one you don&apos;t pick is replaced.</source>
         <translation>Salvările s-au schimbat și pe acest PC, și în cloud de la ultima sincronizare, probabil pentru că ai jucat pe alt calculator. Cea pe care nu o alegi este înlocuită.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3406"/>
+        <location filename="../qml/Main.qml" line="3424"/>
         <source>Use the cloud save</source>
         <translation>Folosește salvarea din cloud</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3415"/>
+        <location filename="../qml/Main.qml" line="3433"/>
         <source>Keep this PC&apos;s save</source>
         <translation>Păstrează salvarea de pe acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3423"/>
+        <location filename="../qml/Main.qml" line="3441"/>
         <source>Play without syncing this time</source>
         <translation>Joacă fără sincronizare de data asta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3463"/>
+        <location filename="../qml/Main.qml" line="3481"/>
         <source> free of </source>
         <translation> liberi din </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3480"/>
+        <location filename="../qml/Main.qml" line="3498"/>
         <source> game, </source>
         <translation> joc, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3480"/>
+        <location filename="../qml/Main.qml" line="3498"/>
         <source> games, </source>
         <translation> jocuri, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3487"/>
+        <location filename="../qml/Main.qml" line="3505"/>
         <source>Measuring your games…</source>
         <translation>Se măsoară jocurile…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3488"/>
+        <location filename="../qml/Main.qml" line="3506"/>
         <source> games · </source>
         <translation> jocuri · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3492"/>
+        <location filename="../qml/Main.qml" line="3510"/>
         <source>Show all</source>
         <translation>Arată tot</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3492"/>
-        <location filename="../qml/Main.qml" line="4144"/>
-        <location filename="../qml/Main.qml" line="4179"/>
+        <location filename="../qml/Main.qml" line="3510"/>
+        <location filename="../qml/Main.qml" line="4162"/>
+        <location filename="../qml/Main.qml" line="4197"/>
         <source>Free up space</source>
         <translation>Eliberează spațiu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3510"/>
+        <location filename="../qml/Main.qml" line="3528"/>
         <source>Leftover Proton prefixes (Windows settings of games no longer installed). They can hold saves from games without cloud saves: delete only what you are sure about.</source>
         <translation>Prefixe Proton rămase (setările Windows ale jocurilor care nu mai sunt instalate). Pot conține salvări ale jocurilor fără salvări în cloud: șterge doar ce știi sigur.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3518"/>
+        <location filename="../qml/Main.qml" line="3536"/>
         <source>  (put aside by Reset)</source>
         <translation>  (pus deoparte la Resetare)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3521"/>
-        <location filename="../qml/Main.qml" line="3601"/>
+        <location filename="../qml/Main.qml" line="3539"/>
+        <location filename="../qml/Main.qml" line="3619"/>
         <source>Sure?</source>
         <translation>Sigur?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3521"/>
+        <location filename="../qml/Main.qml" line="3539"/>
         <source>Delete</source>
         <translation>Șterge</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3531"/>
+        <location filename="../qml/Main.qml" line="3549"/>
         <source>Games over 2 GB you haven&apos;t played for three months, biggest first.</source>
         <translation>Jocuri de peste 2 GB pe care nu le-ai jucat de trei luni, cele mai mari primele.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3568"/>
+        <location filename="../qml/Main.qml" line="3586"/>
         <source>Moving </source>
         <translation>Se mută </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3580"/>
+        <location filename="../qml/Main.qml" line="3598"/>
         <source>Move</source>
         <translation>Mută</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3612"/>
+        <location filename="../qml/Main.qml" line="3630"/>
         <source>Save the backup in which folder?</source>
         <translation>În ce folder salvezi copia de rezervă?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3617"/>
+        <location filename="../qml/Main.qml" line="3635"/>
         <source>Restore which Cornerplay backup?</source>
         <translation>Ce copie de rezervă Cornerplay restaurezi?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3623"/>
+        <location filename="../qml/Main.qml" line="3641"/>
         <source>Which folder do your PCs sync?</source>
         <translation>Ce folder sincronizează PC-urile tale?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3628"/>
+        <location filename="../qml/Main.qml" line="3646"/>
         <source>Which folder has your ROMs?</source>
         <translation>În ce folder sunt ROM-urile?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3633"/>
+        <location filename="../qml/Main.qml" line="3651"/>
         <source>Move to which folder?</source>
         <translation>În ce folder muți?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3752"/>
+        <location filename="../qml/Main.qml" line="3770"/>
         <source>Remove from favourites</source>
         <translation>Scoate de la favorite</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3752"/>
+        <location filename="../qml/Main.qml" line="3770"/>
         <source>Add to favourites</source>
         <translation>Adaugă la favorite</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3822"/>
+        <location filename="../qml/Main.qml" line="3840"/>
         <source>Any length</source>
         <translation>Orice durată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3823"/>
+        <location filename="../qml/Main.qml" line="3841"/>
         <source>About an hour</source>
         <translation>Cam o oră</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3854"/>
-        <location filename="../qml/Main.qml" line="6906"/>
+        <location filename="../qml/Main.qml" line="3872"/>
+        <location filename="../qml/Main.qml" line="6924"/>
         <source>  ·  not installed</source>
         <translation>  ·  neinstalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3917"/>
+        <location filename="../qml/Main.qml" line="3935"/>
         <source>Add games</source>
         <translation>Adaugă jocuri</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3927"/>
+        <location filename="../qml/Main.qml" line="3945"/>
         <source>A game or app on this PC</source>
         <translation>Un joc sau o aplicație de pe acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3929"/>
+        <location filename="../qml/Main.qml" line="3947"/>
         <source>A Windows program (.exe) runs through Proton in its own prefix; a Linux program runs as it is. It gets covers, playtime, Options and TV mode like any other game.</source>
         <translation>Un program Windows (.exe) rulează prin Proton, în propriul prefix; un program Linux rulează ca atare. Primește coperte, timp de joc, Opțiuni și modul TV ca orice alt joc.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3933"/>
+        <location filename="../qml/Main.qml" line="3951"/>
         <source>No program chosen</source>
         <translation>Niciun program ales</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3935"/>
-        <location filename="../qml/Main.qml" line="6094"/>
-        <location filename="../qml/Main.qml" line="6653"/>
+        <location filename="../qml/Main.qml" line="3953"/>
+        <location filename="../qml/Main.qml" line="6112"/>
+        <location filename="../qml/Main.qml" line="6671"/>
         <source>Choose…</source>
         <translation>Alege…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3940"/>
+        <location filename="../qml/Main.qml" line="3958"/>
         <source>Name (optional: taken from the file)</source>
         <translation>Nume (opțional: luat din fișier)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3941"/>
+        <location filename="../qml/Main.qml" line="3959"/>
         <source>Arguments</source>
         <translation>Argumente</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3947"/>
+        <location filename="../qml/Main.qml" line="3965"/>
         <source>Games you already installed</source>
         <translation>Jocuri deja instalate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3952"/>
+        <location filename="../qml/Main.qml" line="3970"/>
         <source>GOG games: pick the folder they are in (or one game&apos;s folder); every GOG game there is found.</source>
         <translation>Jocuri GOG: alege folderul în care sunt (sau folderul unui joc); se găsește fiecare joc GOG de acolo.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3953"/>
+        <location filename="../qml/Main.qml" line="3971"/>
         <source>Choose folder…</source>
         <translation>Alege folderul…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3959"/>
+        <location filename="../qml/Main.qml" line="3977"/>
         <source>Epic</source>
         <translation>Epic</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3959"/>
+        <location filename="../qml/Main.qml" line="3977"/>
         <source>Amazon</source>
         <translation>Amazon</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3963"/>
+        <location filename="../qml/Main.qml" line="3981"/>
         <source>Its folder…</source>
         <translation>Folderul lui…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3971"/>
+        <location filename="../qml/Main.qml" line="3989"/>
         <source>Heroic has </source>
         <translation>Heroic are </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3971"/>
+        <location filename="../qml/Main.qml" line="3989"/>
         <source> installed game</source>
         <translation> joc instalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3971"/>
+        <location filename="../qml/Main.qml" line="3989"/>
         <source>. Bring them in (nothing is copied or downloaded).</source>
         <translation>. Adaugă-le (nimic nu se copiază sau descarcă).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3972"/>
+        <location filename="../qml/Main.qml" line="3990"/>
         <source>Import from Heroic</source>
         <translation>Importă din Heroic</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3978"/>
+        <location filename="../qml/Main.qml" line="3996"/>
         <source>Which program?</source>
         <translation>Care program?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3983"/>
+        <location filename="../qml/Main.qml" line="4001"/>
         <source>Which folder are the GOG games in?</source>
         <translation>În ce folder sunt jocurile GOG?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3988"/>
+        <location filename="../qml/Main.qml" line="4006"/>
         <source>Where is the game installed?</source>
         <translation>Unde este instalat jocul?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4010"/>
+        <location filename="../qml/Main.qml" line="4028"/>
         <source>Cornerplay is still fetching where games keep their saves; try again in a minute.</source>
         <translation>Cornerplay încă află unde își țin jocurile salvările; încearcă din nou peste un minut.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4025"/>
+        <location filename="../qml/Main.qml" line="4043"/>
         <source> file, </source>
         <translation> fișier, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4025"/>
+        <location filename="../qml/Main.qml" line="4043"/>
         <source> files, </source>
         <translation> fișiere, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4031"/>
+        <location filename="../qml/Main.qml" line="4049"/>
         <source>Really put back?</source>
         <translation>Sigur restaurezi?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4031"/>
+        <location filename="../qml/Main.qml" line="4049"/>
         <source>Restore</source>
         <translation>Restaurează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4040"/>
+        <location filename="../qml/Main.qml" line="4058"/>
         <source>Back up now</source>
         <translation>Salvează acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6342"/>
+        <location filename="../qml/Main.qml" line="6360"/>
         <source>After a graphics driver update, get games&apos; shaders ready again in the background (Steam&apos;s Fossilize; not for Steam games, Steam does it)</source>
         <translation>După un update de driver video, pregătește din nou shaderele jocurilor în fundal (Fossilize de la Steam; nu pentru jocurile Steam, Steam o face singur)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6344"/>
+        <location filename="../qml/Main.qml" line="6362"/>
         <source>On a game&apos;s page, what players with a PC like yours did to run it (ProtonDB&apos;s open data, about 70 MB once a month)</source>
         <translation>Pe pagina jocului, ce au făcut jucătorii cu un PC ca al tău ca să-l pornească (datele deschise ProtonDB, cam 70 MB o dată pe lună)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6386"/>
+        <location filename="../qml/Main.qml" line="6404"/>
         <source>Cornerplay %1</source>
         <translation>Cornerplay %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6387"/>
+        <location filename="../qml/Main.qml" line="6405"/>
         <source>runs from a git folder: updates come from GitHub with git pull</source>
         <translation>rulează dintr-un folder git: actualizările vin de pe GitHub cu git pull</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6388"/>
+        <location filename="../qml/Main.qml" line="6406"/>
         <source>installed by your package manager, which updates it</source>
         <translation>instalat de managerul de pachete, care îl actualizează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6389"/>
+        <location filename="../qml/Main.qml" line="6407"/>
         <source>updates come from GitHub&apos;s releases</source>
         <translation>actualizările vin din release-urile de pe GitHub</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6391"/>
+        <location filename="../qml/Main.qml" line="6409"/>
         <source>Check now</source>
         <translation>Verifică acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6462"/>
+        <location filename="../qml/Main.qml" line="6480"/>
         <source>The same as the game&apos;s Properties → Compatibility in Steam. Cornerplay closes and reopens Steam to change it; Steam downloads a Valve Proton the first time a game uses it. Launch options stay in Steam.</source>
         <translation>La fel ca Proprietăți → Compatibilitate în Steam. Cornerplay închide și redeschide Steam ca s-o schimbe; Steam descarcă un Proton de la Valve prima dată când un joc îl folosește. Opțiunile de lansare rămân în Steam.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6463"/>
+        <location filename="../qml/Main.qml" line="6481"/>
         <source>Steam is not set up on this PC yet: start Steam and sign in once.</source>
         <translation>Steam nu e configurat încă pe acest PC: pornește Steam și conectează-te o dată.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6501"/>
+        <location filename="../qml/Main.qml" line="6519"/>
         <source>Installed: the </source>
         <translation>Instalată: versiunea </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6501"/>
+        <location filename="../qml/Main.qml" line="6519"/>
         <source>Linux</source>
         <translation>Linux</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6501"/>
+        <location filename="../qml/Main.qml" line="6519"/>
         <source>Windows</source>
         <translation>Windows</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6501"/>
+        <location filename="../qml/Main.qml" line="6519"/>
         <source> version. To switch, pick the other one, then uninstall and install again.</source>
         <translation>. Ca s-o schimbi, alege-o pe cealaltă, apoi dezinstalează și instalează din nou.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6502"/>
+        <location filename="../qml/Main.qml" line="6520"/>
         <source>The Linux version runs without Proton (lighter, but old ones can need extra libraries); the Windows version runs through Proton.</source>
         <translation>Versiunea Linux merge fără Proton (mai ușoară, dar cele vechi pot cere biblioteci în plus); versiunea Windows merge prin Proton.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6535"/>
+        <location filename="../qml/Main.qml" line="6553"/>
         <source>gamescope is not installed, so this has no effect yet.</source>
         <translation>gamescope nu e instalat, așa că deocamdată nu are efect.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6582"/>
+        <location filename="../qml/Main.qml" line="6600"/>
         <source>Before it starts</source>
         <translation>Înainte să pornească</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6583"/>
+        <location filename="../qml/Main.qml" line="6601"/>
         <source>One command per line, each given up to a minute; end a line with &amp; to leave it running (Discord, a server).</source>
         <translation>O comandă pe rând, fiecare cu cel mult un minut; pune &amp; la final ca să rămână pornită (Discord, un server).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6588"/>
+        <location filename="../qml/Main.qml" line="6606"/>
         <source>After it closes</source>
         <translation>După ce se închide</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6590"/>
+        <location filename="../qml/Main.qml" line="6608"/>
         <source>Cornerplay cannot tell when this game closes, so these do not run for it.</source>
         <translation>Cornerplay nu poate ști când se închide acest joc, așa că acestea nu rulează pentru el.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6591"/>
+        <location filename="../qml/Main.qml" line="6609"/>
         <source>Run one after another once the game has closed.</source>
         <translation>Rulează una după alta după ce jocul s-a închis.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6599"/>
+        <location filename="../qml/Main.qml" line="6617"/>
         <source>+ Open Discord</source>
         <translation>+ Deschide Discord</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6599"/>
+        <location filename="../qml/Main.qml" line="6617"/>
         <source>+ Performance power mode while playing</source>
         <translation>+ Mod de performanță cât joci</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6600"/>
+        <location filename="../qml/Main.qml" line="6618"/>
         <source>+ Close Discord after</source>
         <translation>+ Închide Discord după</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6630"/>
+        <location filename="../qml/Main.qml" line="6648"/>
         <source>A fresh Proton prefix starts Windows settings from scratch. The old one is kept beside it (renamed), so saves stored there are not lost.</source>
         <translation>Un prefix Proton nou pornește setările Windows de la zero. Cel vechi e păstrat alături (redenumit), așa că salvările din el nu se pierd.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6631"/>
+        <location filename="../qml/Main.qml" line="6649"/>
         <source>Repair checks every file and downloads the broken or missing ones.</source>
         <translation>Repararea verifică fiecare fișier și le descarcă pe cele stricate sau lipsă.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6663"/>
+        <location filename="../qml/Main.qml" line="6681"/>
         <source>Images (*.png *.jpg *.jpeg *.webp)</source>
         <translation>Imagini (*.png *.jpg *.jpeg *.webp)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7034"/>
+        <location filename="../qml/Main.qml" line="7052"/>
         <source>Good session</source>
         <translation>Sesiune bună</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2085"/>
-        <location filename="../qml/Main.qml" line="7039"/>
+        <location filename="../qml/Main.qml" line="2103"/>
+        <location filename="../qml/Main.qml" line="7057"/>
         <source>You played </source>
         <translation>Ai jucat </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7039"/>
+        <location filename="../qml/Main.qml" line="7057"/>
         <source> · </source>
         <translation> · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7039"/>
+        <location filename="../qml/Main.qml" line="7057"/>
         <source> in total</source>
         <translation> în total</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7059"/>
+        <location filename="../qml/Main.qml" line="7077"/>
         <source>I finished it</source>
         <translation>L-am terminat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7062"/>
+        <location filename="../qml/Main.qml" line="7080"/>
         <source>Note</source>
         <translation>Notiță</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="7072"/>
+        <location filename="../qml/Main.qml" line="7090"/>
         <source>Where you got to, what to try next</source>
         <translation>Unde ai ajuns, ce încerci data viitoare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3764"/>
-        <location filename="../qml/Main.qml" line="4042"/>
+        <location filename="../qml/Main.qml" line="3782"/>
+        <location filename="../qml/Main.qml" line="4060"/>
         <source>Open folder</source>
         <translation>Deschide folderul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4066"/>
-        <location filename="../qml/Main.qml" line="5225"/>
+        <location filename="../qml/Main.qml" line="4084"/>
+        <location filename="../qml/Main.qml" line="5243"/>
         <source>Checking…</source>
         <translation>Se verifică…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4066"/>
+        <location filename="../qml/Main.qml" line="4084"/>
         <source> thing needs</source>
         <translation> lucru are nevoie</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4066"/>
+        <location filename="../qml/Main.qml" line="4084"/>
         <source> things need</source>
         <translation> lucruri au nevoie</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4066"/>
+        <location filename="../qml/Main.qml" line="4084"/>
         <source> fixing</source>
         <translation> de rezolvat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4105"/>
+        <location filename="../qml/Main.qml" line="4123"/>
         <source>Copy</source>
         <translation>Copiază</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4105"/>
+        <location filename="../qml/Main.qml" line="4123"/>
         <source>Fix</source>
         <translation>Rezolvă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4117"/>
-        <location filename="../qml/Main.qml" line="5940"/>
-        <location filename="../qml/Main.qml" line="5984"/>
+        <location filename="../qml/Main.qml" line="4135"/>
+        <location filename="../qml/Main.qml" line="5958"/>
+        <location filename="../qml/Main.qml" line="6002"/>
         <source>Check again</source>
         <translation>Verifică din nou</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4127"/>
+        <location filename="../qml/Main.qml" line="4145"/>
         <source>Not enough space for </source>
         <translation>Nu e destul spațiu pentru </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4127"/>
+        <location filename="../qml/Main.qml" line="4145"/>
         <source> would nearly fill your drive</source>
         <translation> ar umple aproape tot discul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4135"/>
+        <location filename="../qml/Main.qml" line="4153"/>
         <source>It needs about </source>
         <translation>Are nevoie de aproximativ </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4140"/>
+        <location filename="../qml/Main.qml" line="4158"/>
         <source>Big games you haven&apos;t played for three months:</source>
         <translation>Jocuri mari pe care nu le-ai jucat de trei luni:</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4145"/>
+        <location filename="../qml/Main.qml" line="4163"/>
         <source>Install anyway</source>
         <translation>Instalează oricum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4156"/>
+        <location filename="../qml/Main.qml" line="4174"/>
         <source>The game</source>
         <translation>Jocul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4156"/>
+        <location filename="../qml/Main.qml" line="4174"/>
         <source> closed right away</source>
         <translation> s-a închis imediat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4167"/>
-        <location filename="../qml/Main.qml" line="6636"/>
+        <location filename="../qml/Main.qml" line="4185"/>
+        <location filename="../qml/Main.qml" line="6654"/>
         <source>Repair files</source>
         <translation>Repară fișierele</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4169"/>
+        <location filename="../qml/Main.qml" line="4187"/>
         <source>Install Visual C++</source>
         <translation>Instalează Visual C++</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4171"/>
+        <location filename="../qml/Main.qml" line="4189"/>
         <source>Install .NET</source>
         <translation>Instalează .NET</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4174"/>
+        <location filename="../qml/Main.qml" line="4192"/>
         <source>Try another Proton</source>
         <translation>Încearcă alt Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4175"/>
+        <location filename="../qml/Main.qml" line="4193"/>
         <source>Use the Windows version</source>
         <translation>Folosește versiunea Windows</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4177"/>
+        <location filename="../qml/Main.qml" line="4195"/>
         <source>Open Health check</source>
         <translation>Deschide Verificarea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4181"/>
-        <location filename="../qml/Main.qml" line="6642"/>
+        <location filename="../qml/Main.qml" line="4199"/>
+        <location filename="../qml/Main.qml" line="6660"/>
         <source>Open log</source>
         <translation>Deschide jurnalul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4182"/>
+        <location filename="../qml/Main.qml" line="4200"/>
         <source>ProtonDB</source>
         <translation>ProtonDB</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4193"/>
+        <location filename="../qml/Main.qml" line="4211"/>
         <source>Your games in numbers</source>
         <translation>Jocurile tale în cifre</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4333"/>
+        <location filename="../qml/Main.qml" line="4351"/>
         <source>Last two weeks  ·  </source>
         <translation>Ultimele două săptămâni  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4333"/>
+        <location filename="../qml/Main.qml" line="4351"/>
         <source> h this week, </source>
         <translation> h săptămâna aceasta, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4333"/>
+        <location filename="../qml/Main.qml" line="4351"/>
         <source> h this month</source>
         <translation> h luna aceasta</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4404"/>
+        <location filename="../qml/Main.qml" line="4422"/>
         <source>Play sessions are logged from now on (games started from Cornerplay on Epic, GOG and Amazon); this chart fills in as you play. Steam only shares totals.</source>
         <translation>Sesiunile de joc se înregistrează de acum (jocuri pornite din Cornerplay pe Epic, GOG și Amazon); graficul se completează pe măsură ce joci. Steam oferă doar totaluri.</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="788"/>
-        <location filename="../qml/Main.qml" line="4464"/>
-        <location filename="../qml/Main.qml" line="4583"/>
+        <location filename="../qml/Main.qml" line="4482"/>
+        <location filename="../qml/Main.qml" line="4601"/>
         <source>Most played</source>
         <translation>Cele mai jucate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4498"/>
+        <location filename="../qml/Main.qml" line="4516"/>
         <source>By store</source>
         <translation>După magazin</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4729"/>
+        <location filename="../qml/Main.qml" line="4747"/>
         <source>Collections</source>
         <translation>Colecții</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4740"/>
+        <location filename="../qml/Main.qml" line="4758"/>
         <source>No collections yet. Make one for the games you play together, a backlog, anything.</source>
         <translation>Încă nu ai colecții. Fă una pentru jocurile jucate împreună, o listă de așteptare, orice.</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="603"/>
-        <location filename="../qml/Main.qml" line="4766"/>
-        <location filename="../qml/Main.qml" line="4803"/>
+        <location filename="../qml/Main.qml" line="4784"/>
+        <location filename="../qml/Main.qml" line="4821"/>
         <source>New collection</source>
         <translation>Colecție nouă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4820"/>
+        <location filename="../qml/Main.qml" line="4838"/>
         <source>Name, e.g. Co-op nights</source>
         <translation>Nume, ex. Seri co-op</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4824"/>
+        <location filename="../qml/Main.qml" line="4842"/>
         <source>Create</source>
         <translation>Creează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4850"/>
+        <location filename="../qml/Main.qml" line="4868"/>
         <source>Delete collection</source>
         <translation>Șterge colecția</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4929"/>
+        <location filename="../qml/Main.qml" line="4947"/>
         <source>Looking up DLC…</source>
         <translation>Se caută DLC…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4929"/>
+        <location filename="../qml/Main.qml" line="4947"/>
         <source>No DLC found for this game.</source>
         <translation>Nu s-a găsit niciun DLC pentru acest joc.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4937"/>
+        <location filename="../qml/Main.qml" line="4955"/>
         <source>Install all owned DLC</source>
         <translation>Instalează toate DLC-urile deținute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4945"/>
+        <location filename="../qml/Main.qml" line="4963"/>
         <source>Installing DLC… </source>
         <translation>Se instalează DLC… </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4962"/>
+        <location filename="../qml/Main.qml" line="4980"/>
         <source>Owned</source>
         <translation>Deținut</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4964"/>
+        <location filename="../qml/Main.qml" line="4982"/>
         <source>Not owned</source>
         <translation>Nedeținut</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5050"/>
+        <location filename="../qml/Main.qml" line="5068"/>
         <source>Open in Steam</source>
         <translation>Deschide în Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5050"/>
+        <location filename="../qml/Main.qml" line="5068"/>
         <source>Store page</source>
         <translation>Pagina din magazin</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5130"/>
+        <location filename="../qml/Main.qml" line="5148"/>
         <source>Showing installed games and games you have played. For every game you own, </source>
         <translation>Se arată jocurile instalate și cele jucate. Pentru toate jocurile deținute, </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5139"/>
+        <location filename="../qml/Main.qml" line="5157"/>
         <source>Unlink account</source>
         <translation>Dezleagă contul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5139"/>
+        <location filename="../qml/Main.qml" line="5157"/>
         <source>Link account</source>
         <translation>Leagă contul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5146"/>
+        <location filename="../qml/Main.qml" line="5164"/>
         <source>Sign out</source>
         <translation>Deconectează-te</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5155"/>
+        <location filename="../qml/Main.qml" line="5173"/>
         <source>Open</source>
         <translation>Deschide</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5155"/>
+        <location filename="../qml/Main.qml" line="5173"/>
         <source>Sign in</source>
         <translation>Conectează-te</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5168"/>
+        <location filename="../qml/Main.qml" line="5186"/>
         <source>Sign-ins happen in your browser or in the store&apos;s own client. Cornerplay never sees your passwords; it only keeps the session tokens the stores hand back.</source>
         <translation>Conectarea se face în browser sau în clientul magazinului. Cornerplay nu vede niciodată parolele; păstrează doar tokenurile de sesiune primite de la magazine.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5182"/>
+        <location filename="../qml/Main.qml" line="5200"/>
         <source>Sign in to </source>
         <translation>Conectează-te la </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5202"/>
+        <location filename="../qml/Main.qml" line="5220"/>
         <source>Open login page again</source>
         <translation>Redeschide pagina de conectare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5203"/>
+        <location filename="../qml/Main.qml" line="5221"/>
         <source>Copy link</source>
         <translation>Copiază linkul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5203"/>
+        <location filename="../qml/Main.qml" line="5221"/>
         <source>Link copied</source>
         <translation>Link copiat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5209"/>
+        <location filename="../qml/Main.qml" line="5227"/>
         <source>Paste here</source>
         <translation>Lipește aici</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5225"/>
+        <location filename="../qml/Main.qml" line="5243"/>
         <source>Finish sign-in</source>
         <translation>Termină conectarea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5576"/>
+        <location filename="../qml/Main.qml" line="5594"/>
         <source>Find a setting (e.g. proton, cover, sync)</source>
         <translation>Caută o setare (ex. proton, copertă, sincronizare)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5583"/>
+        <location filename="../qml/Main.qml" line="5601"/>
         <source>Appearance</source>
         <translation>Aspect</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5583"/>
+        <location filename="../qml/Main.qml" line="5601"/>
         <source>Games &amp; Proton</source>
         <translation>Jocuri și Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5584"/>
+        <location filename="../qml/Main.qml" line="5602"/>
         <source>People &amp; sync</source>
         <translation>Persoane și sincronizare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5585"/>
+        <location filename="../qml/Main.qml" line="5603"/>
         <source>Advanced</source>
         <translation>Avansat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5620"/>
+        <location filename="../qml/Main.qml" line="5638"/>
         <source>Theme</source>
         <translation>Temă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5621"/>
+        <location filename="../qml/Main.qml" line="5639"/>
         <source>Follow wallpaper picks Cornerplay&apos;s colours from your desktop wallpaper and changes with it. Works with Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) and Sway.</source>
         <translation>Urmează imaginea de fundal ia culorile Cornerplay din imaginea de fundal a desktopului și se schimbă odată cu ea. Merge cu Ryoku, GNOME, KDE, Xfce, Cinnamon, MATE, Hyprland (hyprpaper, swww) și Sway.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5626"/>
+        <location filename="../qml/Main.qml" line="5644"/>
         <source>Follow wallpaper</source>
         <translation>Urmează imaginea de fundal</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5640"/>
+        <location filename="../qml/Main.qml" line="5658"/>
         <source>Custom</source>
         <translation>Personalizat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5690"/>
+        <location filename="../qml/Main.qml" line="5708"/>
         <source>Accent colour</source>
         <translation>Culoare de accent</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5700"/>
+        <location filename="../qml/Main.qml" line="5718"/>
         <source>Background colour</source>
         <translation>Culoare de fundal</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5701"/>
+        <location filename="../qml/Main.qml" line="5719"/>
         <source>Picking a colour switches to a custom theme; text and panel shades are worked out from these two.</source>
         <translation>Alegerea unei culori trece la o temă personalizată; nuanțele textului și ale panourilor se calculează din acestea două.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5759"/>
+        <location filename="../qml/Main.qml" line="5777"/>
         <source>Interface size (text and buttons)</source>
         <translation>Mărimea interfeței (text și butoane)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5760"/>
-        <location filename="../qml/Main.qml" line="5775"/>
+        <location filename="../qml/Main.qml" line="5778"/>
+        <location filename="../qml/Main.qml" line="5793"/>
         <source>Applies after a restart.</source>
         <translation>Se aplică după repornire.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5763"/>
+        <location filename="../qml/Main.qml" line="5781"/>
         <source>Automatic (bigger on large unscaled screens)</source>
         <translation>Automat (mai mare pe ecrane mari nescalate)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5764"/>
+        <location filename="../qml/Main.qml" line="5782"/>
         <source>Normal (100%)</source>
         <translation>Normal (100%)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5764"/>
+        <location filename="../qml/Main.qml" line="5782"/>
         <source>Larger (115%)</source>
         <translation>Mai mare (115%)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5765"/>
+        <location filename="../qml/Main.qml" line="5783"/>
         <source>Larger still (130%)</source>
         <translation>Și mai mare (130%)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5766"/>
+        <location filename="../qml/Main.qml" line="5784"/>
         <source>200% (4K at 100%)</source>
         <translation>200% (4K la 100%)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5774"/>
+        <location filename="../qml/Main.qml" line="5792"/>
         <source>Language</source>
         <translation>Limbă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5778"/>
+        <location filename="../qml/Main.qml" line="5796"/>
         <source>Automatic (the system&apos;s)</source>
         <translation>Automat (limba sistemului)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5771"/>
+        <location filename="../qml/Main.qml" line="5789"/>
         <source>Restart now</source>
         <translation>Repornește acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4229"/>
+        <location filename="../qml/Main.qml" line="4247"/>
         <source>Overview</source>
         <translation>Pe scurt</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4230"/>
+        <location filename="../qml/Main.qml" line="4248"/>
         <source>Your year</source>
         <translation>Anul tău</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4408"/>
+        <location filename="../qml/Main.qml" line="4426"/>
         <source>Last 12 weeks</source>
         <translation>Ultimele 12 săptămâni</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4441"/>
+        <location filename="../qml/Main.qml" line="4459"/>
         <source>Backlog</source>
         <translation>Lista de jucat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4446"/>
+        <location filename="../qml/Main.qml" line="4464"/>
         <source>Mark games as Playing, Want to play or Finished (a game&apos;s page, or right-click a cover) to see how far through your backlog you are.</source>
         <translation>Marchează jocurile ca Joc acum, Vreau să joc sau Terminat (pagina jocului, sau clic dreapta pe copertă) ca să vezi cât ai terminat din lista ta.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4453"/>
+        <location filename="../qml/Main.qml" line="4471"/>
         <source> of </source>
         <translation> din </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4454"/>
+        <location filename="../qml/Main.qml" line="4472"/>
         <source> finished  ·  </source>
         <translation> terminate  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4528"/>
+        <location filename="../qml/Main.qml" line="4546"/>
         <source>Your </source>
         <translation>Anul </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4528"/>
+        <location filename="../qml/Main.qml" line="4546"/>
         <source> in Cornerplay</source>
         <translation> în Cornerplay</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4533"/>
+        <location filename="../qml/Main.qml" line="4551"/>
         <source>played</source>
         <translation>jucate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4534"/>
+        <location filename="../qml/Main.qml" line="4552"/>
         <source>games played</source>
         <translation>jocuri jucate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4535"/>
+        <location filename="../qml/Main.qml" line="4553"/>
         <source>started for the first time</source>
         <translation>începute prima dată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4536"/>
+        <location filename="../qml/Main.qml" line="4554"/>
         <source>finished</source>
         <translation>terminate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4542"/>
+        <location filename="../qml/Main.qml" line="4560"/>
         <source>Hours fill in from the play sessions Cornerplay sees: the games it starts, and Steam games while Cornerplay is running (start it with the PC in Settings &gt; Advanced to catch them all).</source>
         <translation>Orele se adună din sesiunile pe care le vede Cornerplay: jocurile pe care le pornește și jocurile Steam cât timp Cornerplay rulează (pornește-l odată cu PC-ul din Setări &gt; Avansat ca să le prinzi pe toate).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4549"/>
+        <location filename="../qml/Main.qml" line="4567"/>
         <source>Busiest month: </source>
         <translation>Luna cea mai plină: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4550"/>
+        <location filename="../qml/Main.qml" line="4568"/>
         <source>  ·  Longest session: </source>
         <translation>  ·  Cea mai lungă sesiune: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4604"/>
+        <location filename="../qml/Main.qml" line="4622"/>
         <source>Started for the first time</source>
         <translation>Începute prima dată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4627"/>
+        <location filename="../qml/Main.qml" line="4645"/>
         <source>under a minute left</source>
         <translation>sub un minut rămas</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4627"/>
-        <location filename="../qml/Main.qml" line="4628"/>
+        <location filename="../qml/Main.qml" line="4645"/>
+        <location filename="../qml/Main.qml" line="4646"/>
         <source> min left</source>
         <translation> min rămase</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4635"/>
+        <location filename="../qml/Main.qml" line="4653"/>
         <source>Nothing is downloading.</source>
         <translation>Nu se descarcă nimic.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4671"/>
+        <location filename="../qml/Main.qml" line="4689"/>
         <source>Installing</source>
         <translation>Se instalează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4671"/>
+        <location filename="../qml/Main.qml" line="4689"/>
         <source>Updating</source>
         <translation>Se actualizează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4671"/>
+        <location filename="../qml/Main.qml" line="4689"/>
         <source>Installing DLC</source>
         <translation>Se instalează DLC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4672"/>
+        <location filename="../qml/Main.qml" line="4690"/>
         <source>Checking files</source>
         <translation>Se verifică fișierele</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4672"/>
+        <location filename="../qml/Main.qml" line="4690"/>
         <source>Moving</source>
         <translation>Se mută</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4672"/>
+        <location filename="../qml/Main.qml" line="4690"/>
         <source>Fixing</source>
         <translation>Se repară</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4673"/>
+        <location filename="../qml/Main.qml" line="4691"/>
         <source>Waiting its turn  ·  </source>
         <translation>Își așteaptă rândul  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4674"/>
+        <location filename="../qml/Main.qml" line="4692"/>
         <source>Paused</source>
         <translation>În pauză</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4691"/>
+        <location filename="../qml/Main.qml" line="4709"/>
         <source>Earlier</source>
         <translation>Mai devreme</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4694"/>
+        <location filename="../qml/Main.qml" line="4712"/>
         <source>Later</source>
         <translation>Mai târziu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4695"/>
+        <location filename="../qml/Main.qml" line="4713"/>
         <source>Pause</source>
         <translation>Pauză</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4707"/>
+        <location filename="../qml/Main.qml" line="4725"/>
         <source>Speed limit</source>
         <translation>Limită de viteză</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4711"/>
-        <location filename="../qml/Main.qml" line="6138"/>
+        <location filename="../qml/Main.qml" line="4729"/>
+        <location filename="../qml/Main.qml" line="6156"/>
         <source>none</source>
         <translation>fără</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4716"/>
+        <location filename="../qml/Main.qml" line="4734"/>
         <source>MB/s for Epic, GOG and Amazon (empty: as fast as it goes)</source>
         <translation>MB/s pentru Epic, GOG și Amazon (gol: cât de repede merge)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5784"/>
+        <location filename="../qml/Main.qml" line="5802"/>
         <source>Cover shadows</source>
         <translation>Umbrele copertelor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5787"/>
+        <location filename="../qml/Main.qml" line="5805"/>
         <source>None (flat)</source>
         <translation>Fără (plat)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5787"/>
+        <location filename="../qml/Main.qml" line="5805"/>
         <source>Soft</source>
         <translation>Moale</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5787"/>
+        <location filename="../qml/Main.qml" line="5805"/>
         <source>Deep</source>
         <translation>Adâncă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5792"/>
+        <location filename="../qml/Main.qml" line="5810"/>
         <source>Show the wallpaper behind Cornerplay (blurred)</source>
         <translation>Arată imaginea de fundal în spatele Cornerplay (estompată)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5793"/>
+        <location filename="../qml/Main.qml" line="5811"/>
         <source>Play a game&apos;s trailer inside its cover while pointed at</source>
         <translation>Redă trailerul unui joc în copertă când e indicat cu mouse-ul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5794"/>
+        <location filename="../qml/Main.qml" line="5812"/>
         <source>Warmer colours in the evening and at night</source>
         <translation>Culori mai calde seara și noaptea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5795"/>
+        <location filename="../qml/Main.qml" line="5813"/>
         <source>TV mode: covers reflected on the shelf</source>
         <translation>Mod TV: coperte reflectate pe raft</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5796"/>
+        <location filename="../qml/Main.qml" line="5814"/>
         <source>TV mode: start-up animation and chime</source>
         <translation>Mod TV: animație și sunet la pornire</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5799"/>
+        <location filename="../qml/Main.qml" line="5817"/>
         <source>Back to normal tiles</source>
         <translation>Înapoi la plăci normale</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5799"/>
+        <location filename="../qml/Main.qml" line="5817"/>
         <source>Large tiles (touchscreens)</source>
         <translation>Plăci mari (ecrane tactile)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5804"/>
+        <location filename="../qml/Main.qml" line="5822"/>
         <source>Corner roundness</source>
         <translation>Rotunjirea colțurilor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5812"/>
+        <location filename="../qml/Main.qml" line="5830"/>
         <source>Show the store on a cover when pointed at</source>
         <translation>Arată magazinul pe copertă când e indicată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5813"/>
+        <location filename="../qml/Main.qml" line="5831"/>
         <source>Always show game titles</source>
         <translation>Arată mereu titlurile jocurilor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5814"/>
+        <location filename="../qml/Main.qml" line="5832"/>
         <source>Dim games that are not installed</source>
         <translation>Estompează jocurile neinstalate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5815"/>
+        <location filename="../qml/Main.qml" line="5833"/>
         <source>TV mode: play the focused game&apos;s trailer (muted)</source>
         <translation>Mod TV: redă trailerul jocului selectat (fără sunet)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5816"/>
+        <location filename="../qml/Main.qml" line="5834"/>
         <source>TV mode: animated covers and banners (SteamGridDB key needed; only when plugged in)</source>
         <translation>Mod TV: coperte și bannere animate (necesită cheie SteamGridDB; doar când e la priză)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5817"/>
+        <location filename="../qml/Main.qml" line="5835"/>
         <source>TV mode: soft sounds when moving and choosing</source>
         <translation>Mod TV: sunete discrete la navigare și alegere</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5835"/>
+        <location filename="../qml/Main.qml" line="5853"/>
         <source>Show the ProtonDB rating on a cover when pointed at</source>
         <translation>Arată nota ProtonDB pe copertă când e indicată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5837"/>
+        <location filename="../qml/Main.qml" line="5855"/>
         <source>Retro games (ROM folders)</source>
         <translation>Jocuri retro (foldere ROM)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5843"/>
+        <location filename="../qml/Main.qml" line="5861"/>
         <source>Add folder</source>
         <translation>Adaugă folder</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4844"/>
-        <location filename="../qml/Main.qml" line="5844"/>
+        <location filename="../qml/Main.qml" line="4862"/>
+        <location filename="../qml/Main.qml" line="5862"/>
         <source>Clear</source>
         <translation>Golește</translation>
     </message>
@@ -2056,9 +2149,9 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="397"/>
-        <location filename="../qml/Main.qml" line="1971"/>
-        <location filename="../qml/Main.qml" line="2290"/>
-        <location filename="../qml/Main.qml" line="2450"/>
+        <location filename="../qml/Main.qml" line="1989"/>
+        <location filename="../qml/Main.qml" line="2308"/>
+        <location filename="../qml/Main.qml" line="2468"/>
         <source>Screenshots</source>
         <translation>Capturi de ecran</translation>
     </message>
@@ -2069,8 +2162,8 @@
     </message>
     <message>
         <location filename="../qml/Main.qml" line="398"/>
-        <location filename="../qml/Main.qml" line="2104"/>
-        <location filename="../qml/Main.qml" line="2291"/>
+        <location filename="../qml/Main.qml" line="2122"/>
+        <location filename="../qml/Main.qml" line="2309"/>
         <source>Play with friends</source>
         <translation>Joacă cu prietenii</translation>
     </message>
@@ -2175,1736 +2268,1736 @@
         <translation>A apărut Cornerplay %1.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1318"/>
+        <location filename="../qml/Main.qml" line="1322"/>
         <source>%1 games</source>
         <translation>%1 jocuri</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1475"/>
+        <location filename="../qml/Main.qml" line="1479"/>
         <source>Free from </source>
         <translation>Gratuit de la </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1647"/>
+        <location filename="../qml/Main.qml" line="1651"/>
         <source>Favourites</source>
         <translation>Favorite</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1714"/>
+        <location filename="../qml/Main.qml" line="1730"/>
         <source>%1 picked</source>
         <translation>%1 alese</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1717"/>
-        <location filename="../qml/Main.qml" line="1717"/>
+        <location filename="../qml/Main.qml" line="1733"/>
+        <location filename="../qml/Main.qml" line="1733"/>
         <source>Collection</source>
         <translation>Colecție</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1728"/>
+        <location filename="../qml/Main.qml" line="1744"/>
         <source>Clear (Esc)</source>
         <translation>Golește (Esc)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1932"/>
+        <location filename="../qml/Main.qml" line="1950"/>
         <source>Loading your libraries…</source>
         <translation>Se încarcă bibliotecile tale…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1933"/>
+        <location filename="../qml/Main.qml" line="1951"/>
         <source>Your corner is empty</source>
         <translation>Colțul tău e gol</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1933"/>
+        <location filename="../qml/Main.qml" line="1951"/>
         <source>Nothing matches</source>
         <translation>Nimic nu se potrivește</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1943"/>
+        <location filename="../qml/Main.qml" line="1961"/>
         <source>Connect your stores in Accounts and every game you own settles in here.</source>
         <translation>Conectează-ți magazinele din Conturi și fiecare joc pe care îl ai se adună aici.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1944"/>
+        <location filename="../qml/Main.qml" line="1962"/>
         <source>No game called “</source>
         <translation>Niciun joc numit „</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1944"/>
+        <location filename="../qml/Main.qml" line="1962"/>
         <source> with these filters.</source>
         <translation> cu aceste filtre.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1945"/>
+        <location filename="../qml/Main.qml" line="1963"/>
         <source>This list is empty. Add games to it from a game&apos;s page.</source>
         <translation>Lista e goală. Adaugă jocuri în ea din pagina unui joc.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1946"/>
+        <location filename="../qml/Main.qml" line="1964"/>
         <source>No games match these filters.</source>
         <translation>Niciun joc nu se potrivește cu aceste filtre.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1985"/>
+        <location filename="../qml/Main.qml" line="2003"/>
         <source> screenshots of </source>
         <translation> capturi din </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1994"/>
+        <location filename="../qml/Main.qml" line="2012"/>
         <source>No screenshots yet</source>
         <translation>Încă nicio captură de ecran</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1998"/>
+        <location filename="../qml/Main.qml" line="2016"/>
         <source>Take one in a game with F12 (Steam) or your desktop&apos;s screenshot key: pictures in ~/Pictures and ~/Pictures/Screenshots taken while a game ran show up here under that game.</source>
         <translation>Fă una într-un joc cu F12 (Steam) sau cu tasta de captură a desktopului: pozele din ~/Pictures și ~/Pictures/Screenshots făcute cât rula un joc apar aici, la jocul respectiv.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2025"/>
+        <location filename="../qml/Main.qml" line="2043"/>
         <source>Game page</source>
         <translation>Pagina jocului</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2063"/>
+        <location filename="../qml/Main.qml" line="2081"/>
         <source>Show all </source>
         <translation>Arată toate </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2075"/>
+        <location filename="../qml/Main.qml" line="2093"/>
         <source>A newer save on another PC</source>
         <translation>O salvare mai nouă pe alt PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2085"/>
+        <location filename="../qml/Main.qml" line="2103"/>
         <source> on </source>
         <translation> pe </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2086"/>
+        <location filename="../qml/Main.qml" line="2104"/>
         <source>), after the saves on this PC.</source>
         <translation>), după salvările de pe acest PC.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2090"/>
+        <location filename="../qml/Main.qml" line="2108"/>
         <source>Using it keeps a backup of this PC&apos;s saves first (a game&apos;s More &gt; Save backups brings them back).</source>
         <translation>Înainte se face o copie a salvărilor de pe acest PC (le recuperezi din Mai mult &gt; Copii ale salvărilor).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2093"/>
+        <location filename="../qml/Main.qml" line="2111"/>
         <source>Use the save from </source>
         <translation>Folosește salvarea de pe </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2093"/>
+        <location filename="../qml/Main.qml" line="2111"/>
         <source> and play</source>
         <translation> și joacă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2095"/>
+        <location filename="../qml/Main.qml" line="2113"/>
         <source>Keep this PC&apos;s save and play</source>
         <translation>Păstrează salvarea de aici și joacă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2141"/>
+        <location filename="../qml/Main.qml" line="2159"/>
         <source>Who&apos;s in?</source>
         <translation>Cine joacă?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2193"/>
+        <location filename="../qml/Main.qml" line="2211"/>
         <source>Multiplayer games you share</source>
         <translation>Jocuri multiplayer pe care le aveți</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2193"/>
+        <location filename="../qml/Main.qml" line="2211"/>
         <source>Pick who&apos;s in to see the games you share</source>
         <translation>Alege cine joacă ca să vezi jocurile comune</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2198"/>
+        <location filename="../qml/Main.qml" line="2216"/>
         <source>No multiplayer game you all own (or their game details are private on Steam).</source>
         <translation>Niciun joc multiplayer pe care să-l aveți toți (sau detaliile jocurilor lor sunt private pe Steam).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2224"/>
+        <location filename="../qml/Main.qml" line="2242"/>
         <source>Everyone has it</source>
         <translation>Îl au toți</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2224"/>
+        <location filename="../qml/Main.qml" line="2242"/>
         <source>Has it: </source>
         <translation>Îl are: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2225"/>
+        <location filename="../qml/Main.qml" line="2243"/>
         <source> h between them</source>
         <translation> h împreună</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2232"/>
+        <location filename="../qml/Main.qml" line="2250"/>
         <source>Copy invite</source>
         <translation>Copiază invitația</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2251"/>
+        <location filename="../qml/Main.qml" line="2269"/>
         <source>Change Proton for a Denuvo game?</source>
         <translation>Schimbi Proton-ul unui joc cu Denuvo?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2263"/>
+        <location filename="../qml/Main.qml" line="2281"/>
         <source>This game uses Denuvo. It can take a new Proton version for a new PC, and after a few changes in a day it locks the game until the next day. Change it only if the game does not run as it is.</source>
         <translation>Jocul folosește Denuvo. O versiune nouă de Proton poate părea un PC nou, iar după câteva schimbări într-o zi blochează jocul până a doua zi. Schimbă-l doar dacă jocul nu merge așa cum e.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2268"/>
+        <location filename="../qml/Main.qml" line="2286"/>
         <source>Keep it</source>
         <translation>Lasă-l așa</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2269"/>
+        <location filename="../qml/Main.qml" line="2287"/>
         <source>Change it</source>
         <translation>Schimbă-l</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2296"/>
+        <location filename="../qml/Main.qml" line="2314"/>
         <source>Installed games only</source>
         <translation>Doar jocurile instalate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2298"/>
+        <location filename="../qml/Main.qml" line="2316"/>
         <source>View: Covers</source>
         <translation>Afișare: coperte</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2299"/>
+        <location filename="../qml/Main.qml" line="2317"/>
         <source>View: List</source>
         <translation>Afișare: listă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2300"/>
+        <location filename="../qml/Main.qml" line="2318"/>
         <source>View: Logos</source>
         <translation>Afișare: sigle</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2301"/>
+        <location filename="../qml/Main.qml" line="2319"/>
         <source>View: Shelves</source>
         <translation>Afișare: rafturi</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2308"/>
+        <location filename="../qml/Main.qml" line="2326"/>
         <source>Show </source>
         <translation>Arată </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2337"/>
+        <location filename="../qml/Main.qml" line="2355"/>
         <source>Jump to a game or an action…</source>
         <translation>Sari la un joc sau la o acțiune…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2372"/>
+        <location filename="../qml/Main.qml" line="2390"/>
         <source>GAMES</source>
         <translation>JOCURI</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2372"/>
+        <location filename="../qml/Main.qml" line="2390"/>
         <source>RECENT</source>
         <translation>RECENTE</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2372"/>
+        <location filename="../qml/Main.qml" line="2390"/>
         <source>ACTIONS</source>
         <translation>ACȚIUNI</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2402"/>
+        <location filename="../qml/Main.qml" line="2420"/>
         <source> · not installed</source>
         <translation> · neinstalat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2409"/>
+        <location filename="../qml/Main.qml" line="2427"/>
         <source>Enter page  ·  Shift+Enter play</source>
         <translation>Enter pagina  ·  Shift+Enter joacă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2425"/>
+        <location filename="../qml/Main.qml" line="2443"/>
         <source>Nothing found for “</source>
         <translation>Nu am găsit nimic pentru „</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2447"/>
+        <location filename="../qml/Main.qml" line="2465"/>
         <source>Jump to a game or an action</source>
         <translation>Sari la un joc sau la o acțiune</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2696"/>
+        <location filename="../qml/Main.qml" line="2714"/>
         <source>Starting…</source>
         <translation>Pornește…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2697"/>
+        <location filename="../qml/Main.qml" line="2715"/>
         <source>Updating  </source>
         <translation>Se actualizează  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2697"/>
+        <location filename="../qml/Main.qml" line="2715"/>
         <source>Installing DLC  </source>
         <translation>Se instalează DLC  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2697"/>
+        <location filename="../qml/Main.qml" line="2715"/>
         <source>Installing  </source>
         <translation>Se instalează  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2720"/>
+        <location filename="../qml/Main.qml" line="2738"/>
         <source>Sign in and install Blizzard games inside this app; installed games then show up here as their own tiles.</source>
         <translation>Conectează-te și instalează jocuri Blizzard din această aplicație; cele instalate apar apoi aici, fiecare separat.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2721"/>
+        <location filename="../qml/Main.qml" line="2739"/>
         <source>Installs Blizzard&apos;s launcher under Proton. Its own setup window opens; the first run also downloads Proton.</source>
         <translation>Instalează launcherul Blizzard prin Proton. Se deschide fereastra lui de instalare; prima rulare descarcă și Proton.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2915"/>
+        <location filename="../qml/Main.qml" line="2933"/>
         <source>🎮  Partial controller support</source>
         <translation>🎮  Suport parțial pentru controller</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2916"/>
+        <location filename="../qml/Main.qml" line="2934"/>
         <source>⌨  Mouse and keyboard</source>
         <translation>⌨  Mouse și tastatură</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="2917"/>
+        <location filename="../qml/Main.qml" line="2935"/>
         <source>  ·  set up ↗</source>
         <translation>  ·  configurează ↗</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3085"/>
+        <location filename="../qml/Main.qml" line="3103"/>
         <source>Runs well on this PC</source>
         <translation>Merge bine pe acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3085"/>
+        <location filename="../qml/Main.qml" line="3103"/>
         <source>Should run on this PC</source>
         <translation>Ar trebui să meargă pe acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3085"/>
+        <location filename="../qml/Main.qml" line="3103"/>
         <source>Borderline on this PC: lower settings</source>
         <translation>La limită pe acest PC: setări mai mici</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3086"/>
+        <location filename="../qml/Main.qml" line="3104"/>
         <source>Probably too much for this PC</source>
         <translation>Probabil prea greu pentru acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3086"/>
+        <location filename="../qml/Main.qml" line="3104"/>
         <source>Players report it does not run on Linux</source>
         <translation>Jucătorii spun că nu merge pe Linux</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3086"/>
+        <location filename="../qml/Main.qml" line="3104"/>
         <source>On this PC</source>
         <translation>Pe acest PC</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3091"/>
+        <location filename="../qml/Main.qml" line="3109"/>
         <source> GB RAM</source>
         <translation> GB RAM</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3096"/>
+        <location filename="../qml/Main.qml" line="3114"/>
         <source>Players with a PC like yours</source>
         <translation>Jucători cu un PC ca al tău</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3122"/>
+        <location filename="../qml/Main.qml" line="3140"/>
         <source>your graphics card</source>
         <translation>placa ta video</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3122"/>
+        <location filename="../qml/Main.qml" line="3140"/>
         <source>a similar card</source>
         <translation>o placă asemănătoare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3128"/>
+        <location filename="../qml/Main.qml" line="3146"/>
         <source>Copy launch options</source>
         <translation>Copiază opțiunile de lansare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3128"/>
+        <location filename="../qml/Main.qml" line="3146"/>
         <source>Use these settings</source>
         <translation>Folosește aceste setări</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3141"/>
+        <location filename="../qml/Main.qml" line="3159"/>
         <source>Proton: </source>
         <translation>Proton: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3154"/>
+        <location filename="../qml/Main.qml" line="3172"/>
         <source>From ProtonDB reports (open data, updated monthly)</source>
         <translation>Din rapoartele ProtonDB (date deschise, actualizate lunar)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3165"/>
+        <location filename="../qml/Main.qml" line="3183"/>
         <source>Its anti-cheat needs Steam&apos;s free %1 (Cornerplay uses it by itself once it is installed).</source>
         <translation>Anti-cheat-ul lui are nevoie de %1, gratuit în Steam (Cornerplay îl folosește singur după ce e instalat).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3168"/>
+        <location filename="../qml/Main.qml" line="3186"/>
         <source>Install in Steam</source>
         <translation>Instalează în Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3169"/>
+        <location filename="../qml/Main.qml" line="3187"/>
         <source>Steam is installing it; open the game&apos;s page again afterwards</source>
         <translation>Steam îl instalează; deschide din nou pagina jocului după aceea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3179"/>
+        <location filename="../qml/Main.qml" line="3197"/>
         <source>Uses Denuvo: each change of Proton version can count as a new PC, and Denuvo allows only a few a day. Pick one that works and keep it.</source>
         <translation>Folosește Denuvo: fiecare schimbare de Proton poate conta ca un PC nou, iar Denuvo permite doar câteva pe zi. Alege una care merge și păstreaz-o.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3195"/>
+        <location filename="../qml/Main.qml" line="3213"/>
         <source>needs </source>
         <translation>cere </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3214"/>
+        <location filename="../qml/Main.qml" line="3232"/>
         <source>If it misbehaves, try</source>
         <translation>Dacă face figuri, încearcă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3254"/>
+        <location filename="../qml/Main.qml" line="3272"/>
         <source>Your sessions</source>
         <translation>Sesiunile tale</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3256"/>
+        <location filename="../qml/Main.qml" line="3274"/>
         <source> in all</source>
         <translation> în total</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3256"/>
+        <location filename="../qml/Main.qml" line="3274"/>
         <source>  ·  </source>
         <translation>  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3256"/>
+        <location filename="../qml/Main.qml" line="3274"/>
         <source> h in the last 30 days</source>
         <translation> h în ultimele 30 de zile</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3290"/>
+        <location filename="../qml/Main.qml" line="3308"/>
         <source>How it ran</source>
         <translation>Cum a mers</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3305"/>
+        <location filename="../qml/Main.qml" line="3323"/>
         <source>1% low </source>
         <translation>1% minim </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3308"/>
+        <location filename="../qml/Main.qml" line="3326"/>
         <source> min  ·  </source>
         <translation> min  ·  </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3310"/>
+        <location filename="../qml/Main.qml" line="3328"/>
         <source> stutters</source>
         <translation> sacadări</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3310"/>
+        <location filename="../qml/Main.qml" line="3328"/>
         <source>smooth</source>
         <translation>fluid</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3311"/>
+        <location filename="../qml/Main.qml" line="3329"/>
         <source>  ·  GPU </source>
         <translation>  ·  GPU </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3312"/>
+        <location filename="../qml/Main.qml" line="3330"/>
         <source>  ·  CPU </source>
         <translation>  ·  CPU </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3322"/>
+        <location filename="../qml/Main.qml" line="3340"/>
         <source>By Proton version</source>
         <translation>După versiunea Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3328"/>
+        <location filename="../qml/Main.qml" line="3346"/>
         <source> fps, 1% low </source>
         <translation> fps, 1% minim </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3329"/>
+        <location filename="../qml/Main.qml" line="3347"/>
         <source> stutters a session</source>
         <translation> sacadări pe sesiune</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3532"/>
+        <location filename="../qml/Main.qml" line="3550"/>
         <source>Nothing to clear: every big game was played lately.</source>
         <translation>Nimic de eliberat: toate jocurile mari au fost jucate de curând.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3538"/>
+        <location filename="../qml/Main.qml" line="3556"/>
         <source>No games installed yet: what you install shows here by size.</source>
         <translation>Niciun joc instalat încă: ce instalezi apare aici, după mărime.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3569"/>
+        <location filename="../qml/Main.qml" line="3587"/>
         <source>played </source>
         <translation>jucat </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3618"/>
+        <location filename="../qml/Main.qml" line="3636"/>
         <source>Cornerplay backups (Cornerplay-backup-*.zip)</source>
         <translation>Copii Cornerplay (Cornerplay-backup-*.zip)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3618"/>
+        <location filename="../qml/Main.qml" line="3636"/>
         <source>Zip files (*.zip)</source>
         <translation>Fișiere zip (*.zip)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3698"/>
+        <location filename="../qml/Main.qml" line="3716"/>
         <source>No collections yet: make one with the + next to Your lists in the sidebar.</source>
         <translation>Nicio colecție încă: fă una cu + de lângă Listele tale din bara laterală.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3757"/>
+        <location filename="../qml/Main.qml" line="3775"/>
         <source>Open in Prism Launcher (mods, worlds)</source>
         <translation>Deschide în Prism Launcher (moduri, lumi)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3822"/>
+        <location filename="../qml/Main.qml" line="3840"/>
         <source>Half an hour</source>
         <translation>O jumătate de oră</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3823"/>
+        <location filename="../qml/Main.qml" line="3841"/>
         <source>A long evening</source>
         <translation>O seară lungă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3830"/>
+        <location filename="../qml/Main.qml" line="3848"/>
         <source>Just me</source>
         <translation>Doar eu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3831"/>
+        <location filename="../qml/Main.qml" line="3849"/>
         <source>Together, one screen</source>
         <translation>Împreună, pe un ecran</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3861"/>
+        <location filename="../qml/Main.qml" line="3879"/>
         <source>Three more</source>
         <translation>Încă trei</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3867"/>
+        <location filename="../qml/Main.qml" line="3885"/>
         <source>Or maybe</source>
         <translation>Sau poate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3908"/>
+        <location filename="../qml/Main.qml" line="3926"/>
         <source>No game for one screen together matches. Try Any length, or turn off Installed only.</source>
         <translation>Niciun joc de jucat împreună pe un ecran nu se potrivește. Încearcă Orice durată sau oprește Doar instalate.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="3909"/>
+        <location filename="../qml/Main.qml" line="3927"/>
         <source>Nothing matches: try Any length, or turn off Installed only.</source>
         <translation>Nimic nu se potrivește: încearcă Orice durată sau oprește Doar instalate.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4003"/>
+        <location filename="../qml/Main.qml" line="4021"/>
         <source>Save backups · </source>
         <translation>Copii ale salvărilor · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4011"/>
+        <location filename="../qml/Main.qml" line="4029"/>
         <source>Cornerplay does not know where this game keeps its saves (it is not in Ludusavi&apos;s list).</source>
         <translation>Cornerplay nu știe unde își ține jocul salvările (nu e în lista Ludusavi).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4012"/>
+        <location filename="../qml/Main.qml" line="4030"/>
         <source>Backed up before each start (the last </source>
         <translation>Copiate înainte de fiecare pornire (se păstrează ultimele </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4012"/>
+        <location filename="../qml/Main.qml" line="4030"/>
         <source> are kept). Restoring keeps a copy of what is there now.</source>
         <translation>). Restaurarea păstrează o copie a ce e acum.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4013"/>
+        <location filename="../qml/Main.qml" line="4031"/>
         <source>No saves on this PC yet: they are backed up once the game has made some.</source>
         <translation>Nicio salvare pe acest PC încă: sunt copiate după ce jocul face câteva.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4067"/>
+        <location filename="../qml/Main.qml" line="4085"/>
         <source>Everything games need is in place</source>
         <translation>Tot ce le trebuie jocurilor e la locul lui</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4137"/>
+        <location filename="../qml/Main.qml" line="4155"/>
         <source>, so </source>
         <translation>, deci ar rămâne </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4137"/>
+        <location filename="../qml/Main.qml" line="4155"/>
         <source> would be left.</source>
         <translation>.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4138"/>
+        <location filename="../qml/Main.qml" line="4156"/>
         <source> Under 10% free slows the PC down and can break updates.</source>
         <translation> Sub 10% liber încetinește PC-ul și poate strica actualizările.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4231"/>
+        <location filename="../qml/Main.qml" line="4249"/>
         <source>Journal</source>
         <translation>Jurnal</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4242"/>
+        <location filename="../qml/Main.qml" line="4260"/>
         <source>Your journal fills in as you play: every session of the games Cornerplay starts, and of Steam games while it runs, lands in its month.</source>
         <translation>Jurnalul se completează pe măsură ce joci: fiecare sesiune a jocurilor pornite din Cornerplay, și a jocurilor Steam cât rulează aplicația, ajunge în luna ei.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4261"/>
+        <location filename="../qml/Main.qml" line="4279"/>
         <source> started</source>
         <translation> începute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4262"/>
+        <location filename="../qml/Main.qml" line="4280"/>
         <source> finished</source>
         <translation> terminate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4300"/>
+        <location filename="../qml/Main.qml" line="4318"/>
         <source> sessions</source>
         <translation> sesiuni</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4304"/>
+        <location filename="../qml/Main.qml" line="4322"/>
         <source>Started</source>
         <translation>Început</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4325"/>
+        <location filename="../qml/Main.qml" line="4343"/>
         <source>played in total</source>
         <translation>jucate în total</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4326"/>
+        <location filename="../qml/Main.qml" line="4344"/>
         <source>of %1 games played</source>
         <translation>din %1 jocuri jucate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4327"/>
+        <location filename="../qml/Main.qml" line="4345"/>
         <source>never started</source>
         <translation>neîncepute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4328"/>
+        <location filename="../qml/Main.qml" line="4346"/>
         <source>installed</source>
         <translation>instalate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4349"/>
+        <location filename="../qml/Main.qml" line="4367"/>
         <source> days in a row</source>
         <translation> zile la rând</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4350"/>
+        <location filename="../qml/Main.qml" line="4368"/>
         <source>best </source>
         <translation>record </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4551"/>
+        <location filename="../qml/Main.qml" line="4569"/>
         <source> h on </source>
         <translation> h pe </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4578"/>
+        <location filename="../qml/Main.qml" line="4596"/>
         <source>JFMAMJJASOND</source>
         <translation>IFMAMIIASOND</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4775"/>
+        <location filename="../qml/Main.qml" line="4793"/>
         <source>Save these filters as a list</source>
         <translation>Salvează filtrele ca listă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4786"/>
+        <location filename="../qml/Main.qml" line="4804"/>
         <source>The list sits in the sidebar and always shows the games these filters find, new ones included.</source>
         <translation>Lista stă în bara laterală și arată mereu jocurile găsite de aceste filtre, inclusiv pe cele noi.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4792"/>
+        <location filename="../qml/Main.qml" line="4810"/>
         <source>Name, e.g. Short and unplayed</source>
         <translation>Nume, de ex. Scurte și nejucate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4796"/>
+        <location filename="../qml/Main.qml" line="4814"/>
         <source>Save</source>
         <translation>Salvează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4838"/>
+        <location filename="../qml/Main.qml" line="4856"/>
         <source>Its own background picture shows behind the library while you look at this collection.</source>
         <translation>Propria imagine de fundal apare în spatele bibliotecii cât te uiți la această colecție.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4842"/>
+        <location filename="../qml/Main.qml" line="4860"/>
         <source>Background picture…</source>
         <translation>Imagine de fundal…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4849"/>
+        <location filename="../qml/Main.qml" line="4867"/>
         <source>Deleting it takes the collection away; the games stay in your library.</source>
         <translation>Dacă o ștergi, colecția dispare; jocurile rămân în bibliotecă.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4856"/>
+        <location filename="../qml/Main.qml" line="4874"/>
         <source>A background picture for this collection</source>
         <translation>O imagine de fundal pentru această colecție</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4857"/>
-        <location filename="../qml/Main.qml" line="4863"/>
+        <location filename="../qml/Main.qml" line="4875"/>
+        <location filename="../qml/Main.qml" line="4881"/>
         <source>Pictures (*.png *.jpg *.jpeg *.webp)</source>
         <translation>Imagini (*.png *.jpg *.jpeg *.webp)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4862"/>
+        <location filename="../qml/Main.qml" line="4880"/>
         <source>A background picture</source>
         <translation>O imagine de fundal</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4918"/>
+        <location filename="../qml/Main.qml" line="4936"/>
         <source> owned, not installed</source>
         <translation> deținute, neinstalate</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="4919"/>
+        <location filename="../qml/Main.qml" line="4937"/>
         <source> to buy</source>
         <translation> de cumpărat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5118"/>
+        <location filename="../qml/Main.qml" line="5136"/>
         <source>Install the Battle.net app from the library, or link your Blizzard account to list your games</source>
         <translation>Instalează aplicația Battle.net din bibliotecă sau leagă-ți contul Blizzard ca să-ți vezi jocurile</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5119"/>
+        <location filename="../qml/Main.qml" line="5137"/>
         <source>Not connected</source>
         <translation>Neconectat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5647"/>
+        <location filename="../qml/Main.qml" line="5665"/>
         <source>Light and dark</source>
         <translation>Luminos și întunecat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5648"/>
+        <location filename="../qml/Main.qml" line="5666"/>
         <source>Switches when your desktop switches between light and dark.</source>
         <translation>Se schimbă când desktopul trece între luminos și întunecat.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5649"/>
+        <location filename="../qml/Main.qml" line="5667"/>
         <source>Dark from 7 in the evening to 7 in the morning.</source>
         <translation>Întunecat de la 7 seara la 7 dimineața.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5650"/>
+        <location filename="../qml/Main.qml" line="5668"/>
         <source>Keep the theme above, or switch between a light and a dark one with your desktop or the time of day.</source>
         <translation>Păstrează tema de mai sus sau schimbă între una luminoasă și una întunecată odată cu desktopul sau cu ora din zi.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5654"/>
+        <location filename="../qml/Main.qml" line="5672"/>
         <source>As chosen above</source>
         <translation>Ca mai sus</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5655"/>
+        <location filename="../qml/Main.qml" line="5673"/>
         <source>Follow the desktop</source>
         <translation>Ca desktopul</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5656"/>
+        <location filename="../qml/Main.qml" line="5674"/>
         <source>Dark after sunset</source>
         <translation>Întunecat după apus</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5668"/>
+        <location filename="../qml/Main.qml" line="5686"/>
         <source>Dark</source>
         <translation>Întunecat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5678"/>
+        <location filename="../qml/Main.qml" line="5696"/>
         <source>Background</source>
         <translation>Fundal</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5679"/>
+        <location filename="../qml/Main.qml" line="5697"/>
         <source>Behind the library. A collection can have its own picture too (the × next to it in the sidebar).</source>
         <translation>În spatele bibliotecii. O colecție poate avea și propria imagine (× de lângă ea în bara laterală).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5683"/>
+        <location filename="../qml/Main.qml" line="5701"/>
         <source>Plain</source>
         <translation>Simplu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5684"/>
+        <location filename="../qml/Main.qml" line="5702"/>
         <source>Moving gradient</source>
         <translation>Gradient în mișcare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5685"/>
+        <location filename="../qml/Main.qml" line="5703"/>
         <source>Last played game</source>
         <translation>Ultimul joc jucat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5686"/>
+        <location filename="../qml/Main.qml" line="5704"/>
         <source>Picture…</source>
         <translation>Imagine…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5710"/>
+        <location filename="../qml/Main.qml" line="5728"/>
         <source>Seasonal touches: snow in winter, leaves in autumn, petals in spring, fireflies on summer evenings</source>
         <translation>Detalii de sezon: zăpadă iarna, frunze toamna, petale primăvara, licurici în serile de vară</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5712"/>
+        <location filename="../qml/Main.qml" line="5730"/>
         <source>Spacing</source>
         <translation>Spațiere</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5717"/>
+        <location filename="../qml/Main.qml" line="5735"/>
         <source>Compact</source>
         <translation>Compact</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5717"/>
+        <location filename="../qml/Main.qml" line="5735"/>
         <source>Comfortable</source>
         <translation>Confortabil</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5717"/>
+        <location filename="../qml/Main.qml" line="5735"/>
         <source>Roomy</source>
         <translation>Aerisit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5725"/>
+        <location filename="../qml/Main.qml" line="5743"/>
         <source>Font for game titles</source>
         <translation>Fontul titlurilor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5730"/>
+        <location filename="../qml/Main.qml" line="5748"/>
         <source>Rounded</source>
         <translation>Rotunjit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5730"/>
+        <location filename="../qml/Main.qml" line="5748"/>
         <source>Condensed</source>
         <translation>Condensat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5731"/>
+        <location filename="../qml/Main.qml" line="5749"/>
         <source>Serif</source>
         <translation>Serif</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5731"/>
+        <location filename="../qml/Main.qml" line="5749"/>
         <source>Pixel</source>
         <translation>Pixel</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5818"/>
+        <location filename="../qml/Main.qml" line="5836"/>
         <source>TV mode: the controller buzzes lightly when moving and choosing</source>
         <translation>Modul TV: controlerul vibrează ușor la mutare și alegere</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5819"/>
+        <location filename="../qml/Main.qml" line="5837"/>
         <source>TV mode: calm background music (quiet during trailers and games)</source>
         <translation>Modul TV: muzică de fundal liniștită (tace în timpul trailerelor și jocurilor)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5820"/>
+        <location filename="../qml/Main.qml" line="5838"/>
         <source>TV mode: ask &quot;Who&apos;s playing?&quot; at start (when several people use this PC)</source>
         <translation>Modul TV: întreabă &quot;Cine joacă?&quot; la pornire (când mai multe persoane folosesc acest PC)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5822"/>
+        <location filename="../qml/Main.qml" line="5840"/>
         <source>TV mode screensaver</source>
         <translation>Protecția de ecran în modul TV</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5823"/>
+        <location filename="../qml/Main.qml" line="5841"/>
         <source>Your recently played games&apos; art drifts by with the clock after a few quiet minutes. Any button wakes it.</source>
         <translation>După câteva minute fără activitate, imaginile jocurilor jucate recent trec încet, cu ceasul. Orice buton o oprește.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5828"/>
+        <location filename="../qml/Main.qml" line="5846"/>
         <source>After 3 minutes</source>
         <translation>După 3 minute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5828"/>
+        <location filename="../qml/Main.qml" line="5846"/>
         <source>After 5 minutes</source>
         <translation>După 5 minute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5829"/>
+        <location filename="../qml/Main.qml" line="5847"/>
         <source>After 10 minutes</source>
         <translation>După 10 minute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5829"/>
+        <location filename="../qml/Main.qml" line="5847"/>
         <source>After 20 minutes</source>
         <translation>După 20 de minute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5830"/>
+        <location filename="../qml/Main.qml" line="5848"/>
         <source>Never</source>
         <translation>Niciodată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5840"/>
+        <location filename="../qml/Main.qml" line="5858"/>
         <source>Add a folder with ROMs (a folder per system works best: snes, psx, gba ...). They play in RetroArch, with box art, playtime and TV mode.</source>
         <translation>Adaugă un folder cu ROM-uri (cel mai bine un folder pe sistem: snes, psx, gba ...). Rulează în RetroArch, cu coperți, timp de joc și mod TV.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5848"/>
+        <location filename="../qml/Main.qml" line="5866"/>
         <source>Show games from my Steam and GOG wishlists that are on sale</source>
         <translation>Arată jocurile la reducere din listele mele de dorințe Steam și GOG</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5851"/>
+        <location filename="../qml/Main.qml" line="5869"/>
         <source>Country for store prices</source>
         <translation>Țara pentru prețurile din magazine</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5852"/>
+        <location filename="../qml/Main.qml" line="5870"/>
         <source>Two letters, like AU or RO. Empty: your GOG account&apos;s country, else your system&apos;s.</source>
         <translation>Două litere, ca AU sau RO. Gol: țara contului GOG, altfel cea a sistemului.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5855"/>
+        <location filename="../qml/Main.qml" line="5873"/>
         <source>Auto</source>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5863"/>
+        <location filename="../qml/Main.qml" line="5881"/>
         <source>Best price on any store (IsThereAnyDeal)</source>
         <translation>Cel mai bun preț din orice magazin (IsThereAnyDeal)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5864"/>
+        <location filename="../qml/Main.qml" line="5882"/>
         <source>With a free IsThereAnyDeal API key, each wishlist game shows its cheapest deal on any store (Steam, GOG, Epic, Humble, Fanatical and more) and Cornerplay tells you when one is at least as much off as you choose here, or at its lowest price ever. Get one free: sign in at isthereanydeal.com and register an app (the Get a key button).</source>
         <translation>Cu o cheie API IsThereAnyDeal gratuită, fiecare joc din lista de dorințe își arată cea mai ieftină ofertă din orice magazin (Steam, GOG, Epic, Humble, Fanatical și altele), iar Cornerplay îți spune când una e redusă cel puțin cât alegi aici sau are cel mai mic preț de până acum. O obții gratuit: conectează-te pe isthereanydeal.com și înregistrează o aplicație (butonul Obține o cheie).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5870"/>
+        <location filename="../qml/Main.qml" line="5888"/>
         <source>API key</source>
         <translation>Cheie API</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5875"/>
+        <location filename="../qml/Main.qml" line="5893"/>
         <source>Get a key</source>
         <translation>Obține o cheie</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5881"/>
+        <location filename="../qml/Main.qml" line="5899"/>
         <source>Tell me at</source>
         <translation>Spune-mi la</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5888"/>
+        <location filename="../qml/Main.qml" line="5906"/>
         <source>% off, or at the lowest price ever</source>
         <translation>% reducere, sau la cel mai mic preț de până acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5897"/>
+        <location filename="../qml/Main.qml" line="5915"/>
         <source>Default Proton version</source>
         <translation>Versiunea Proton implicită</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5898"/>
+        <location filename="../qml/Main.qml" line="5916"/>
         <source>Used for Epic, GOG, Amazon and Battle.net games; each game can pick its own under Options. Steam games use the version set inside Steam.</source>
         <translation>Folosită pentru jocurile Epic, GOG, Amazon și Battle.net; fiecare joc își poate alege versiunea în Opțiuni. Jocurile Steam folosesc versiunea setată în Steam.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5924"/>
+        <location filename="../qml/Main.qml" line="5942"/>
         <source>Proton-CachyOS</source>
         <translation>Proton-CachyOS</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5931"/>
-        <location filename="../qml/Main.qml" line="5975"/>
+        <location filename="../qml/Main.qml" line="5949"/>
+        <location filename="../qml/Main.qml" line="5993"/>
         <source>Downloading </source>
         <translation>Se descarcă </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5931"/>
+        <location filename="../qml/Main.qml" line="5949"/>
         <source>%  (about 400 MB)</source>
         <translation>%  (cam 400 MB)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5932"/>
-        <location filename="../qml/Main.qml" line="5976"/>
+        <location filename="../qml/Main.qml" line="5950"/>
+        <location filename="../qml/Main.qml" line="5994"/>
         <source>Installed: </source>
         <translation>Instalat: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5932"/>
+        <location filename="../qml/Main.qml" line="5950"/>
         <source>Performance-tuned Proton from CachyOS; often faster. Not downloaded yet</source>
         <translation>Proton optimizat de CachyOS; adesea mai rapid. Nedescărcat încă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5933"/>
-        <location filename="../qml/Main.qml" line="5977"/>
+        <location filename="../qml/Main.qml" line="5951"/>
+        <location filename="../qml/Main.qml" line="5995"/>
         <source>  ·  up to date</source>
         <translation>  ·  la zi</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5933"/>
-        <location filename="../qml/Main.qml" line="5977"/>
+        <location filename="../qml/Main.qml" line="5951"/>
+        <location filename="../qml/Main.qml" line="5995"/>
         <source>  ·  newest: </source>
         <translation>  ·  cel mai nou: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5940"/>
-        <location filename="../qml/Main.qml" line="5984"/>
+        <location filename="../qml/Main.qml" line="5958"/>
+        <location filename="../qml/Main.qml" line="6002"/>
         <source>Download latest</source>
         <translation>Descarcă ultima versiune</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5968"/>
+        <location filename="../qml/Main.qml" line="5986"/>
         <source>GE-Proton</source>
         <translation>GE-Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5975"/>
+        <location filename="../qml/Main.qml" line="5993"/>
         <source>%  (about 570 MB)</source>
         <translation>%  (cam 570 MB)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5976"/>
+        <location filename="../qml/Main.qml" line="5994"/>
         <source>Not downloaded yet</source>
         <translation>Nedescărcat încă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6003"/>
+        <location filename="../qml/Main.qml" line="6021"/>
         <source>Steam&apos;s own Proton builds (Proton Experimental, Proton 10…) are listed above once Steam has downloaded them.</source>
         <translation>Versiunile Proton ale Steam (Proton Experimental, Proton 10…) apar mai sus după ce Steam le-a descărcat.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6005"/>
+        <location filename="../qml/Main.qml" line="6023"/>
         <source>Get from Steam</source>
         <translation>Ia din Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6006"/>
+        <location filename="../qml/Main.qml" line="6024"/>
         <source>Rescan</source>
         <translation>Caută din nou</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6010"/>
+        <location filename="../qml/Main.qml" line="6028"/>
         <source>MangoHud overlay</source>
         <translation>Overlay MangoHud</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6011"/>
+        <location filename="../qml/Main.qml" line="6029"/>
         <source>Feral GameMode</source>
         <translation>Feral GameMode</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6012"/>
+        <location filename="../qml/Main.qml" line="6030"/>
         <source>FPS counter in games</source>
         <translation>Contor FPS în jocuri</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6013"/>
+        <location filename="../qml/Main.qml" line="6031"/>
         <source>Record how games run (FPS, stutters, temperatures; needs MangoHud). A game&apos;s page shows it, by Proton version too</source>
         <translation>Înregistrează cum merg jocurile (FPS, sacadări, temperaturi; cere MangoHud). Pagina jocului le arată, și pe versiuni Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6015"/>
+        <location filename="../qml/Main.qml" line="6033"/>
         <source>Gamescope for every game</source>
         <translation>Gamescope pentru toate jocurile</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6017"/>
+        <location filename="../qml/Main.qml" line="6035"/>
         <source>Runs Epic, GOG, Amazon and added games inside Valve&apos;s gamescope: a clean full-screen window at your screen&apos;s resolution, or drawn smaller and upscaled with FSR for more frames. Each game can choose its own under Options. Steam games: use Steam&apos;s launch options.</source>
         <translation>Rulează jocurile Epic, GOG, Amazon și cele adăugate în gamescope de la Valve: o fereastră curată pe tot ecranul la rezoluția ta, sau desenată mai mic și mărită cu FSR pentru mai multe cadre. Fiecare joc își poate alege setarea în Opțiuni. Jocuri Steam: folosește opțiunile de lansare din Steam.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6018"/>
+        <location filename="../qml/Main.qml" line="6036"/>
         <source>gamescope is not installed (on Arch: sudo pacman -S gamescope). Until it is, games start without it.</source>
         <translation>gamescope nu e instalat (pe Arch: sudo pacman -S gamescope). Până atunci, jocurile pornesc fără el.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6021"/>
-        <location filename="../qml/Main.qml" line="6444"/>
-        <location filename="../qml/Main.qml" line="6537"/>
+        <location filename="../qml/Main.qml" line="6039"/>
+        <location filename="../qml/Main.qml" line="6462"/>
+        <location filename="../qml/Main.qml" line="6555"/>
         <source>Off</source>
         <translation>Oprit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6021"/>
+        <location filename="../qml/Main.qml" line="6039"/>
         <source>Full screen at screen resolution</source>
         <translation>Ecran complet la rezoluția ecranului</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6022"/>
+        <location filename="../qml/Main.qml" line="6040"/>
         <source>FSR upscaling (draws at 2/3 size)</source>
         <translation>Scalare FSR (randează la 2/3)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6027"/>
+        <location filename="../qml/Main.qml" line="6045"/>
         <source>HDR in gamescope (HDR screen and compositor needed)</source>
         <translation>HDR în gamescope (necesită ecran și compositor HDR)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6028"/>
+        <location filename="../qml/Main.qml" line="6046"/>
         <source>GOG: install the Linux version when a game has one (no Proton needed)</source>
         <translation>GOG: instalează versiunea Linux când jocul are una (fără Proton)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6030"/>
+        <location filename="../qml/Main.qml" line="6048"/>
         <source>Performance profile for every game</source>
         <translation>Profil de performanță pentru toate jocurile</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6031"/>
+        <location filename="../qml/Main.qml" line="6049"/>
         <source>Battery saver caps at 30 fps and Balanced at 60, both with FSR upscaling. Each game can choose its own under Options. Steam games use Steam&apos;s settings.</source>
         <translation>Economie baterie limitează la 30 fps, Echilibrat la 60, ambele cu scalare FSR. Fiecare joc își poate alege propriul profil în Opțiuni. Jocurile Steam folosesc setările Steam.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6034"/>
-        <location filename="../qml/Main.qml" line="6516"/>
+        <location filename="../qml/Main.qml" line="6052"/>
+        <location filename="../qml/Main.qml" line="6534"/>
         <source>No change</source>
         <translation>Fără schimbare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6034"/>
-        <location filename="../qml/Main.qml" line="6517"/>
+        <location filename="../qml/Main.qml" line="6052"/>
+        <location filename="../qml/Main.qml" line="6535"/>
         <source>Battery saver (30 fps)</source>
         <translation>Economie baterie (30 fps)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6035"/>
-        <location filename="../qml/Main.qml" line="6518"/>
+        <location filename="../qml/Main.qml" line="6053"/>
+        <location filename="../qml/Main.qml" line="6536"/>
         <source>Balanced (60 fps)</source>
         <translation>Echilibrat (60 fps)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6035"/>
-        <location filename="../qml/Main.qml" line="6519"/>
+        <location filename="../qml/Main.qml" line="6053"/>
+        <location filename="../qml/Main.qml" line="6537"/>
         <source>Max quality (no cap)</source>
         <translation>Calitate maximă (fără limită)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6049"/>
+        <location filename="../qml/Main.qml" line="6067"/>
         <source>Each person gets their own favourites, collections, statuses, stars, notes and play stats. Games, sign-ins and settings are shared. Switch from the name at the top of the sidebar.</source>
         <translation>Fiecare persoană are propriile favorite, colecții, stări, stele, notițe și statistici. Jocurile, conectările și setările sunt comune. Schimbi din numele din partea de sus a barei laterale.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6065"/>
+        <location filename="../qml/Main.qml" line="6083"/>
         <source>  (now)</source>
         <translation>  (acum)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6070"/>
+        <location filename="../qml/Main.qml" line="6088"/>
         <source>Switch</source>
         <translation>Schimbă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6079"/>
+        <location filename="../qml/Main.qml" line="6097"/>
         <source>Add a person (name)</source>
         <translation>Adaugă o persoană (nume)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6086"/>
+        <location filename="../qml/Main.qml" line="6104"/>
         <source>Sync with your other PCs</source>
         <translation>Sincronizează cu celelalte PC-uri</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6087"/>
+        <location filename="../qml/Main.qml" line="6105"/>
         <source>Pick a folder that Syncthing, Nextcloud, Dropbox or similar already keeps in step between your PCs (and the Steam Deck). Cornerplay keeps everyone&apos;s favourites, collections, statuses, notes and playtime in a Cornerplay folder inside it, merged game by game. Your games themselves are not copied.</source>
         <translation>Alege un folder pe care Syncthing, Nextcloud, Dropbox sau ceva similar îl ține deja sincronizat între PC-urile tale (și Steam Deck). Cornerplay păstrează favoritele, colecțiile, stările, notițele și timpul de joc ale tuturor într-un folder Cornerplay din el, îmbinate joc cu joc. Jocurile în sine nu se copiază.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6091"/>
+        <location filename="../qml/Main.qml" line="6109"/>
         <source>Not syncing</source>
         <translation>Fără sincronizare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6099"/>
+        <location filename="../qml/Main.qml" line="6117"/>
         <source>Back up Cornerplay</source>
         <translation>Fă o copie de rezervă Cornerplay</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6100"/>
+        <location filename="../qml/Main.qml" line="6118"/>
         <source>One file with your settings, people, favourites, collections, notes and playtime: for a new PC, or before trying things. Store sign-ins are not in it (sign in again on the new PC).</source>
         <translation>Un singur fișier cu setările, persoanele, favoritele, colecțiile, notițele și timpul de joc: pentru un PC nou sau înainte să încerci ceva. Conectările la magazine nu sunt incluse (conectează-te din nou pe PC-ul nou).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6103"/>
+        <location filename="../qml/Main.qml" line="6121"/>
         <source>Save a backup…</source>
         <translation>Salvează o copie de rezervă…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6104"/>
+        <location filename="../qml/Main.qml" line="6122"/>
         <source>Restore…</source>
         <translation>Restaurează…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6110"/>
+        <location filename="../qml/Main.qml" line="6128"/>
         <source>Syncing…</source>
         <translation>Se sincronizează…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6110"/>
+        <location filename="../qml/Main.qml" line="6128"/>
         <source>Sync now</source>
         <translation>Sincronizează acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6112"/>
+        <location filename="../qml/Main.qml" line="6130"/>
         <source>Stop syncing</source>
         <translation>Oprește sincronizarea</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6113"/>
+        <location filename="../qml/Main.qml" line="6131"/>
         <source>Last sync failed: </source>
         <translation>Ultima sincronizare a eșuat: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6114"/>
+        <location filename="../qml/Main.qml" line="6132"/>
         <source>Last synced </source>
         <translation>Sincronizat ultima dată </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6120"/>
+        <location filename="../qml/Main.qml" line="6138"/>
         <source>Bring over from the regular install</source>
         <translation>Adu din instalarea obișnuită</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6121"/>
+        <location filename="../qml/Main.qml" line="6139"/>
         <source>Copies the library, settings and store sign-ins of Cornerplay installed outside Flatpak on this PC (the .run installer or the AUR package). What the Flatpak has now is kept aside, and the other install is left as it is.</source>
         <translation>Copiază biblioteca, setările și conectările la magazine ale Cornerplay instalat în afara Flatpak pe acest PC (instalatorul .run sau pachetul AUR). Ce are acum Flatpak-ul este păstrat deoparte, iar cealaltă instalare rămâne neschimbată.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6122"/>
+        <location filename="../qml/Main.qml" line="6140"/>
         <source>Bringing over…</source>
         <translation>Se aduce…</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6131"/>
+        <location filename="../qml/Main.qml" line="6149"/>
         <source>Download speed limit</source>
         <translation>Limita de viteză la descărcare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6132"/>
+        <location filename="../qml/Main.qml" line="6150"/>
         <source>For Epic, GOG and Amazon downloads, so a big game leaves room for everything else on your internet. Empty: as fast as it goes. Steam has its own limit in its Downloads settings.</source>
         <translation>Pentru descărcările Epic, GOG și Amazon, ca un joc mare să lase loc pentru restul internetului tău. Gol: cât de repede merge. Steam are propria limită în setările sale de descărcări.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6143"/>
+        <location filename="../qml/Main.qml" line="6161"/>
         <source>MB/s</source>
         <translation>MB/s</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6147"/>
+        <location filename="../qml/Main.qml" line="6165"/>
         <source>Games folder</source>
         <translation>Folderul jocurilor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6148"/>
+        <location filename="../qml/Main.qml" line="6166"/>
         <source>Where Epic, GOG and Amazon games and all Proton prefixes are stored. Steam keeps using its own libraries.</source>
         <translation>Unde se păstrează jocurile Epic, GOG și Amazon și toate prefixele Proton. Steam își folosește în continuare bibliotecile proprii.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6170"/>
+        <location filename="../qml/Main.qml" line="6188"/>
         <source>Your games in Steam &amp; Game Mode</source>
         <translation>Jocurile tale în Steam și Game Mode</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6177"/>
+        <location filename="../qml/Main.qml" line="6195"/>
         <source>Working… </source>
         <translation>Se lucrează… </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6178"/>
+        <location filename="../qml/Main.qml" line="6196"/>
         <source>Steam isn&apos;t installed or hasn&apos;t been signed in to yet.</source>
         <translation>Steam nu e instalat sau nu te-ai conectat încă.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6179"/>
+        <location filename="../qml/Main.qml" line="6197"/>
         <source>Sign in to Steam once, then come back here.</source>
         <translation>Conectează-te o dată în Steam, apoi revino aici.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6180"/>
+        <location filename="../qml/Main.qml" line="6198"/>
         <source>No installed Epic, GOG, Amazon or Battle.net games yet.</source>
         <translation>Niciun joc Epic, GOG, Amazon sau Battle.net instalat încă.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6181"/>
+        <location filename="../qml/Main.qml" line="6199"/>
         <source>All </source>
         <translation>Toate cele </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6181"/>
+        <location filename="../qml/Main.qml" line="6199"/>
         <source> installed games are in Steam with cover, banner, background and logo.</source>
         <translation> jocuri instalate sunt în Steam cu copertă, banner, fundal și logo.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6182"/>
+        <location filename="../qml/Main.qml" line="6200"/>
         <source> installed games are in Steam. Adding them gives each its cover, banner, background and logo in Game Mode.</source>
         <translation> jocuri instalate sunt în Steam. Adăugându-le, fiecare primește copertă, banner, fundal și logo în Game Mode.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6183"/>
+        <location filename="../qml/Main.qml" line="6201"/>
         <source> Steam is closed and reopened to do this.</source>
         <translation> Steam se închide și se redeschide pentru asta.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6191"/>
+        <location filename="../qml/Main.qml" line="6209"/>
         <source>Refresh in Steam</source>
         <translation>Reîmprospătează în Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6191"/>
+        <location filename="../qml/Main.qml" line="6209"/>
         <source>Add games to Steam</source>
         <translation>Adaugă jocurile în Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6195"/>
+        <location filename="../qml/Main.qml" line="6213"/>
         <source>Keep installed games in Steam automatically</source>
         <translation>Ține automat jocurile instalate în Steam</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6201"/>
+        <location filename="../qml/Main.qml" line="6219"/>
         <source>Automatic adds newly installed games and removes uninstalled or hidden ones whenever Steam is closed; it never closes Steam by itself. Games bought on Steam are already there.</source>
         <translation>Automat adaugă jocurile nou instalate și le scoate pe cele dezinstalate sau ascunse când Steam este închis; nu închide niciodată Steam singur. Jocurile cumpărate pe Steam sunt deja acolo.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6210"/>
+        <location filename="../qml/Main.qml" line="6228"/>
         <source>Also add Cornerplay itself, so the whole library opens in TV mode from Game Mode.</source>
         <translation>Adaugă și Cornerplay, ca toată biblioteca să se deschidă în modul TV din Game Mode.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6216"/>
+        <location filename="../qml/Main.qml" line="6234"/>
         <source>Add Cornerplay</source>
         <translation>Adaugă Cornerplay</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6223"/>
+        <location filename="../qml/Main.qml" line="6241"/>
         <source>Show a game owned on several stores only once</source>
         <translation>Arată o singură dată un joc deținut în mai multe magazine</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6224"/>
+        <location filename="../qml/Main.qml" line="6242"/>
         <source>Back up a game&apos;s saves before it starts (keeps the last 5; a game&apos;s More &gt; Save backups to restore)</source>
         <translation>Salvează salvările unui joc înainte să pornească (păstrează ultimele 5; restaurezi din Mai mult &gt; Copii ale salvărilor)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6225"/>
+        <location filename="../qml/Main.qml" line="6243"/>
         <source>Update Epic, GOG and Amazon games overnight (plugged in, not on a metered connection, while Cornerplay is open)</source>
         <translation>Actualizează jocurile Epic, GOG și Amazon peste noapte (la priză, fără conexiune contorizată, cât Cornerplay e deschis)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6229"/>
+        <location filename="../qml/Main.qml" line="6247"/>
         <source>Between</source>
         <translation>Între</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6242"/>
+        <location filename="../qml/Main.qml" line="6260"/>
         <source>Epic and GOG saves are downloaded before you play and uploaded when the game closes. Steam and Battle.net sync saves in their own apps; Amazon has no cloud saves.</source>
         <translation>Salvările Epic și GOG se descarcă înainte să joci și se încarcă la închiderea jocului. Steam și Battle.net sincronizează salvările în aplicațiile lor; Amazon nu are salvări în cloud.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6243"/>
+        <location filename="../qml/Main.qml" line="6261"/>
         <source>Sync cloud saves</source>
         <translation>Sincronizează salvările în cloud</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6246"/>
+        <location filename="../qml/Main.qml" line="6264"/>
         <source>Steam Web API key (optional)</source>
         <translation>Cheie Steam Web API (opțional)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6247"/>
+        <location filename="../qml/Main.qml" line="6265"/>
         <source>Without a key Cornerplay shows the Steam games installed on this PC. With one it also lists everything you own. Get a key at &lt;a href=&apos;https://steamcommunity.com/dev/apikey&apos;&gt;steamcommunity.com/dev/apikey&lt;/a&gt;.</source>
         <translation>Fără cheie, Cornerplay arată jocurile Steam instalate pe acest PC. Cu una, le listează și pe toate cele deținute. Obții o cheie la &lt;a href=&apos;https://steamcommunity.com/dev/apikey&apos;&gt;steamcommunity.com/dev/apikey&lt;/a&gt;.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6256"/>
+        <location filename="../qml/Main.qml" line="6274"/>
         <source>Artwork</source>
         <translation>Imagini</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6257"/>
+        <location filename="../qml/Main.qml" line="6275"/>
         <source>Covers follow the stores&apos; current art: Steam&apos;s is checked every 2 days, GOG&apos;s every week, Epic&apos;s game data every week. This fetches everything again now.</source>
         <translation>Copertele urmează imaginile actuale ale magazinelor: Steam se verifică la 2 zile, GOG săptămânal, datele Epic săptămânal. Asta le descarcă din nou pe toate acum.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6261"/>
+        <location filename="../qml/Main.qml" line="6279"/>
         <source>Refresh artwork now</source>
         <translation>Reîmprospătează imaginile acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6267"/>
+        <location filename="../qml/Main.qml" line="6285"/>
         <source>SteamGridDB API key (optional)</source>
         <translation>Cheie API SteamGridDB (opțional)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6268"/>
+        <location filename="../qml/Main.qml" line="6286"/>
         <source>Games without box art are matched by title against Steam&apos;s store. A SteamGridDB key also finds art for games Steam does not sell: &lt;a href=&apos;https://www.steamgriddb.com/profile/preferences/api&apos;&gt;steamgriddb.com/profile/preferences/api&lt;/a&gt;.</source>
         <translation>Jocurile fără copertă sunt căutate după titlu în magazinul Steam. O cheie SteamGridDB găsește imagini și pentru jocuri pe care Steam nu le vinde: &lt;a href=&apos;https://www.steamgriddb.com/profile/preferences/api&apos;&gt;steamgriddb.com/profile/preferences/api&lt;/a&gt;.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6277"/>
+        <location filename="../qml/Main.qml" line="6295"/>
         <source>IGDB time to beat (optional)</source>
         <translation>Durata IGDB (opțional)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6278"/>
+        <location filename="../qml/Main.qml" line="6296"/>
         <source>Shows how long a game takes (main story, with extras, 100%) on its page. Make a free app at &lt;a href=&apos;https://dev.twitch.tv/console/apps&apos;&gt;dev.twitch.tv/console/apps&lt;/a&gt; (OAuth redirect: http://localhost, category: Application Integration, client type: Confidential) and paste its Client ID and a new secret.</source>
         <translation>Arată cât durează un joc (povestea principală, cu extra, 100%) pe pagina lui. Creează o aplicație gratuită la &lt;a href=&apos;https://dev.twitch.tv/console/apps&apos;&gt;dev.twitch.tv/console/apps&lt;/a&gt; (OAuth redirect: http://localhost, categorie: Application Integration, tip client: Confidential) și lipește-i Client ID-ul și un secret nou.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6284"/>
+        <location filename="../qml/Main.qml" line="6302"/>
         <source>Client ID</source>
         <translation>ID client</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6290"/>
+        <location filename="../qml/Main.qml" line="6308"/>
         <source>Client secret</source>
         <translation>Secret client</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6306"/>
+        <location filename="../qml/Main.qml" line="6324"/>
         <source>Things most people never need to change.</source>
         <translation>Lucruri pe care majoritatea nu trebuie să le schimbe niciodată.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6308"/>
+        <location filename="../qml/Main.qml" line="6326"/>
         <source>Show what I play on Discord (Epic, GOG, Amazon and added games)</source>
         <translation>Arată pe Discord ce joc (Epic, GOG, Amazon și jocuri adăugate)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6311"/>
+        <location filename="../qml/Main.qml" line="6329"/>
         <source>Discord application ID</source>
         <translation>ID-ul aplicației Discord</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6312"/>
+        <location filename="../qml/Main.qml" line="6330"/>
         <source>Discord shows Steam games by itself. For the others, make a free application named Cornerplay at &lt;a href=&apos;https://discord.com/developers/applications&apos;&gt;discord.com/developers/applications&lt;/a&gt; and paste its Application ID. The desktop Discord app must be open; nothing is sent anywhere else.</source>
         <translation>Discord arată singur jocurile Steam. Pentru celelalte, creează o aplicație gratuită numită Cornerplay la &lt;a href=&apos;https://discord.com/developers/applications&apos;&gt;discord.com/developers/applications&lt;/a&gt; și lipește-i Application ID-ul. Aplicația Discord pentru desktop trebuie să fie deschisă; nu se trimite nimic în altă parte.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6321"/>
-        <location filename="../qml/Main.qml" line="6513"/>
+        <location filename="../qml/Main.qml" line="6339"/>
+        <location filename="../qml/Main.qml" line="6531"/>
         <source>Performance</source>
         <translation>Performanță</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6322"/>
+        <location filename="../qml/Main.qml" line="6340"/>
         <source>Light turns off rounded-cover effects, blur and animations so older PCs stay smooth. Automatic picks Light on PCs with 2 or fewer CPU cores, under 6 GB of memory, or no graphics acceleration.</source>
         <translation>Ușor oprește efectele copertelor, estomparea și animațiile ca PC-urile mai vechi să meargă fluid. Automat alege Ușor pe PC-uri cu cel mult 2 nuclee, sub 6 GB de memorie sau fără accelerare grafică.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6326"/>
+        <location filename="../qml/Main.qml" line="6344"/>
         <source>Automatic (now: </source>
         <translation>Automat (acum: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="5661"/>
-        <location filename="../qml/Main.qml" line="6326"/>
+        <location filename="../qml/Main.qml" line="5679"/>
+        <location filename="../qml/Main.qml" line="6344"/>
         <source>Light</source>
         <translation>Ușor</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6326"/>
+        <location filename="../qml/Main.qml" line="6344"/>
         <source>Full</source>
         <translation>Complet</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6327"/>
+        <location filename="../qml/Main.qml" line="6345"/>
         <source>Full effects</source>
         <translation>Toate efectele</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6327"/>
+        <location filename="../qml/Main.qml" line="6345"/>
         <source>Light, for older PCs</source>
         <translation>Ușor, pentru PC-uri mai vechi</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6333"/>
+        <location filename="../qml/Main.qml" line="6351"/>
         <source>Or a custom Proton folder</source>
         <translation>Sau un folder Proton personalizat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6336"/>
+        <location filename="../qml/Main.qml" line="6354"/>
         <source>/path/to/a/Proton/folder</source>
         <translation>/cale/către/un/folder/Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6341"/>
+        <location filename="../qml/Main.qml" line="6359"/>
         <source>Keep each game&apos;s shader cache (less stutter after the first run)</source>
         <translation>Păstrează cache-ul de shadere al fiecărui joc (mai puțină sacadare după prima rulare)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6347"/>
+        <location filename="../qml/Main.qml" line="6365"/>
         <source>Environment variables for every game</source>
         <translation>Variabile de mediu pentru toate jocurile</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6348"/>
+        <location filename="../qml/Main.qml" line="6366"/>
         <source>Space separated, for example: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Each game can override all of this from its Options button.</source>
         <translation>Separate prin spațiu, de exemplu: DXVK_HUD=fps PROTON_ENABLE_WAYLAND=1. Fiecare joc le poate suprascrie din butonul Opțiuni.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6351"/>
-        <location filename="../qml/Main.qml" line="6550"/>
+        <location filename="../qml/Main.qml" line="6369"/>
+        <location filename="../qml/Main.qml" line="6568"/>
         <source>KEY=value KEY2=value</source>
         <translation>CHEIE=valoare CHEIE2=valoare</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6357"/>
+        <location filename="../qml/Main.qml" line="6375"/>
         <source>Play on another screen</source>
         <translation>Joacă pe alt ecran</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6358"/>
+        <location filename="../qml/Main.qml" line="6376"/>
         <source>This PC is the gaming PC: add Cornerplay to Sunshine, then Moonlight on the TV, laptop or Steam Deck starts TV mode or a favourite. This PC is the screen: set the gaming PC below, and TV mode&apos;s menu gets Play on it (it is woken first when its MAC address is set).</source>
         <translation>Acest PC e PC-ul de jocuri: adaugă Cornerplay în Sunshine, apoi Moonlight de pe TV, laptop sau Steam Deck pornește modul TV sau un favorit. Acest PC e ecranul: setează mai jos PC-ul de jocuri, iar meniul modului TV primește Joacă pe el (e trezit întâi dacă îi e setată adresa MAC).</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6361"/>
+        <location filename="../qml/Main.qml" line="6379"/>
         <source>Add Cornerplay to Sunshine</source>
         <translation>Adaugă Cornerplay în Sunshine</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6366"/>
+        <location filename="../qml/Main.qml" line="6384"/>
         <source>Gaming PC (name or address)</source>
         <translation>PC-ul de jocuri (nume sau adresă)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6368"/>
+        <location filename="../qml/Main.qml" line="6386"/>
         <source>MAC address (to wake it)</source>
         <translation>Adresa MAC (ca să-l trezești)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6374"/>
+        <location filename="../qml/Main.qml" line="6392"/>
         <source>Stream from it</source>
         <translation>Transmite de pe el</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6375"/>
+        <location filename="../qml/Main.qml" line="6393"/>
         <source>Wake it</source>
         <translation>Trezește-l</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6378"/>
+        <location filename="../qml/Main.qml" line="6396"/>
         <source>Check for new Cornerplay versions (once a day)</source>
         <translation>Caută versiuni noi de Cornerplay (o dată pe zi)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6394"/>
+        <location filename="../qml/Main.qml" line="6412"/>
         <source>Step aside into the tray while a game runs</source>
         <translation>Retrage-te în bara de sistem cât rulează un joc</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6395"/>
+        <location filename="../qml/Main.qml" line="6413"/>
         <source>Keep running in the tray when the window is closed</source>
         <translation>Rămâi în bara de sistem când închizi fereastra</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6396"/>
+        <location filename="../qml/Main.qml" line="6414"/>
         <source>Start with the PC (in the tray)</source>
         <translation>Pornește odată cu PC-ul (în bara de sistem)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6418"/>
+        <location filename="../qml/Main.qml" line="6436"/>
         <source>Options · </source>
         <translation>Opțiuni · </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6444"/>
-        <location filename="../qml/Main.qml" line="6477"/>
-        <location filename="../qml/Main.qml" line="6516"/>
-        <location filename="../qml/Main.qml" line="6537"/>
+        <location filename="../qml/Main.qml" line="6462"/>
+        <location filename="../qml/Main.qml" line="6495"/>
+        <location filename="../qml/Main.qml" line="6534"/>
+        <location filename="../qml/Main.qml" line="6555"/>
         <source>Use default</source>
         <translation>Implicit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6444"/>
+        <location filename="../qml/Main.qml" line="6462"/>
         <source>On</source>
         <translation>Pornit</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6455"/>
+        <location filename="../qml/Main.qml" line="6473"/>
         <source>Battle.net games all run inside the Battle.net app, so Proton and overlay options are set on the Battle.net tile.</source>
         <translation>Jocurile Battle.net rulează toate în aplicația Battle.net, așa că opțiunile Proton și de overlay se setează pe placa Battle.net.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6460"/>
+        <location filename="../qml/Main.qml" line="6478"/>
         <source>Proton version (Steam&apos;s setting)</source>
         <translation>Versiunea Proton (setarea Steam)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6473"/>
+        <location filename="../qml/Main.qml" line="6491"/>
         <source>Proton version</source>
         <translation>Versiunea Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6486"/>
+        <location filename="../qml/Main.qml" line="6504"/>
         <source>MangoHud</source>
         <translation>MangoHud</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6491"/>
+        <location filename="../qml/Main.qml" line="6509"/>
         <source>GameMode</source>
         <translation>GameMode</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6499"/>
+        <location filename="../qml/Main.qml" line="6517"/>
         <source>Version</source>
         <translation>Versiune</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6504"/>
+        <location filename="../qml/Main.qml" line="6522"/>
         <source>Use default (Settings)</source>
         <translation>Implicit (Setări)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6504"/>
+        <location filename="../qml/Main.qml" line="6522"/>
         <source>Linux version (native)</source>
         <translation>Versiunea Linux (nativă)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6505"/>
+        <location filename="../qml/Main.qml" line="6523"/>
         <source>Windows version (Proton)</source>
         <translation>Versiunea Windows (Proton)</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6514"/>
+        <location filename="../qml/Main.qml" line="6532"/>
         <source>Battery saver caps at 30 fps, Balanced at 60, both with FSR upscaling when the game runs below your screen&apos;s resolution.</source>
         <translation>Economie baterie limitează la 30 fps, Echilibrat la 60, ambele cu scalare FSR când jocul rulează sub rezoluția ecranului.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6523"/>
+        <location filename="../qml/Main.qml" line="6541"/>
         <source>FPS counter</source>
         <translation>Contor FPS</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6533"/>
+        <location filename="../qml/Main.qml" line="6551"/>
         <source>Gamescope</source>
         <translation>Gamescope</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6534"/>
+        <location filename="../qml/Main.qml" line="6552"/>
         <source>Full screen at your screen&apos;s resolution, or drawn at 2/3 size and upscaled with FSR.</source>
         <translation>Ecran complet la rezoluția ecranului, sau randat la 2/3 și scalat cu FSR.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6538"/>
+        <location filename="../qml/Main.qml" line="6556"/>
         <source>Full screen</source>
         <translation>Ecran complet</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6538"/>
+        <location filename="../qml/Main.qml" line="6556"/>
         <source>FSR upscaling</source>
         <translation>Scalare FSR</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6542"/>
+        <location filename="../qml/Main.qml" line="6560"/>
         <source>HDR</source>
         <translation>HDR</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6549"/>
+        <location filename="../qml/Main.qml" line="6567"/>
         <source>Environment variables</source>
         <translation>Variabile de mediu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6555"/>
+        <location filename="../qml/Main.qml" line="6573"/>
         <source>Launch arguments</source>
         <translation>Argumente de pornire</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6556"/>
+        <location filename="../qml/Main.qml" line="6574"/>
         <source>-windowed -skipintro</source>
         <translation>-windowed -skipintro</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6613"/>
+        <location filename="../qml/Main.qml" line="6631"/>
         <source>Cloud saves</source>
         <translation>Salvări în cloud</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6620"/>
+        <location filename="../qml/Main.qml" line="6638"/>
         <source>Sync saves now</source>
         <translation>Sincronizează salvările acum</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6628"/>
+        <location filename="../qml/Main.qml" line="6646"/>
         <source>Fix it</source>
         <translation>Repară</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6639"/>
+        <location filename="../qml/Main.qml" line="6657"/>
         <source>Really reset?</source>
         <translation>Sigur resetezi?</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6639"/>
+        <location filename="../qml/Main.qml" line="6657"/>
         <source>Reset Proton prefix</source>
         <translation>Resetează prefixul Proton</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6646"/>
+        <location filename="../qml/Main.qml" line="6664"/>
         <source>Custom cover</source>
         <translation>Copertă personalizată</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6647"/>
+        <location filename="../qml/Main.qml" line="6665"/>
         <source>An image file or a web address. Leave empty to use the automatic cover.</source>
         <translation>Un fișier imagine sau o adresă web. Lasă gol pentru coperta automată.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6651"/>
+        <location filename="../qml/Main.qml" line="6669"/>
         <source>Automatic</source>
         <translation>Automat</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6654"/>
+        <location filename="../qml/Main.qml" line="6672"/>
         <source>Reset</source>
         <translation>Resetează</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6662"/>
+        <location filename="../qml/Main.qml" line="6680"/>
         <source>Choose a cover image</source>
         <translation>Alege o imagine de copertă</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="6906"/>
+        <location filename="../qml/Main.qml" line="6924"/>
         <source>  ·  installed</source>
         <translation>  ·  instalat</translation>
     </message>
@@ -4758,267 +4851,267 @@
 <context>
     <name>app</name>
     <message>
-        <location filename="../app.py" line="72"/>
+        <location filename="../app.py" line="83"/>
         <source>Playing</source>
         <translation>Se joacă</translation>
     </message>
     <message>
-        <location filename="../app.py" line="73"/>
+        <location filename="../app.py" line="84"/>
         <source>Your package manager keeps Cornerplay up to date</source>
         <translation>Managerul de pachete ține Cornerplay la zi</translation>
     </message>
     <message>
-        <location filename="../app.py" line="74"/>
+        <location filename="../app.py" line="85"/>
         <source>You have the newest Cornerplay</source>
         <translation>Ai cel mai nou Cornerplay</translation>
     </message>
     <message>
-        <location filename="../app.py" line="75"/>
+        <location filename="../app.py" line="86"/>
         <source>under a minute left</source>
         <translation>mai puțin de un minut</translation>
     </message>
     <message>
-        <location filename="../app.py" line="76"/>
+        <location filename="../app.py" line="87"/>
         <source>%1 min left</source>
         <translation>încă %1 min</translation>
     </message>
     <message>
-        <location filename="../app.py" line="77"/>
+        <location filename="../app.py" line="88"/>
         <source>%1 h %2 min left</source>
         <translation>încă %1 h %2 min</translation>
     </message>
     <message>
-        <location filename="../app.py" line="78"/>
+        <location filename="../app.py" line="89"/>
         <source>Launch options copied: paste them in Steam &gt; Properties &gt; Launch options</source>
         <translation>Opțiuni de lansare copiate: lipește-le în Steam &gt; Proprietăți &gt; Opțiuni de lansare</translation>
     </message>
     <message>
-        <location filename="../app.py" line="79"/>
+        <location filename="../app.py" line="90"/>
         <source>Settings used in this game&apos;s Options</source>
         <translation>Setările au fost puse în Opțiunile jocului</translation>
     </message>
     <message>
-        <location filename="../app.py" line="80"/>
+        <location filename="../app.py" line="91"/>
         <source>This game already has these settings</source>
         <translation>Jocul are deja aceste setări</translation>
     </message>
     <message>
-        <location filename="../app.py" line="81"/>
+        <location filename="../app.py" line="92"/>
         <source>A command before the game did not work:</source>
         <translation>O comandă de dinaintea jocului nu a mers:</translation>
     </message>
     <message>
-        <location filename="../app.py" line="82"/>
+        <location filename="../app.py" line="93"/>
         <source>Games</source>
         <translation>Jocuri</translation>
     </message>
     <message>
-        <location filename="../app.py" line="83"/>
+        <location filename="../app.py" line="94"/>
         <source>added to Favourites</source>
         <translation>adăugate la Favorite</translation>
     </message>
     <message>
-        <location filename="../app.py" line="84"/>
+        <location filename="../app.py" line="95"/>
         <source>removed from Favourites</source>
         <translation>scoase din Favorite</translation>
     </message>
     <message>
-        <location filename="../app.py" line="85"/>
+        <location filename="../app.py" line="96"/>
         <source>marked</source>
         <translation>marcate</translation>
     </message>
     <message>
-        <location filename="../app.py" line="86"/>
+        <location filename="../app.py" line="97"/>
         <source>hidden</source>
         <translation>ascunse</translation>
     </message>
     <message>
-        <location filename="../app.py" line="87"/>
+        <location filename="../app.py" line="98"/>
         <source>back in the library</source>
         <translation>înapoi în bibliotecă</translation>
     </message>
     <message>
-        <location filename="../app.py" line="88"/>
+        <location filename="../app.py" line="99"/>
         <source>queued to install</source>
         <translation>puse la instalat</translation>
     </message>
     <message>
-        <location filename="../app.py" line="89"/>
+        <location filename="../app.py" line="100"/>
         <source>queued to update</source>
         <translation>puse la actualizat</translation>
     </message>
     <message>
-        <location filename="../app.py" line="90"/>
+        <location filename="../app.py" line="101"/>
         <source>Graphics driver updated: getting games&apos; shaders ready in the background</source>
         <translation>Driverul video s-a actualizat: pregătesc shaderele jocurilor în fundal</translation>
     </message>
     <message>
-        <location filename="../app.py" line="91"/>
+        <location filename="../app.py" line="102"/>
         <source>Shaders are ready again for games:</source>
         <translation>Shadere pregătite din nou pentru jocuri:</translation>
     </message>
     <message>
-        <location filename="../app.py" line="92"/>
+        <location filename="../app.py" line="103"/>
         <source>Could not reach GitHub to check for a new Cornerplay</source>
         <translation>GitHub nu a putut fi contactat pentru a căuta un Cornerplay nou</translation>
     </message>
     <message>
-        <location filename="../app.py" line="93"/>
+        <location filename="../app.py" line="104"/>
         <source>Checking for a new Cornerplay…</source>
         <translation>Se caută un Cornerplay mai nou…</translation>
     </message>
     <message>
-        <location filename="../app.py" line="94"/>
+        <location filename="../app.py" line="105"/>
         <source>The Cornerplay folder has changes of its own: update it with git yourself</source>
         <translation>Folderul Cornerplay are modificări proprii: actualizează-l tu cu git</translation>
     </message>
     <message>
-        <location filename="../app.py" line="95"/>
+        <location filename="../app.py" line="106"/>
         <source>Cornerplay does not know your Steam account yet: open Steam once</source>
         <translation>Cornerplay nu-ți știe încă contul Steam: deschide Steam o dată</translation>
     </message>
     <message>
-        <location filename="../app.py" line="96"/>
+        <location filename="../app.py" line="107"/>
         <source>No friends to show (is your friends list public?)</source>
         <translation>Niciun prieten de arătat (lista ta de prieteni e publică?)</translation>
     </message>
     <message>
-        <location filename="../app.py" line="97"/>
+        <location filename="../app.py" line="108"/>
         <source>Add a Steam Web API key in Settings &gt; Library to see your friends</source>
         <translation>Adaugă o cheie Steam Web API în Setări &gt; Bibliotecă ca să-ți vezi prietenii</translation>
     </message>
     <message>
-        <location filename="../app.py" line="98"/>
+        <location filename="../app.py" line="109"/>
         <source>Steam did not accept the Web API key, or your friends list is private</source>
         <translation>Steam nu a acceptat cheia Web API sau lista ta de prieteni e privată</translation>
     </message>
     <message>
-        <location filename="../app.py" line="99"/>
+        <location filename="../app.py" line="110"/>
         <source>Want to play</source>
         <translation>Vreau să joc</translation>
     </message>
     <message>
-        <location filename="../app.py" line="100"/>
+        <location filename="../app.py" line="111"/>
         <source>Finished</source>
         <translation>Terminat</translation>
     </message>
     <message>
-        <location filename="../app.py" line="101"/>
+        <location filename="../app.py" line="112"/>
         <source>Dropped</source>
         <translation>Abandonat</translation>
     </message>
     <message>
-        <location filename="../app.py" line="102"/>
+        <location filename="../app.py" line="113"/>
         <source>Continue playing</source>
         <translation>Continuă să joci</translation>
     </message>
     <message>
-        <location filename="../app.py" line="103"/>
+        <location filename="../app.py" line="114"/>
         <source>Favourites</source>
         <translation>Favorite</translation>
     </message>
     <message>
-        <location filename="../app.py" line="104"/>
+        <location filename="../app.py" line="115"/>
         <source>Recently added</source>
         <translation>Adăugate recent</translation>
     </message>
     <message>
-        <location filename="../app.py" line="105"/>
+        <location filename="../app.py" line="116"/>
         <source>Library</source>
         <translation>Bibliotecă</translation>
     </message>
     <message>
-        <location filename="../app.py" line="106"/>
+        <location filename="../app.py" line="117"/>
         <source>You&apos;re in the middle of it</source>
         <translation>Ești la jumătatea lui</translation>
     </message>
     <message>
-        <location filename="../app.py" line="107"/>
+        <location filename="../app.py" line="118"/>
         <source>It&apos;s on your Want to play list</source>
         <translation>E pe lista Vreau să joc</translation>
     </message>
     <message>
-        <location filename="../app.py" line="108"/>
+        <location filename="../app.py" line="119"/>
         <source>You haven&apos;t started it yet</source>
         <translation>Nu l-ai început încă</translation>
     </message>
     <message>
-        <location filename="../app.py" line="109"/>
+        <location filename="../app.py" line="120"/>
         <source>played so far</source>
         <translation>jucate până acum</translation>
     </message>
     <message>
-        <location filename="../app.py" line="110"/>
+        <location filename="../app.py" line="121"/>
         <source>You left it </source>
         <translation>L-ai lăsat acum </translation>
     </message>
     <message>
-        <location filename="../app.py" line="111"/>
+        <location filename="../app.py" line="122"/>
         <source>months ago</source>
         <translation>luni</translation>
     </message>
     <message>
-        <location filename="../app.py" line="112"/>
+        <location filename="../app.py" line="123"/>
         <source>a month ago</source>
         <translation>o lună</translation>
     </message>
     <message>
-        <location filename="../app.py" line="113"/>
+        <location filename="../app.py" line="124"/>
         <source>at</source>
         <translation>la</translation>
     </message>
     <message>
-        <location filename="../app.py" line="114"/>
+        <location filename="../app.py" line="125"/>
         <source>pick it back up?</source>
         <translation>îl reiei?</translation>
     </message>
     <message>
-        <location filename="../app.py" line="115"/>
+        <location filename="../app.py" line="126"/>
         <source>you often play it at this time</source>
         <translation>des îl joci la ora asta</translation>
     </message>
     <message>
-        <location filename="../app.py" line="116"/>
+        <location filename="../app.py" line="127"/>
         <source>plays on one screen together</source>
         <translation>se joacă împreună pe un ecran</translation>
     </message>
     <message>
-        <location filename="../app.py" line="117"/>
+        <location filename="../app.py" line="128"/>
         <source>usually about </source>
         <translation>de obicei cam </translation>
     </message>
     <message>
-        <location filename="../app.py" line="118"/>
+        <location filename="../app.py" line="129"/>
         <source>a session</source>
         <translation>pe sesiune</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1059"/>
+        <location filename="../app.py" line="1071"/>
         <source>%1 h played</source>
         <translation>%1 h jucate</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1061"/>
+        <location filename="../app.py" line="1073"/>
         <source>%1 min played</source>
         <translation>%1 min jucate</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1064"/>
+        <location filename="../app.py" line="1076"/>
         <source>today</source>
         <translation>azi</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1064"/>
+        <location filename="../app.py" line="1076"/>
         <source>yesterday</source>
         <translation>ieri</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1065"/>
+        <location filename="../app.py" line="1077"/>
         <source>%1 days ago</source>
         <translation>acum %1 zile</translation>
     </message>
     <message>
-        <location filename="../app.py" line="1067"/>
+        <location filename="../app.py" line="1079"/>
         <source>last played %1</source>
         <translation>jucat ultima dată %1</translation>
     </message>

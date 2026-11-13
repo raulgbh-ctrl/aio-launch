@@ -1056,599 +1056,615 @@ ApplicationWindow {
                     }
                     // Hero banner for the last game you played, then the rest of "Continue playing".
                     // Part of the grid's header, so it scrolls away with the library.
+                    // Home (the last game you played, then the rest of "Continue playing") and, on the
+                    // Humble Bundle page, Humble's shop window: part of the header, so they scroll away.
                     header: Column {
                         width: grid.width
-                        readonly property bool shown: app.recentGames.length > 0 && !library.search
-                                                      && !library.storeFilter && !library.showHidden && !library.shelf
-                        visible: shown
-                        height: shown ? implicitHeight : 0
-                        // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
-                        onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(grid.positionViewAtBeginning)
-                        topPadding: 4
-                        bottomPadding: 20
-                        spacing: 24
-
-                        // The banner folded away: one slim line to bring it back.
-                        RowLayout {
-                            visible: win.homeFolded("banner")
-                            x: 8; width: parent.width - 16
-                            Text { text: qsTr("Back in your corner: ") + (win.heroInfo.title || ""); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Icon { name: "chevron-down"; size: 16; color: theme.onSurfaceVariant
-                                   TapHandler { onTapped: win.toggleHome("banner") }
-                                   HoverHandler { cursorShape: Qt.PointingHandCursor } }
-                        }
-                        Item {
-                            id: hero
-                            visible: !win.homeFolded("banner")
-                            property var info: win.heroInfo
-                            property var game: info.key ? app.game(info.key) : ({})
-                            property string accent: info.key ? app.gameColour(info.key) : ""
-                            readonly property var tint: win.tinted(accent)
-                            onInfoChanged: { accent = info.key ? app.gameColour(info.key) : ""; heroFade.restart() }
-                            // Cross-fade to the next game.
-                            ParallelAnimation {
-                                id: heroFade
-                                NumberAnimation { target: heroArt; property: "opacity"; from: app.light ? 1 : 0.15; to: 1; duration: 600; easing.type: Easing.OutCubic }
-                                NumberAnimation { target: heroContent; property: "opacity"; from: app.light ? 1 : 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
-                            }
-                            HoverHandler { onHoveredChanged: win.heroPaused = hovered }
-                            Connections {
-                                target: app
-                                function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
-                                function onGameColourReady(key, colour) { if (key === hero.info.key) hero.accent = colour }
-                            }
-                            x: 8
-                            width: parent.width - 16
-                            height: Math.round(Math.min(340, Math.max(250, width * 0.28)))
-
-                            Item {
-                                id: heroArt
-                                anchors.fill: parent
-                                layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
-                                layer.effect: MultiEffect { maskEnabled: true; maskSource: heroMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
-
-                                Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
-                                // No wide art: the cover, blurred, fills the banner.
-                                ArtImage {
-                                    id: heroCover
-                                    anchors.fill: parent
-                                    sources: heroWide.status === Image.Ready ? [] : (hero.info.covers || [])
-                                    sourceSize.width: 320
-                                    visible: app.light && status === Image.Ready
-                                    opacity: 0.45
-                                }
-                                MultiEffect {
-                                    anchors.fill: parent
-                                    source: heroCover
-                                    visible: !app.light && heroCover.status === Image.Ready && heroWide.status !== Image.Ready
-                                    blurEnabled: true; blur: 1.0; blurMax: 64
-                                    saturation: 0.2
-                                    opacity: 0.7
-                                }
-                                ArtImage {
-                                    id: heroWide
-                                    anchors.fill: parent
-                                    sources: hero.info.heroes || []
-                                    horizontalAlignment: Image.AlignRight
-                                    sourceSize.width: Math.min(3840, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
-                                    opacity: status === Image.Ready ? 1 : 0
-                                    Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
-                                }
-                                // Shade the left side so the text always reads, whatever the art.
-                                Rectangle {
-                                    anchors.fill: parent
-                                    gradient: Gradient {
-                                        orientation: Gradient.Horizontal
-                                        GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.94) }
-                                        GradientStop { position: 0.45; color: Qt.alpha(theme.background, 0.72) }
-                                        GradientStop { position: 0.8; color: Qt.alpha(theme.background, 0.08) }
-                                    }
-                                }
-                                Rectangle {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    height: parent.height * 0.4
-                                    gradient: Gradient {
-                                        GradientStop { position: 0; color: "transparent" }
-                                        GradientStop { position: 1; color: Qt.alpha(theme.background, 0.55) }
-                                    }
-                                }
-                            }
-                            Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
-                            Rectangle {  // fold the banner away
-                                z: 2  // above the cover, which starts close to this corner
-                                anchors { left: parent.left; top: parent.top; margins: 12 }
-                                width: 28; height: 28; radius: 14
-                                color: Qt.alpha("black", foldHover.hovered ? 0.6 : 0.35)
-                                opacity: heroHover.hovered ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: 150 } }
-                                Icon { anchors.centerIn: parent; name: "chevron-up"; size: 16; color: "white" }
-                                HoverHandler { id: foldHover; cursorShape: Qt.PointingHandCursor }
-                                TapHandler { onTapped: win.toggleHome("banner") }
-                            }
-                            HoverHandler { id: heroHover }
-                            // Corner brackets, the icon's corner, framing the banner.
-                            CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; rotation: 180; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
-                            CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 18; rotation: -90; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
-                            Rectangle {
-                                anchors.fill: parent; radius: 18; color: "transparent"
-                                border.width: 1; border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
-                            }
-                            // Dots: which of the recent games is showing; click one to jump to it.
-                            Row {
-                                visible: win.heroCount > 1
-                                anchors { right: parent.right; bottom: parent.bottom; rightMargin: 60; bottomMargin: 18 }
-                                spacing: 6
-                                Repeater {
-                                    model: win.heroCount
-                                    Rectangle {
-                                        required property int index
-                                        readonly property bool on: index === win.heroAt % win.heroCount
-                                        width: on ? 22 : 8; height: 8; radius: 4
-                                        color: on ? hero.tint.primary : Qt.alpha("white", 0.45)
-                                        Behavior on width { enabled: !app.light; NumberAnimation { duration: 200 } }
-                                        TapHandler { enabled: win.cardsLive; onTapped: win.heroAt = parent.index }
-                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                                    }
-                                }
-                            }
-
-                            Row {
-                                id: heroContent
-                                anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
-                                spacing: 26
-                                Item {
-                                    id: heroThumbBox
-                                    width: heroThumb.width; height: heroThumb.height
-                                    visible: hero.width >= 620
-                                    RectangularShadow {
-                                        anchors.fill: parent
-                                        visible: !app.light
-                                        radius: heroThumb.radius
-                                        blur: 28; offset.y: 12
-                                        color: Qt.alpha("black", 0.55)
-                                    }
-                                Rectangle {
-                                    id: heroThumb
-                                    width: Math.round(hero.height * 0.62); height: Math.round(width * 1.46)
-                                    radius: 12
-                                    color: theme.surfaceContainerHighest
-                                    border.width: 1; border.color: Qt.alpha("white", 0.12)
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    RoundedArt {
-                                        anchors.fill: parent; anchors.margins: 1
-                                        radius: heroThumb.radius - 1
-                                        ArtImage {
-                                            anchors.fill: parent
-                                            sources: hero.info.covers || []
-                                            sourceSize.width: Math.min(300, Math.max(120, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
-                                        }
-                                    }
-                                    Rectangle {  // the frame, over the cover's edge
-                                        anchors.fill: parent; radius: heroThumb.radius; color: "transparent"
-                                        border.width: 1; border.color: Qt.alpha("white", 0.12)
-                                    }
-                                }
-                                }
-                                Column {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.min(560, hero.width - (heroThumbBox.visible ? heroThumb.width + 26 : 0) - 56)
-                                    spacing: 10
-                                    Text {
-                                        text: qsTr("BACK IN YOUR CORNER")
-                                        color: hero.tint.primary
-                                        font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
-                                    }
-                                    LogoTitle {
-                                        logos: hero.info.logos || []
-                                        title: hero.info.title || ""
-                                        color: theme.onSurface
-                                        pixelSize: hero.height > 290 ? 38 : 32
-                                        logoHeight: Math.round(hero.height * 0.3)
-                                        maxWidth: parent.width
-                                    }
-                                    Row {
-                                        spacing: 8
-                                        Rectangle {
-                                            height: 24; radius: 12
-                                            width: heroStore.implicitWidth + 37
-                                            color: Qt.alpha(theme.surfaceContainerHighest, 0.85)
-                                            StoreIcon { x: 8; anchors.verticalCenter: parent.verticalCenter; size: 14; store: hero.info.store || ""; color: hero.info.storeColor || "gray" }
-                                            Text { id: heroStore; x: 27; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
-                                        }
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: app.playedText(hero.game.playtime, hero.game.lastPlayed)
-                                            color: theme.onSurfaceVariant
-                                            font.pixelSize: 13
-                                        }
-                                    }
-                                    Item { width: 1; height: 6 }
-                                    Row {
-                                        spacing: 10
-                                        KButton {
-                                            theme: hero.tint
-                                            primary: true
-                                            visible: !hero.game.job
-                                            // Played on another PC (or uninstalled since): install it from here.
-                                            text: hero.game.installed ? qsTr("Resume") : qsTr("Install")
-                                            iconName: hero.game.installed ? "play" : "download"
-                                            onClicked: {
-                                                if (hero.game.installed) win.activate(hero.info.key)
-                                                else { app.preferCopy(hero.info.key); app.install(hero.info.key) }
-                                            }
-                                        }
-                                        KButton {
-                                            theme: hero.tint
-                                            visible: !hero.game.job && !!hero.game.update
-                                            text: qsTr("Update")
-                                            iconName: "arrow-up"
-                                            onClicked: app.update(hero.info.key)
-                                        }
-                                        Text {
-                                            visible: !!hero.game.job
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: hero.game.job === "update" ? qsTr("Updating ") + Math.max(0, Math.floor(hero.game.progress)) + "%" : qsTr("Working…")
-                                            color: theme.primary
-                                            font.pixelSize: 14; font.weight: Font.DemiBold
-                                        }
-                                        KButton {
-                                            theme: hero.tint
-                                            text: qsTr("Details")
-                                            onClicked: win.select(hero.info.key)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // The two sections sit in these slots, in the order the user chose.
-                        readonly property bool continueFirst: (app.settingsMap.home_order || ["continue"])[0] === "continue"
-                        readonly property bool continueShown: app.recentGames.length > 1
-                        readonly property bool freeShown: app.epicFree.length > 0
-                        Item { id: homeSlotA; width: parent.width; height: childrenRect.height
-                               visible: parent.continueFirst ? parent.continueShown : parent.freeShown }
-                        Item { id: homeSlotB; width: parent.width; height: childrenRect.height
-                               visible: parent.continueFirst ? parent.freeShown : parent.continueShown }
                         Column {
-                            parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotA : homeSlotB
-                            visible: app.recentGames.length > 1
-                            x: 8
-                            width: parent.width - 16
-                            spacing: 10
-                            SectionHead { sid: "continue"; title: qsTr("Continue playing"); folded: qsTr("%1 games").arg(app.recentGames.length - 1) }
-                            ListView {
-                                id: recentRow
-                                visible: !win.homeFolded("continue")
-                                width: parent.width
-                                height: 132
-                                orientation: ListView.Horizontal
-                                spacing: 14
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: app.recentGames.slice(1)
-                            delegate: Rectangle {
-                                id: recentTile
-                                required property var modelData
-                                width: 300; height: 132
-                                radius: 14
-                                color: theme.surfaceContainerHigh
-                                scale: recentHover.hovered && !app.light ? 1.02 : 1
-                                Behavior on scale { enabled: !app.light; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                                // The cover takes the tile's left corners; the border is drawn over it.
-                                RoundedArt {
+                            width: grid.width
+                            readonly property bool shown: app.recentGames.length > 0 && !library.search
+                                                          && !library.storeFilter && !library.showHidden && !library.shelf
+                            visible: shown
+                            height: shown ? implicitHeight : 0
+                            // The banner fills in after the grid; stay at the top instead of keeping game 1 in place.
+                            onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(grid.positionViewAtBeginning)
+                            topPadding: 4
+                            bottomPadding: 20
+                            spacing: 24
+
+                            // The banner folded away: one slim line to bring it back.
+                            RowLayout {
+                                visible: win.homeFolded("banner")
+                                x: 8; width: parent.width - 16
+                                Text { text: qsTr("Back in your corner: ") + (win.heroInfo.title || ""); color: theme.onSurfaceVariant; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Icon { name: "chevron-down"; size: 16; color: theme.onSurfaceVariant
+                                       TapHandler { onTapped: win.toggleHome("banner") }
+                                       HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                            }
+                            Item {
+                                id: hero
+                                visible: !win.homeFolded("banner")
+                                property var info: win.heroInfo
+                                property var game: info.key ? app.game(info.key) : ({})
+                                property string accent: info.key ? app.gameColour(info.key) : ""
+                                readonly property var tint: win.tinted(accent)
+                                onInfoChanged: { accent = info.key ? app.gameColour(info.key) : ""; heroFade.restart() }
+                                // Cross-fade to the next game.
+                                ParallelAnimation {
+                                    id: heroFade
+                                    NumberAnimation { target: heroArt; property: "opacity"; from: app.light ? 1 : 0.15; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: heroContent; property: "opacity"; from: app.light ? 1 : 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
+                                }
+                                HoverHandler { onHoveredChanged: win.heroPaused = hovered }
+                                Connections {
+                                    target: app
+                                    function onGameChanged(key) { if (!key || key === hero.info.key) hero.game = app.game(hero.info.key) }
+                                    function onGameColourReady(key, colour) { if (key === hero.info.key) hero.accent = colour }
+                                }
+                                x: 8
+                                width: parent.width - 16
+                                height: Math.round(Math.min(340, Math.max(250, width * 0.28)))
+
+                                Item {
+                                    id: heroArt
                                     anchors.fill: parent
-                                    radius: recentTile.radius
-                                    // The game's wide art, faded in behind the text.
+                                    layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
+                                    layer.effect: MultiEffect { maskEnabled: true; maskSource: heroMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+
+                                    Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
+                                    // No wide art: the cover, blurred, fills the banner.
                                     ArtImage {
-                                        id: recentWide
-                                        visible: !app.light
+                                        id: heroCover
                                         anchors.fill: parent
-                                        sources: recentTile.modelData.heroes || []
-                                        horizontalAlignment: Image.AlignRight
-                                        sourceSize.width: 600
-                                        opacity: status === Image.Ready ? (recentHover.hovered ? 0.55 : 0.4) : 0
-                                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                                        sources: heroWide.status === Image.Ready ? [] : (hero.info.covers || [])
+                                        sourceSize.width: 320
+                                        visible: app.light && status === Image.Ready
+                                        opacity: 0.45
                                     }
+                                    MultiEffect {
+                                        anchors.fill: parent
+                                        source: heroCover
+                                        visible: !app.light && heroCover.status === Image.Ready && heroWide.status !== Image.Ready
+                                        blurEnabled: true; blur: 1.0; blurMax: 64
+                                        saturation: 0.2
+                                        opacity: 0.7
+                                    }
+                                    ArtImage {
+                                        id: heroWide
+                                        anchors.fill: parent
+                                        sources: hero.info.heroes || []
+                                        horizontalAlignment: Image.AlignRight
+                                        sourceSize.width: Math.min(3840, Math.max(640, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                        opacity: status === Image.Ready ? 1 : 0
+                                        Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 350 } }
+                                    }
+                                    // Shade the left side so the text always reads, whatever the art.
                                     Rectangle {
                                         anchors.fill: parent
-                                        visible: recentWide.visible && recentWide.status === Image.Ready
                                         gradient: Gradient {
                                             orientation: Gradient.Horizontal
-                                            GradientStop { position: 0.25; color: theme.surfaceContainerHigh }
-                                            GradientStop { position: 0.75; color: Qt.alpha(theme.surfaceContainerHigh, 0.55) }
-                                            GradientStop { position: 1.0; color: Qt.alpha(theme.surfaceContainerHigh, 0.15) }
+                                            GradientStop { position: 0.0; color: Qt.alpha(theme.background, 0.94) }
+                                            GradientStop { position: 0.45; color: Qt.alpha(theme.background, 0.72) }
+                                            GradientStop { position: 0.8; color: Qt.alpha(theme.background, 0.08) }
                                         }
                                     }
-                                    ArtImage {
-                                        width: 88; height: parent.height
-                                        sources: recentTile.modelData.covers || []
-                                        sourceSize.width: 176
+                                    Rectangle {
+                                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                                        height: parent.height * 0.4
+                                        gradient: Gradient {
+                                            GradientStop { position: 0; color: "transparent" }
+                                            GradientStop { position: 1; color: Qt.alpha(theme.background, 0.55) }
+                                        }
                                     }
                                 }
+                                Rectangle { id: heroMask; anchors.fill: parent; radius: 18; layer.enabled: true; visible: false }
+                                Rectangle {  // fold the banner away
+                                    z: 2  // above the cover, which starts close to this corner
+                                    anchors { left: parent.left; top: parent.top; margins: 12 }
+                                    width: 28; height: 28; radius: 14
+                                    color: Qt.alpha("black", foldHover.hovered ? 0.6 : 0.35)
+                                    opacity: heroHover.hovered ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                                    Icon { anchors.centerIn: parent; name: "chevron-up"; size: 16; color: "white" }
+                                    HoverHandler { id: foldHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: win.toggleHome("banner") }
+                                }
+                                HoverHandler { id: heroHover }
+                                // Corner brackets, the icon's corner, framing the banner.
+                                CornerMark { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; rotation: 180; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
+                                CornerMark { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 18; rotation: -90; tone: hero.tint.primary; opacity: 0.6; size: 26; thick: 3.5 }
                                 Rectangle {
-                                    anchors.fill: parent; radius: recentTile.radius; color: "transparent"; z: 1
-                                    border.width: recentHover.hovered ? 2 : 1
-                                    border.color: recentHover.hovered ? theme.primary
-                                                  : theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
+                                    anchors.fill: parent; radius: 18; color: "transparent"
+                                    border.width: 1; border.color: theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
                                 }
-                                Column {
-                                    anchors { left: parent.left; leftMargin: 88 + 16; right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                                // Dots: which of the recent games is showing; click one to jump to it.
+                                Row {
+                                    visible: win.heroCount > 1
+                                    anchors { right: parent.right; bottom: parent.bottom; rightMargin: 60; bottomMargin: 18 }
                                     spacing: 6
-                                    Text {
-                                        width: parent.width
-                                        text: recentTile.modelData.title
-                                        font.family: app.titleFamily
-                                        color: theme.onSurface
-                                        font.pixelSize: 15; font.weight: Font.DemiBold
-                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                    }
-                                    Row {
-                                        spacing: 6
-                                        StoreTile { size: 16; store: recentTile.modelData.store; anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
-                                    }
-                                    Text {
-                                        width: parent.width
-                                        text: {
-                                            const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
-                                            return s.charAt(0).toUpperCase() + s.slice(1)
+                                    Repeater {
+                                        model: win.heroCount
+                                        Rectangle {
+                                            required property int index
+                                            readonly property bool on: index === win.heroAt % win.heroCount
+                                            width: on ? 22 : 8; height: 8; radius: 4
+                                            color: on ? hero.tint.primary : Qt.alpha("white", 0.45)
+                                            Behavior on width { enabled: !app.light; NumberAnimation { duration: 200 } }
+                                            TapHandler { enabled: win.cardsLive; onTapped: win.heroAt = parent.index }
+                                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                                         }
-                                        color: theme.outline
-                                        font.pixelSize: 12
-                                        elide: Text.ElideRight
                                     }
                                 }
-                                HoverHandler { id: recentHover; enabled: win.cardsLive; cursorShape: Qt.PointingHandCursor }
-                                TapHandler {
-                                    enabled: win.cardsLive
-                                    onSingleTapped: if (win.cardsLive) win.select(recentTile.modelData.key)
-                                    onDoubleTapped: if (win.cardsLive) win.activate(recentTile.modelData.key)
-                                    onLongPressed: if (win.cardsLive) gameMenu.showFor(recentTile.modelData.key, recentTile, point.position)
-                                }
-                                TapHandler {
-                                    enabled: win.cardsLive
-                                    acceptedButtons: Qt.RightButton
-                                    onTapped: (eventPoint, button) => gameMenu.showFor(recentTile.modelData.key, recentTile, eventPoint.position)
-                                }
-                            }
-                            }
-                        }
 
-                        // Epic's free games this week (and next): Get opens the store page.
-                        Column {
-                            parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotB : homeSlotA
-                            visible: app.epicFree.length > 0
-                            x: 8
-                            width: parent.width - 16
-                            spacing: 10
-                            bottomPadding: 18
-                            SectionHead {
-                                sid: "free"; icon: "gift"
-                                readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
-                                title: qsTr("Free on Epic") + (nowFree ? "  \u00B7  " + nowFree + qsTr(" this week") : "")
-                                extra: qsTr("Hide until next week")
-                                onExtraPicked: app.hideEpicFreeForNow()
-                            }
-                            ListView {
-                                visible: !win.homeFolded("free")
-                                width: parent.width
-                                height: 132
-                                orientation: ListView.Horizontal
-                                spacing: 12
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: app.epicFree
-                                delegate: Rectangle {
-                                    id: freeTile
-                                    required property var modelData
-                                    width: 300; height: 132
-                                    radius: 12
-                                    color: theme.surfaceContainerHigh
-                                    RoundedArt {
-                                        anchors.fill: parent
-                                        radius: freeTile.radius
-                                        ArtImage {
-                                            width: 94; height: parent.height
-                                            sources: [freeTile.modelData.tall, freeTile.modelData.wide].filter(u => !!u)
-                                            sourceSize.width: 188
+                                Row {
+                                    id: heroContent
+                                    anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
+                                    spacing: 26
+                                    Item {
+                                        id: heroThumbBox
+                                        width: heroThumb.width; height: heroThumb.height
+                                        visible: hero.width >= 620
+                                        RectangularShadow {
+                                            anchors.fill: parent
+                                            visible: !app.light
+                                            radius: heroThumb.radius
+                                            blur: 28; offset.y: 12
+                                            color: Qt.alpha("black", 0.55)
+                                        }
+                                    Rectangle {
+                                        id: heroThumb
+                                        width: Math.round(hero.height * 0.62); height: Math.round(width * 1.46)
+                                        radius: 12
+                                        color: theme.surfaceContainerHighest
+                                        border.width: 1; border.color: Qt.alpha("white", 0.12)
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        RoundedArt {
+                                            anchors.fill: parent; anchors.margins: 1
+                                            radius: heroThumb.radius - 1
+                                            ArtImage {
+                                                anchors.fill: parent
+                                                sources: hero.info.covers || []
+                                                sourceSize.width: Math.min(300, Math.max(120, Math.ceil(width * Screen.devicePixelRatio / 40) * 40))
+                                            }
+                                        }
+                                        Rectangle {  // the frame, over the cover's edge
+                                            anchors.fill: parent; radius: heroThumb.radius; color: "transparent"
+                                            border.width: 1; border.color: Qt.alpha("white", 0.12)
                                         }
                                     }
-                                    Rectangle {
-                                        anchors.fill: parent; radius: freeTile.radius; color: "transparent"; z: 1
-                                        border.width: freeHover.hovered ? 2 : 0
-                                        border.color: freeHover.hovered ? theme.primary : theme.outlineVariant
                                     }
                                     Column {
-                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                        spacing: 6
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: Math.min(560, hero.width - (heroThumbBox.visible ? heroThumb.width + 26 : 0) - 56)
+                                        spacing: 10
                                         Text {
-                                            width: parent.width
-                                            text: freeTile.modelData.title
-                                            font.family: app.titleFamily
+                                            text: qsTr("BACK IN YOUR CORNER")
+                                            color: hero.tint.primary
+                                            font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 2
+                                        }
+                                        LogoTitle {
+                                            logos: hero.info.logos || []
+                                            title: hero.info.title || ""
                                             color: theme.onSurface
-                                            font.pixelSize: 14; font.weight: Font.DemiBold
-                                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                        }
-                                        Text {
-                                            width: parent.width
-                                            text: freeTile.modelData.now ? qsTr("Free until ") + freeTile.modelData.when
-                                                                         : qsTr("Free from ") + freeTile.modelData.when
-                                            color: freeTile.modelData.now ? theme.primary : theme.outline
-                                            font.pixelSize: 12
-                                        }
-                                        KButton {
-                                            theme: win.theme
-                                            visible: freeTile.modelData.now
-                                            primary: !freeTile.modelData.owned
-                                            enabled: !freeTile.modelData.owned
-                                            text: freeTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
-                                            iconName: freeTile.modelData.owned ? "check" : "external-link"
-                                            onClicked: app.openUrl(freeTile.modelData.url)
-                                        }
-                                    }
-                                    HoverHandler { id: freeHover; cursorShape: Qt.PointingHandCursor }
-                                }
-                            }
-                        }
-
-                        // Free to keep on other stores (IsThereAnyDeal's giveaways; needs its key).
-                        Column {
-                            visible: app.otherFree.length > 0 && !library.search
-                            x: 8
-                            width: parent.width - 16
-                            spacing: 10
-                            bottomPadding: 18
-                            SectionHead {
-                                sid: "otherfree"; icon: "gift"
-                                title: qsTr("Free on other stores  \u00B7  ") + app.otherFree.length
-                            }
-                            ListView {
-                                visible: !win.homeFolded("otherfree")
-                                width: parent.width
-                                height: 132
-                                orientation: ListView.Horizontal
-                                spacing: 12
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: app.otherFree
-                                delegate: Rectangle {
-                                    id: giftTile
-                                    required property var modelData
-                                    width: 300; height: 132
-                                    radius: 12
-                                    color: theme.surfaceContainerHigh
-                                    RoundedArt {
-                                        anchors.fill: parent
-                                        radius: giftTile.radius
-                                        ArtImage {
-                                            width: 94; height: parent.height
-                                            sources: [giftTile.modelData.tall, giftTile.modelData.wide].filter(u => !!u)
-                                            sourceSize.width: 188
-                                        }
-                                    }
-                                    Rectangle {
-                                        anchors.fill: parent; radius: giftTile.radius; color: "transparent"; z: 1
-                                        border.width: giftHover.hovered ? 2 : 0; border.color: theme.primary
-                                    }
-                                    Column {
-                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                        spacing: 6
-                                        Text { width: parent.width; text: giftTile.modelData.title; font.family: app.titleFamily
-                                               color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
-                                               wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                                        Text { width: parent.width; elide: Text.ElideRight
-                                               text: giftTile.modelData.shop + (giftTile.modelData.when ? qsTr("  \u00B7  until ") + giftTile.modelData.when : "")
-                                               color: theme.primary; font.pixelSize: 12 }
-                                        KButton {
-                                            theme: win.theme
-                                            primary: !giftTile.modelData.owned
-                                            enabled: !giftTile.modelData.owned
-                                            width: Math.min(implicitWidth, parent.width)
-                                            text: giftTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
-                                            iconName: giftTile.modelData.owned ? "check" : "external-link"
-                                            onClicked: app.openUrl(giftTile.modelData.url)
-                                        }
-                                    }
-                                    HoverHandler { id: giftHover; cursorShape: Qt.PointingHandCursor }
-                                }
-                            }
-                        }
-
-                        // Games on your Steam / GOG wishlist that are on sale right now.
-                        Column {
-                            visible: app.wishlistSales.length > 0 && !library.search
-                            x: 8
-                            width: parent.width - 16
-                            spacing: 10
-                            bottomPadding: 18
-                            SectionHead {
-                                sid: "sales"; icon: "tag"
-                                title: qsTr("On sale from your wishlist  \u00B7  ") + app.wishlistSales.length
-                            }
-                            ListView {
-                                visible: !win.homeFolded("sales")
-                                width: parent.width
-                                height: 132
-                                orientation: ListView.Horizontal
-                                spacing: 12
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: app.wishlistSales
-                                delegate: Rectangle {
-                                    id: saleTile
-                                    required property var modelData
-                                    // IsThereAnyDeal's cheapest deal, when it is deeper than the wishlist store's own sale.
-                                    readonly property var best: modelData.best && modelData.best.cut > (modelData.discount || 0) ? modelData.best : null
-                                    width: 300; height: 132
-                                    radius: 12
-                                    color: theme.surfaceContainerHigh
-                                    RoundedArt {
-                                        anchors.fill: parent
-                                        radius: saleTile.radius
-                                        ArtImage {
-                                            width: 94; height: parent.height
-                                            sources: [saleTile.modelData.tall, saleTile.modelData.wide].filter(u => !!u)
-                                            sourceSize.width: 188
-                                        }
-                                    }
-                                    Rectangle {
-                                        anchors.fill: parent; radius: saleTile.radius; color: "transparent"; z: 1
-                                        border.width: saleHover.hovered ? 2 : 0
-                                        border.color: theme.primary
-                                    }
-                                    Column {
-                                        anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                                        spacing: 6
-                                        Text {
-                                            width: parent.width
-                                            text: saleTile.modelData.title
-                                            font.family: app.titleFamily
-                                            textFormat: Text.PlainText
-                                            color: theme.onSurface
-                                            font.pixelSize: 14; font.weight: Font.DemiBold
-                                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                            pixelSize: hero.height > 290 ? 38 : 32
+                                            logoHeight: Math.round(hero.height * 0.3)
+                                            maxWidth: parent.width
                                         }
                                         Row {
                                             spacing: 8
                                             Rectangle {
-                                                width: pct.implicitWidth + 12; height: 20; radius: 6
-                                                color: theme.primary
-                                                Text { id: pct; anchors.centerIn: parent; text: "-" + (saleTile.best ? saleTile.best.cut : saleTile.modelData.discount) + "%"
-                                                       color: theme.onPrimary; font.pixelSize: 11; font.weight: Font.Bold }
+                                                height: 24; radius: 12
+                                                width: heroStore.implicitWidth + 37
+                                                color: Qt.alpha(theme.surfaceContainerHighest, 0.85)
+                                                StoreIcon { x: 8; anchors.verticalCenter: parent.verticalCenter; size: 14; store: hero.info.store || ""; color: hero.info.storeColor || "gray" }
+                                                Text { id: heroStore; x: 27; anchors.verticalCenter: parent.verticalCenter; text: hero.info.storeName || ""; color: theme.onSurface; font.pixelSize: 12 }
                                             }
-                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.price : saleTile.modelData.price
-                                                   textFormat: Text.PlainText; color: theme.onSurface; font.pixelSize: 13 }
-                                            Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.was : saleTile.modelData.was
-                                                   textFormat: Text.PlainText; color: theme.outline; font.pixelSize: 11; font.strikeout: true }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: app.playedText(hero.game.playtime, hero.game.lastPlayed)
+                                                color: theme.onSurfaceVariant
+                                                font.pixelSize: 13
+                                            }
                                         }
-                                        Text {
-                                            visible: !!(saleTile.best && saleTile.best.low)
-                                            text: qsTr("Lowest price ever")
-                                            color: theme.primary; font.pixelSize: 11; font.weight: Font.DemiBold
-                                        }
-                                        KButton {
-                                            theme: win.theme
-                                            width: Math.min(implicitWidth, parent.width)
-                                            text: saleTile.best ? saleTile.best.shop
-                                                  : saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
-                                            iconName: "external-link"
-                                            onClicked: app.openUrl(saleTile.best ? saleTile.best.url : saleTile.modelData.url)
+                                        Item { width: 1; height: 6 }
+                                        Row {
+                                            spacing: 10
+                                            KButton {
+                                                theme: hero.tint
+                                                primary: true
+                                                visible: !hero.game.job
+                                                // Played on another PC (or uninstalled since): install it from here.
+                                                text: hero.game.installed ? qsTr("Resume") : qsTr("Install")
+                                                iconName: hero.game.installed ? "play" : "download"
+                                                onClicked: {
+                                                    if (hero.game.installed) win.activate(hero.info.key)
+                                                    else { app.preferCopy(hero.info.key); app.install(hero.info.key) }
+                                                }
+                                            }
+                                            KButton {
+                                                theme: hero.tint
+                                                visible: !hero.game.job && !!hero.game.update
+                                                text: qsTr("Update")
+                                                iconName: "arrow-up"
+                                                onClicked: app.update(hero.info.key)
+                                            }
+                                            Text {
+                                                visible: !!hero.game.job
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: hero.game.job === "update" ? qsTr("Updating ") + Math.max(0, Math.floor(hero.game.progress)) + "%" : qsTr("Working…")
+                                                color: theme.primary
+                                                font.pixelSize: 14; font.weight: Font.DemiBold
+                                            }
+                                            KButton {
+                                                theme: hero.tint
+                                                text: qsTr("Details")
+                                                onClicked: win.select(hero.info.key)
+                                            }
                                         }
                                     }
-                                    HoverHandler { id: saleHover; cursorShape: Qt.PointingHandCursor }
                                 }
                             }
-                        }
 
-                        Text {
-                            x: 8
-                            textFormat: Text.StyledText
-                            text: (library.shelf === "" ? (win.smartActive ? win.smartActive.name : qsTr("Library")) + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
-                                  : library.shelf === "fav" ? qsTr("Favourites")
-                                  : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
-                                  : library.shelf.replace(/^c:/, ""))
-                            color: theme.onSurface
-                            font.pixelSize: 15; font.weight: Font.DemiBold
+                            // The two sections sit in these slots, in the order the user chose.
+                            readonly property bool continueFirst: (app.settingsMap.home_order || ["continue"])[0] === "continue"
+                            readonly property bool continueShown: app.recentGames.length > 1
+                            readonly property bool freeShown: app.epicFree.length > 0
+                            Item { id: homeSlotA; width: parent.width; height: childrenRect.height
+                                   visible: parent.continueFirst ? parent.continueShown : parent.freeShown }
+                            Item { id: homeSlotB; width: parent.width; height: childrenRect.height
+                                   visible: parent.continueFirst ? parent.freeShown : parent.continueShown }
+                            Column {
+                                parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotA : homeSlotB
+                                visible: app.recentGames.length > 1
+                                x: 8
+                                width: parent.width - 16
+                                spacing: 10
+                                SectionHead { sid: "continue"; title: qsTr("Continue playing"); folded: qsTr("%1 games").arg(app.recentGames.length - 1) }
+                                ListView {
+                                    id: recentRow
+                                    visible: !win.homeFolded("continue")
+                                    width: parent.width
+                                    height: 132
+                                    orientation: ListView.Horizontal
+                                    spacing: 14
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    model: app.recentGames.slice(1)
+                                delegate: Rectangle {
+                                    id: recentTile
+                                    required property var modelData
+                                    width: 300; height: 132
+                                    radius: 14
+                                    color: theme.surfaceContainerHigh
+                                    scale: recentHover.hovered && !app.light ? 1.02 : 1
+                                    Behavior on scale { enabled: !app.light; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    // The cover takes the tile's left corners; the border is drawn over it.
+                                    RoundedArt {
+                                        anchors.fill: parent
+                                        radius: recentTile.radius
+                                        // The game's wide art, faded in behind the text.
+                                        ArtImage {
+                                            id: recentWide
+                                            visible: !app.light
+                                            anchors.fill: parent
+                                            sources: recentTile.modelData.heroes || []
+                                            horizontalAlignment: Image.AlignRight
+                                            sourceSize.width: 600
+                                            opacity: status === Image.Ready ? (recentHover.hovered ? 0.55 : 0.4) : 0
+                                            Behavior on opacity { NumberAnimation { duration: 220 } }
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            visible: recentWide.visible && recentWide.status === Image.Ready
+                                            gradient: Gradient {
+                                                orientation: Gradient.Horizontal
+                                                GradientStop { position: 0.25; color: theme.surfaceContainerHigh }
+                                                GradientStop { position: 0.75; color: Qt.alpha(theme.surfaceContainerHigh, 0.55) }
+                                                GradientStop { position: 1.0; color: Qt.alpha(theme.surfaceContainerHigh, 0.15) }
+                                            }
+                                        }
+                                        ArtImage {
+                                            width: 88; height: parent.height
+                                            sources: recentTile.modelData.covers || []
+                                            sourceSize.width: 176
+                                        }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent; radius: recentTile.radius; color: "transparent"; z: 1
+                                        border.width: recentHover.hovered ? 2 : 1
+                                        border.color: recentHover.hovered ? theme.primary
+                                                      : theme.dark === false ? Qt.alpha("black", 0.08) : Qt.alpha("white", 0.07)
+                                    }
+                                    Column {
+                                        anchors { left: parent.left; leftMargin: 88 + 16; right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                                        spacing: 6
+                                        Text {
+                                            width: parent.width
+                                            text: recentTile.modelData.title
+                                            font.family: app.titleFamily
+                                            color: theme.onSurface
+                                            font.pixelSize: 15; font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                        }
+                                        Row {
+                                            spacing: 6
+                                            StoreTile { size: 16; store: recentTile.modelData.store; anchors.verticalCenter: parent.verticalCenter }
+                                            Text { text: recentTile.modelData.storeName; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: {
+                                                const s = app.playedText(0, recentTile.modelData.lastPlayed).replace("Last played ", "")
+                                                return s.charAt(0).toUpperCase() + s.slice(1)
+                                            }
+                                            color: theme.outline
+                                            font.pixelSize: 12
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                    HoverHandler { id: recentHover; enabled: win.cardsLive; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler {
+                                        enabled: win.cardsLive
+                                        onSingleTapped: if (win.cardsLive) win.select(recentTile.modelData.key)
+                                        onDoubleTapped: if (win.cardsLive) win.activate(recentTile.modelData.key)
+                                        onLongPressed: if (win.cardsLive) gameMenu.showFor(recentTile.modelData.key, recentTile, point.position)
+                                    }
+                                    TapHandler {
+                                        enabled: win.cardsLive
+                                        acceptedButtons: Qt.RightButton
+                                        onTapped: (eventPoint, button) => gameMenu.showFor(recentTile.modelData.key, recentTile, eventPoint.position)
+                                    }
+                                }
+                                }
+                            }
+
+                            // Epic's free games this week (and next): Get opens the store page.
+                            Column {
+                                parent: (app.settingsMap.home_order || ["continue"])[0] === "continue" ? homeSlotB : homeSlotA
+                                visible: app.epicFree.length > 0
+                                x: 8
+                                width: parent.width - 16
+                                spacing: 10
+                                bottomPadding: 18
+                                SectionHead {
+                                    sid: "free"; icon: "gift"
+                                    readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
+                                    title: qsTr("Free on Epic") + (nowFree ? "  \u00B7  " + nowFree + qsTr(" this week") : "")
+                                    extra: qsTr("Hide until next week")
+                                    onExtraPicked: app.hideEpicFreeForNow()
+                                }
+                                ListView {
+                                    visible: !win.homeFolded("free")
+                                    width: parent.width
+                                    height: 132
+                                    orientation: ListView.Horizontal
+                                    spacing: 12
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    model: app.epicFree
+                                    delegate: Rectangle {
+                                        id: freeTile
+                                        required property var modelData
+                                        width: 300; height: 132
+                                        radius: 12
+                                        color: theme.surfaceContainerHigh
+                                        RoundedArt {
+                                            anchors.fill: parent
+                                            radius: freeTile.radius
+                                            ArtImage {
+                                                width: 94; height: parent.height
+                                                sources: [freeTile.modelData.tall, freeTile.modelData.wide].filter(u => !!u)
+                                                sourceSize.width: 188
+                                            }
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent; radius: freeTile.radius; color: "transparent"; z: 1
+                                            border.width: freeHover.hovered ? 2 : 0
+                                            border.color: freeHover.hovered ? theme.primary : theme.outlineVariant
+                                        }
+                                        Column {
+                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                            spacing: 6
+                                            Text {
+                                                width: parent.width
+                                                text: freeTile.modelData.title
+                                                font.family: app.titleFamily
+                                                color: theme.onSurface
+                                                font.pixelSize: 14; font.weight: Font.DemiBold
+                                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                width: parent.width
+                                                text: freeTile.modelData.now ? qsTr("Free until ") + freeTile.modelData.when
+                                                                             : qsTr("Free from ") + freeTile.modelData.when
+                                                color: freeTile.modelData.now ? theme.primary : theme.outline
+                                                font.pixelSize: 12
+                                            }
+                                            KButton {
+                                                theme: win.theme
+                                                visible: freeTile.modelData.now
+                                                primary: !freeTile.modelData.owned
+                                                enabled: !freeTile.modelData.owned
+                                                text: freeTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
+                                                iconName: freeTile.modelData.owned ? "check" : "external-link"
+                                                onClicked: app.openUrl(freeTile.modelData.url)
+                                            }
+                                        }
+                                        HoverHandler { id: freeHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+
+                            // Free to keep on other stores (IsThereAnyDeal's giveaways; needs its key).
+                            Column {
+                                visible: app.otherFree.length > 0 && !library.search
+                                x: 8
+                                width: parent.width - 16
+                                spacing: 10
+                                bottomPadding: 18
+                                SectionHead {
+                                    sid: "otherfree"; icon: "gift"
+                                    title: qsTr("Free on other stores  \u00B7  ") + app.otherFree.length
+                                }
+                                ListView {
+                                    visible: !win.homeFolded("otherfree")
+                                    width: parent.width
+                                    height: 132
+                                    orientation: ListView.Horizontal
+                                    spacing: 12
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    model: app.otherFree
+                                    delegate: Rectangle {
+                                        id: giftTile
+                                        required property var modelData
+                                        width: 300; height: 132
+                                        radius: 12
+                                        color: theme.surfaceContainerHigh
+                                        RoundedArt {
+                                            anchors.fill: parent
+                                            radius: giftTile.radius
+                                            ArtImage {
+                                                width: 94; height: parent.height
+                                                sources: [giftTile.modelData.tall, giftTile.modelData.wide].filter(u => !!u)
+                                                sourceSize.width: 188
+                                            }
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent; radius: giftTile.radius; color: "transparent"; z: 1
+                                            border.width: giftHover.hovered ? 2 : 0; border.color: theme.primary
+                                        }
+                                        Column {
+                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                            spacing: 6
+                                            Text { width: parent.width; text: giftTile.modelData.title; font.family: app.titleFamily
+                                                   color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                   wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                            Text { width: parent.width; elide: Text.ElideRight
+                                                   text: giftTile.modelData.shop + (giftTile.modelData.when ? qsTr("  \u00B7  until ") + giftTile.modelData.when : "")
+                                                   color: theme.primary; font.pixelSize: 12 }
+                                            KButton {
+                                                theme: win.theme
+                                                primary: !giftTile.modelData.owned
+                                                enabled: !giftTile.modelData.owned
+                                                width: Math.min(implicitWidth, parent.width)
+                                                text: giftTile.modelData.owned ? qsTr("In your library") : qsTr("Get")
+                                                iconName: giftTile.modelData.owned ? "check" : "external-link"
+                                                onClicked: app.openUrl(giftTile.modelData.url)
+                                            }
+                                        }
+                                        HoverHandler { id: giftHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+
+                            // Games on your Steam / GOG wishlist that are on sale right now.
+                            Column {
+                                visible: app.wishlistSales.length > 0 && !library.search
+                                x: 8
+                                width: parent.width - 16
+                                spacing: 10
+                                bottomPadding: 18
+                                SectionHead {
+                                    sid: "sales"; icon: "tag"
+                                    title: qsTr("On sale from your wishlist  \u00B7  ") + app.wishlistSales.length
+                                }
+                                ListView {
+                                    visible: !win.homeFolded("sales")
+                                    width: parent.width
+                                    height: 132
+                                    orientation: ListView.Horizontal
+                                    spacing: 12
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    model: app.wishlistSales
+                                    delegate: Rectangle {
+                                        id: saleTile
+                                        required property var modelData
+                                        // IsThereAnyDeal's cheapest deal, when it is deeper than the wishlist store's own sale.
+                                        readonly property var best: modelData.best && modelData.best.cut > (modelData.discount || 0) ? modelData.best : null
+                                        width: 300; height: 132
+                                        radius: 12
+                                        color: theme.surfaceContainerHigh
+                                        RoundedArt {
+                                            anchors.fill: parent
+                                            radius: saleTile.radius
+                                            ArtImage {
+                                                width: 94; height: parent.height
+                                                sources: [saleTile.modelData.tall, saleTile.modelData.wide].filter(u => !!u)
+                                                sourceSize.width: 188
+                                            }
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent; radius: saleTile.radius; color: "transparent"; z: 1
+                                            border.width: saleHover.hovered ? 2 : 0
+                                            border.color: theme.primary
+                                        }
+                                        Column {
+                                            anchors { left: parent.left; leftMargin: 94 + 12; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                            spacing: 6
+                                            Text {
+                                                width: parent.width
+                                                text: saleTile.modelData.title
+                                                font.family: app.titleFamily
+                                                textFormat: Text.PlainText
+                                                color: theme.onSurface
+                                                font.pixelSize: 14; font.weight: Font.DemiBold
+                                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                            }
+                                            Row {
+                                                spacing: 8
+                                                Rectangle {
+                                                    width: pct.implicitWidth + 12; height: 20; radius: 6
+                                                    color: theme.primary
+                                                    Text { id: pct; anchors.centerIn: parent; text: "-" + (saleTile.best ? saleTile.best.cut : saleTile.modelData.discount) + "%"
+                                                           color: theme.onPrimary; font.pixelSize: 11; font.weight: Font.Bold }
+                                                }
+                                                Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.price : saleTile.modelData.price
+                                                       textFormat: Text.PlainText; color: theme.onSurface; font.pixelSize: 13 }
+                                                Text { anchors.verticalCenter: parent.verticalCenter; text: saleTile.best ? saleTile.best.was : saleTile.modelData.was
+                                                       textFormat: Text.PlainText; color: theme.outline; font.pixelSize: 11; font.strikeout: true }
+                                            }
+                                            Text {
+                                                visible: !!(saleTile.best && saleTile.best.low)
+                                                text: qsTr("Lowest price ever")
+                                                color: theme.primary; font.pixelSize: 11; font.weight: Font.DemiBold
+                                            }
+                                            KButton {
+                                                theme: win.theme
+                                                width: Math.min(implicitWidth, parent.width)
+                                                text: saleTile.best ? saleTile.best.shop
+                                                      : saleTile.modelData.store === "gog" ? qsTr("Open on GOG") : qsTr("Open on Steam")
+                                                iconName: "external-link"
+                                                onClicked: app.openUrl(saleTile.best ? saleTile.best.url : saleTile.modelData.url)
+                                            }
+                                        }
+                                        HoverHandler { id: saleHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                x: 8
+                                textFormat: Text.StyledText
+                                text: (library.shelf === "" ? (win.smartActive ? win.smartActive.name : qsTr("Library")) + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
+                                      : library.shelf === "fav" ? qsTr("Favourites")
+                                      : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
+                                      : library.shelf.replace(/^c:/, ""))
+                                color: theme.onSurface
+                                font.pixelSize: 15; font.weight: Font.DemiBold
+                            }
+                        }
+                        HumbleShop {
+                            width: grid.width
+                            shown: library.storeFilter === "humble" && !library.search && !library.showHidden && !library.shelf
+                            theme: win.theme
+                            // It fills in after the page opens: start at its top, not part-way down.
+                            // (With no games in the grid, positionViewAtBeginning has nothing to go to.)
+                            onHeightChanged: if (grid.currentIndex <= 0) Qt.callLater(() => {
+                                if (grid.count === 0) grid.contentY = grid.originY - grid.topMargin
+                                else grid.positionViewAtBeginning()
+                            })
                         }
                     }
                     delegate: GameCard {
@@ -1908,9 +1924,11 @@ ApplicationWindow {
                     }
                 }
 
-                // Empty state: says why, and offers the way back.
+                // Empty state: says why, and offers the way back. (Not over Humble's shop window: the
+                // Humble page has something to show even with no DRM-free games in the library.)
                 Column {
-                    visible: grid.count === 0
+                    visible: grid.count === 0 && !(library.storeFilter === "humble" && !library.search
+                                                   && ((app.humbleShop.games || []).length || (app.humbleShop.bundles || []).length))
                     anchors.centerIn: parent
                     spacing: 14
                     width: Math.min(parent.width - 60, 460)

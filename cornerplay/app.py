@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import humbleshop, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
@@ -575,6 +575,7 @@ class AioLaunch(QObject):
     dlcsReady = Signal(str, "QVariantList", str)  # key, rows, note
     saveConflict = Signal(str, str, str)          # key, local date, cloud date
     epicFreeChanged = Signal()
+    humbleShopChanged = Signal()
     storageReady = Signal("QVariantMap")
     updateChanged = Signal()
     achievementsReady = Signal(str, "QVariantMap")  # key, {"done", "total"}
@@ -1787,6 +1788,34 @@ class AioLaunch(QObject):
         return out
 
     epicFree = Property("QVariantList", _epic_free_info, notify=epicFreeChanged)
+
+    # --- Humble Bundle's shop window: this month's Choice and the game bundles ----
+    _humble_shop = {}
+
+    @Slot()
+    @Slot(bool)
+    def loadHumbleShop(self, force=False):
+        """Read on the Humble Bundle page (cached for 3 hours)."""
+        def work():
+            shop = humbleshop.get(force)
+            return lambda: (setattr(self, "_humble_shop", shop), self.humbleShopChanged.emit())
+        self._bg(work)
+
+    def _humble_shop_info(self):
+        """{"month", "price", "url", "games": [... owned], "bundles": [... when]}: Choice games
+        already in the library (any store, usually Steam once the key is redeemed) are marked."""
+        shop = self._humble_shop or {}
+        choice = shop.get("choice") or {}
+        owned = {covers.norm(g.title) for g in self.model.games}
+        now = time.time()
+        games = [dict(g, owned=covers.norm(g.get("title", "")) in owned) for g in choice.get("games") or []]
+        bundles = [dict(b, when=_short_date(b["ends"]) if b.get("ends") else "")
+                   for b in shop.get("bundles") or [] if not b.get("ends") or b["ends"] > now]
+        return {"month": choice.get("month", ""), "price": choice.get("price", ""),
+                "url": choice.get("url") or humbleshop.CHOICE_URL, "games": games, "bundles": bundles,
+                "bundlesUrl": humbleshop.BUNDLES_URL}
+
+    humbleShop = Property("QVariantMap", _humble_shop_info, notify=humbleShopChanged)
 
     # --- wishlist sales ---------------------------------------------------------
     _wishlist = []
