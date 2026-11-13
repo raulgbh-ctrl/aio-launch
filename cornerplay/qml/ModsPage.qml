@@ -12,7 +12,8 @@ KDialog {
     property string query: ""
     property bool searching: false
     property string busy: ""
-    property int tab: 0             // 0 installed, 1 find
+    property int tab: 0             // 0 installed, 1 find, 2 Steam Workshop
+    property var workshopRows: []   // the game's Steam Workshop subscriptions (workshop.py)
     heading: v.game ? qsTr("Mods for %1").arg(v.game) : qsTr("Mods")
     headingIcon: "sparkles"
     width: Math.min(parent ? parent.width - 80 : 900, 920)
@@ -20,8 +21,9 @@ KDialog {
     closePolicy: Popup.CloseOnEscape
 
     function show(key) {
-        gameKey = key; v = ({}); found = []; query = ""; busy = ""; tab = 0
+        gameKey = key; v = ({}); found = []; query = ""; busy = ""; tab = 0; workshopRows = []
         app.loadMods(key)
+        app.loadWorkshop(key)
         open()
     }
     function search() {
@@ -33,7 +35,12 @@ KDialog {
 
     Connections {
         target: app
-        function onModsReady(key, view) { if (key === page.gameKey) page.v = view }
+        function onModsReady(key, view) {
+            if (key !== page.gameKey) return
+            page.v = view
+            if (view.workshopOnly) page.tab = 2
+        }
+        function onWorkshopReady(key, rows) { if (key === page.gameKey) page.workshopRows = rows }
         function onModSearchReady(key, q, rows) { if (key === page.gameKey) { page.found = rows; page.searching = false } }
         function onModBusy(key, text) {
             if (key !== page.gameKey) return
@@ -56,6 +63,7 @@ KDialog {
 
         // Profile, and the state of things
         RowLayout {
+            visible: !page.v.workshopOnly
             Layout.fillWidth: true
             spacing: 10
             Text { text: qsTr("Profile"); color: theme.onSurfaceVariant; font.pixelSize: 13 }
@@ -101,7 +109,7 @@ KDialog {
         }
         Text {
             Layout.fillWidth: true
-            visible: page.v.gid !== undefined && !page.v.installed
+            visible: page.v.gid !== undefined && !page.v.installed && !page.v.workshopOnly
             text: qsTr("The game isn't installed on this PC: you can pick mods now, and they go into the game once it is.")
             color: theme.onSurfaceVariant; font.pixelSize: 13; wrapMode: Text.WordWrap
         }
@@ -145,14 +153,16 @@ KDialog {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
-                model: [qsTr("Installed") + ((page.v.mods || []).length ? "  ·  " + page.v.mods.length : ""),
-                        qsTr("Find mods on ") + page.sourceName]
+                model: [{ i: 0, label: qsTr("Installed") + ((page.v.mods || []).length ? "  ·  " + page.v.mods.length : "") },
+                        { i: 1, label: qsTr("Find mods on ") + page.sourceName },
+                        { i: 2, label: qsTr("Steam Workshop") + "  ·  " + page.workshopRows.length }]
+                        .filter(t => page.v.workshopOnly ? t.i === 2 : (t.i < 2 || page.workshopRows.length > 0))
                 Rectangle {
-                    required property string modelData
-                    required property int index
+                    required property var modelData
+                    readonly property int index: modelData.i
                     radius: 10; implicitHeight: 34; implicitWidth: tabText.implicitWidth + 28
                     color: page.tab === index ? theme.primaryContainer : (tabHover.hovered ? theme.surfaceContainerHigh : "transparent")
-                    Text { id: tabText; anchors.centerIn: parent; text: modelData; font.pixelSize: 13; font.weight: Font.DemiBold
+                    Text { id: tabText; anchors.centerIn: parent; text: modelData.label; font.pixelSize: 13; font.weight: Font.DemiBold
                            color: page.tab === index ? theme.onPrimaryContainer : theme.onSurfaceVariant }
                     HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler {
@@ -397,6 +407,75 @@ KDialog {
                             text: hit.modelData.installed ? qsTr("Installed") : qsTr("Install")
                             iconName: hit.modelData.installed ? "check" : "download"
                             onClicked: app.installMod(page.gameKey, hit.modelData.id)
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Steam Workshop: what you subscribed to (only Steam can change that) -------
+        ColumnLayout {
+            visible: page.tab === 2
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                    text: qsTr("Items you subscribed to in Steam. To remove one, unsubscribe on its page in Steam: other apps can't change Workshop subscriptions.")
+                    color: theme.onSurfaceVariant; font.pixelSize: 13
+                }
+                KButton {
+                    theme: page.theme; iconName: "external-link"
+                    text: qsTr("Browse the Workshop")
+                    onClicked: app.browseWorkshop(page.gameKey)
+                }
+            }
+            ListView {
+                id: workshopList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 6
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: KScrollBar { }
+                model: page.workshopRows
+                delegate: Rectangle {
+                    id: wsRow
+                    required property var modelData
+                    width: workshopList.width - 12
+                    implicitHeight: 64
+                    radius: 10
+                    color: wsHover.hovered ? theme.surfaceContainerHigh : theme.surfaceContainer
+                    HoverHandler { id: wsHover }
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        spacing: 12
+                        RoundedArt {
+                            Layout.preferredWidth: 44; Layout.preferredHeight: 44; radius: 8
+                            ArtImage { anchors.fill: parent; sources: wsRow.modelData.preview ? [wsRow.modelData.preview] : []; sourceSize.width: 88 }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+                            Text { Layout.fillWidth: true; text: wsRow.modelData.title; color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                            Text {
+                                Layout.fillWidth: true
+                                text: [wsRow.modelData.size, wsRow.modelData.when ? qsTr("updated ") + wsRow.modelData.when : ""].filter(x => x).join("  ·  ")
+                                color: theme.outline; font.pixelSize: 12; elide: Text.ElideRight
+                            }
+                        }
+                        KButton {
+                            theme: page.theme; iconName: "external-link"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Its page on the web")
+                            onClicked: app.openUrl(wsRow.modelData.url)
+                        }
+                        KButton {
+                            theme: page.theme
+                            text: qsTr("Open in Steam")
+                            onClicked: app.openUrl(wsRow.modelData.steam)
                         }
                     }
                 }

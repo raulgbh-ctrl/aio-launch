@@ -17,7 +17,7 @@ import shlex
 
 import sys
 
-from . import humbleshop, patchnotes, mods, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import humbleshop, patchnotes, mods, workshop, cleanup, achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from . import __version__
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
@@ -1386,6 +1386,48 @@ class AioLaunch(QObject):
             return lambda: self.prefixesReady.emit(rows)
         self._bg(work)
 
+    # --- Storage > Clean up (cleanup.py): shader caches, crash dumps, redist installers ---
+    cleanupReady = Signal("QVariantMap")
+    _cleanup_found = {}
+
+    @Slot()
+    def loadCleanup(self):
+        games = [g for g in self.model.games if g.installed and g.install_path and os.path.isdir(g.install_path)]
+        played = [g.install_path for g in games
+                  if (self.model.group_value(self.model.group_of(g.key) or [g], "lastPlayed") or 0) > 0]
+
+        def work():
+            from .savebackup import prefix_for
+            prefixes = []
+            for g in games:
+                try:
+                    p = prefix_for(g, _appid(g))
+                except Exception:
+                    p = ""
+                if p and os.path.isdir(p):
+                    prefixes.append(p)
+            found = cleanup.scan([g.install_path for g in games], played, prefixes)
+
+            def done():
+                self._cleanup_found = {grp["id"]: [i["path"] for i in grp["items"]] for grp in found["groups"]}
+                self.cleanupReady.emit(found)
+            return done
+        self._bg(work)
+
+    @Slot(str)
+    def cleanUp(self, group):
+        """Delete one group from the last scan (nothing else): shaders | crashes | redist."""
+        if self._playing or self._steam_playing:
+            return self.toast.emit("Close the game first: its files may be in use")
+        paths = list(self._cleanup_found.get(group) or [])
+        if not paths:
+            return
+
+        def work():
+            freed = cleanup.delete(paths, set(paths))
+            return lambda: (self.toast.emit(f"Freed {storage.nice(freed)}"), self.loadCleanup(), self.loadStorage())
+        self._bg(work)
+
     @Slot(str)
     def deletePrefix(self, path):
         root = os.path.realpath(str(settings.games_dir / "prefixes"))
@@ -1854,13 +1896,48 @@ class AioLaunch(QObject):
                 return c, gid
         return g, ""
 
+    def _workshop_appid(self, key):
+        """The Steam app id of the installed Steam copy of a game ("" without one)."""
+        g = self.model.find(key)
+        for c in (self.model.group_of(key) or ([g] if g else [])):
+            if c.store == "steam" and c.installed and c.id.isdigit():
+                return c.id
+        return ""
+
     @Slot(str, result="QVariantMap")
     def modSupport(self, key):
-        """{gid, name, source, installed, enabled}, or {} when Cornerplay can't mod this game."""
-        g, gid = self._mod_game(key)
-        if not gid or self.demo:
+        """{gid, name, source, installed, enabled, workshop}, or {} when there is nothing to show:
+        gid is "" for a game with only Steam Workshop items."""
+        if self.demo:
             return {}
-        return {"gid": gid, "name": mods.GAMES[gid]["name"], "source": mods.GAMES[gid]["source"], **mods.summary(gid)}
+        g, gid = self._mod_game(key)
+        appid = self._workshop_appid(key)
+        n = len(workshop.installed(appid)) if appid else 0
+        if not gid and not n:
+            return {}
+        out = {"gid": gid, "workshop": n, "enabled": 0}
+        if gid:
+            out.update(name=mods.GAMES[gid]["name"], source=mods.GAMES[gid]["source"], **mods.summary(gid))
+        return out
+
+    workshopReady = Signal(str, "QVariantList")  # key, [{id, title, preview, size, updated, url, steam}]
+
+    @Slot(str)
+    def loadWorkshop(self, key):
+        appid = self._workshop_appid(key)
+        if not appid:
+            return self.workshopReady.emit(key, [])
+
+        def work():
+            rows = [dict(r, when=_short_date(r["updated"], True) if r["updated"] else "") for r in workshop.items(appid)]
+            return lambda: self.workshopReady.emit(key, rows)
+        self._bg(work)
+
+    @Slot(str)
+    def browseWorkshop(self, key):
+        appid = self._workshop_appid(key) or _appid(self.model.find(key)) if self.model.find(key) else ""
+        if appid:
+            self.openUrl(f"steam://url/SteamWorkshopPage/{appid}")
 
     def _mod_playing(self, g):
         return bool(self._playing.get(g.key) or self._steam_playing.get(g.key))
@@ -1890,7 +1967,11 @@ class AioLaunch(QObject):
     def loadMods(self, key, check_updates=True):
         """modsReady follows (quickly), and again with updates once they are checked."""
         g, gid = self._mod_game(key)
-        if not gid:
+        if not gid:  # only Steam Workshop items
+            if g:
+                self.modsReady.emit(key, {"key": key, "gid": "", "game": g.title, "workshopOnly": True, "mods": [],
+                                          "profiles": [], "notes": [], "installed": g.installed,
+                                          "playing": self._mod_playing(g), "enabledCount": 0})
             return
         self.modsReady.emit(key, self._mods_view(key, g, gid, getattr(self, "_mod_updates", {}).get(gid)))
         if check_updates:

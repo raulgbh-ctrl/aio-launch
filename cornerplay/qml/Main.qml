@@ -2788,7 +2788,8 @@ ApplicationWindow {
                     KButton {
                         theme: detail.tint
                         visible: detail.modInfo.gid !== undefined
-                        text: detail.modInfo.enabled ? qsTr("Mods \u00B7 ") + detail.modInfo.enabled : qsTr("Mods")
+                        readonly property int n: (detail.modInfo.enabled || 0) + (detail.modInfo.workshop || 0)
+                        text: n ? qsTr("Mods \u00B7 ") + n : qsTr("Mods")
                         iconName: "sparkles"
                         onClicked: modsPage.show(win.selectedKey)
                     }
@@ -3564,7 +3565,10 @@ ApplicationWindow {
         property bool loading: false
         property bool tidy: false   // "Free up space": big games not played for three months
         property string moveKey: ""
-        function show() { loading = true; app.loadStorage(); app.loadPrefixes(); open() }
+        function show() { loading = true; clean = ({}); app.loadStorage(); app.loadPrefixes(); app.loadCleanup(); open() }
+        // What games leave behind (cleanup.py): {groups: [{id, count, size, items}], size}
+        property var clean: ({})
+        Connections { target: app; function onCleanupReady(found) { storage.clean = found } }
         Connections { target: app; function onStorageReady(info) { storage.d = info; storage.loading = false } }
         property var prefixes: []
         Connections { target: app; function onPrefixesReady(rows) { storage.prefixes = rows } }
@@ -3618,6 +3622,52 @@ ApplicationWindow {
                     text: storage.tidy ? qsTr("Show all") : qsTr("Free up space")
                     iconName: storage.tidy ? "library" : "trash-2"
                     onClicked: storage.tidy = !storage.tidy
+                }
+            }
+            // Clean up: shader caches of uninstalled Steam games, old crash dumps, redist installers.
+            Rectangle {
+                Layout.fillWidth: true
+                readonly property var groups: (storage.clean.groups || []).filter(g => g.count > 0)
+                visible: groups.length > 0
+                implicitHeight: cleanCol.implicitHeight + 20
+                radius: 12
+                color: theme.surfaceContainerHigh
+                ColumnLayout {
+                    id: cleanCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 6
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                        text: qsTr("Clean up: %1 that games left behind, safe to delete (saves and settings are never touched).").arg(storage.clean.size || "")
+                        color: theme.onSurfaceVariant; font.pixelSize: 12
+                    }
+                    Repeater {
+                        model: parent.parent.groups
+                        RowLayout {
+                            id: cleanRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            readonly property var names: ({
+                                shaders: [qsTr("Shader caches of uninstalled Steam games"), qsTr("Steam builds them again if you reinstall")],
+                                crashes: [qsTr("Crash dumps"), qsTr("Over a day old, from game folders and their Proton prefixes")],
+                                redist: [qsTr("DirectX and Visual C++ installers"), qsTr("Only needed the first time a game starts; Steam may fetch them again if it verifies a game")] })
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text { text: cleanRow.names[cleanRow.modelData.id][0] + "  \u00B7  " + cleanRow.modelData.count
+                                       color: theme.onSurface; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight
+                                       ToolTip.visible: cleanTip.hovered; ToolTip.delay: 400
+                                       ToolTip.text: cleanRow.modelData.items.slice(0, 8).map(i => i.name + "  " + i.size).join("\n")
+                                       HoverHandler { id: cleanTip } }
+                                Text { text: cleanRow.names[cleanRow.modelData.id][1]; color: theme.outline; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                            }
+                            Text { text: cleanRow.modelData.size; color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                            KButton { property bool armed: false; theme: win.theme; danger: true; iconName: "trash-2"
+                                      text: armed ? qsTr("Sure?") : qsTr("Clean up")
+                                      onClicked: { if (!armed) { armed = true; return } armed = false; app.cleanUp(cleanRow.modelData.id) } }
+                        }
+                    }
                 }
             }
             // Proton prefixes no installed game uses (and old ones put aside by Reset).
