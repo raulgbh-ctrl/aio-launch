@@ -3167,6 +3167,43 @@ class AioLaunch(QObject):
                 return True
         return False
 
+    # --- saves shared between your PCs (savebackup.share / newer_elsewhere) -------------------
+    savesNewer = Signal(str, "QVariantMap")   # key, {"name": the other PC, "when", "path"}
+    _sync_ok = {}                              # key -> the save question was answered for this start
+
+    def _shares_saves(self, g):
+        """Saves go through the sync folder for games with no cloud saves of their own."""
+        from .personal import sync_root
+        if self.demo or not settings.get("sync_saves") or not settings.get("save_backups") or not sync_root():
+            return False
+        if g.store in ("steam", "battlenet"):
+            return False  # Steam Cloud and Battle.net keep their games' saves themselves
+        return not saves.enabled_for(g)
+
+    @Slot(str, str)
+    def useSharedSave(self, key, path):
+        g = self.model.find(key)
+        if not g:
+            return
+
+        def work():
+            try:
+                n = savebackup.take(g, path, _appid(g))
+            except Exception as e:
+                return lambda m=str(e): self.toast.emit(f"Could not use that save: {m}")
+
+            def go():
+                self.toast.emit(f"{g.title}: {n} save files from your other PC are in place")
+                self._sync_ok[key] = True
+                self.play(key)
+            return go
+        self._bg(work)
+
+    @Slot(str)
+    def keepLocalSave(self, key):
+        self._sync_ok[key] = True
+        self.play(key)
+
     # The launch card in the window: "start" (getting ready), then "ok" or "fail"; "cancel" when a
     # save conflict needs an answer first.
     launching = Signal(str, str)
@@ -3195,7 +3232,18 @@ class AioLaunch(QObject):
         if sync:
             self.toast.emit(f"Syncing saves for {g.title}…")
 
+        share = self._shares_saves(g) and not self._sync_ok.pop(key, False)
+
         def work():
+            if share:  # another PC played it since: ask which save to use (nothing is overwritten unasked)
+                try:
+                    newer = savebackup.newer_elsewhere(g, _appid(g))
+                except Exception:
+                    newer = None
+                if newer:
+                    info = {"name": newer["name"], "path": newer["path"],
+                            "when": _short_date(newer["newest"]) + time.strftime(", %H:%M", time.localtime(newer["newest"]))}
+                    return lambda: (self._launch_state(key, "cancel"), self.savesNewer.emit(key, info))
             if sync:
                 res = saves.sync(g, mode)
                 if res["status"] == "conflict":
@@ -3356,6 +3404,9 @@ class AioLaunch(QObject):
             elif data.get("state") == "done":
                 self._reload_playtime()
                 self._after_session(data)
+                done_game = self.model.find(data.get("key", ""))
+                if done_game and self._shares_saves(done_game):
+                    self._bg(lambda gg=done_game: (savebackup.share(gg, _appid(gg)), None)[1])
                 self._recap(data.get("key", ""), (data.get("since") or 0) - (data.get("started") or data.get("since") or 0))
                 res = data.get("sync") or {}
                 title = data.get("title", "")

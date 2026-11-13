@@ -2011,6 +2011,35 @@ ApplicationWindow {
         }
     }
 
+    // Another PC played this game since: which save should it start with?
+    KDialog {
+        id: newerSave
+        theme: win.theme
+        heading: qsTr("A newer save on another PC")
+        headingIcon: "cloud"
+        width: Math.min(win.width - 60, 460)
+        property string key: ""
+        property var info: ({})
+        Connections { target: app; function onSavesNewer(key, info) { newerSave.key = key; newerSave.info = info; newerSave.open() } }
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurface; font.pixelSize: 14
+                text: qsTr("You played ") + (app.game(newerSave.key).title || "") + qsTr(" on ") + (newerSave.info.name || "") + " ("
+                      + (newerSave.info.when || "") + qsTr("), after the saves on this PC.")
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.onSurfaceVariant; font.pixelSize: 12
+                text: qsTr("Using it keeps a backup of this PC's saves first (a game's More > Save backups brings them back).")
+            }
+            KButton { theme: win.theme; primary: true; Layout.fillWidth: true; iconName: "cloud"
+                      text: qsTr("Use the save from ") + (newerSave.info.name || "") + qsTr(" and play")
+                      onClicked: { newerSave.close(); app.useSharedSave(newerSave.key, newerSave.info.path) } }
+            KButton { theme: win.theme; Layout.fillWidth: true; iconName: "play"; text: qsTr("Keep this PC's save and play")
+                      onClicked: { newerSave.close(); app.keepLocalSave(newerSave.key) } }
+        }
+    }
+
     // Ctrl+K: type a few letters, jump to a game (Enter: its page, Shift+Enter: play) or an action.
     KDialog {
         id: jump

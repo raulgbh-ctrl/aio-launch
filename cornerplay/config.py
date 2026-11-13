@@ -62,6 +62,7 @@ DEFAULTS = {
     "smart_lists": [],         # saved filters shown as lists in the sidebar: [{"name", "store", "installed", "tags"}]
     "ui_scale": 0.0,           # interface size: 0 = automatic, else 1.0 / 1.15 / 1.3 / 1.5 / 2.0 (after a restart)
     "save_backups": True,    # zip a game's saves before each start (savebackup.py)
+    "sync_saves": True,      # with a sync folder: share each game's latest saves between your PCs (savebackup.share)
     "backup_keep": 5,        # backups kept per game
     "card_shadow": "soft",   # cover shadows: "none", "soft", "deep"
     "evening_warmth": True,  # surfaces turn a little warmer in the evening and at night
