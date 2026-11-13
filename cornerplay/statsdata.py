@@ -9,11 +9,26 @@ from datetime import date, datetime, timedelta
 
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
           "October", "November", "December"]
+_NAMES = {
+    "en": (MONTHS, [m[:3] for m in MONTHS]),
+    "ro": (["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie", "august", "septembrie",
+            "octombrie", "noiembrie", "decembrie"],
+           ["ian.", "feb.", "mar.", "apr.", "mai", "iun.", "iul.", "aug.", "sept.", "oct.", "nov.", "dec."]),
+}
+# The interface language ("en", "ro"); the app sets it at start. Month names follow it, not the
+# system's language (strftime would), so dates read the same as the rest of the interface.
+LANG = "en"
+
+
+def month(i, short=False):
+    """The name of month i (0 = January) in the interface language."""
+    full, abbr = _NAMES.get(LANG, _NAMES["en"])
+    return (abbr if short else full)[i]
 
 
 def _day(t):
     d = date.fromtimestamp(t)
-    return f"{d.day} {MONTHS[d.month - 1]}"  # not strftime: that follows the system's language, not the app's
+    return f"{d.day} {month(d.month - 1)}"
 
 
 def _overlap(s, e, lo, hi):
@@ -32,7 +47,7 @@ def weekly(log, now=None, weeks=12):
         lo = datetime.combine(start, datetime.min.time()).timestamp()
         hi = datetime.combine(start + timedelta(weeks=1), datetime.min.time()).timestamp()
         secs = sum(_overlap(s, e, lo, hi) for _, s, e in log)
-        out.append({"label": f"{start.day} {MONTHS[start.month - 1][:3]}", "hours": round(secs / 3600, 1)})
+        out.append({"label": f"{start.day} {month(start.month - 1, True)}", "hours": round(secs / 3600, 1)})
     return out
 
 
@@ -75,7 +90,7 @@ def year_summary(log, year, title_of, finished_at=None):
         "games": len(by_title),
         "top": [{"key": k, "title": t, "hours": round(secs / 3600, 1)} for secs, k, t in top],
         "months": [round(m / 3600, 1) for m in per_month],
-        "busiestMonth": MONTHS[busiest] if busiest >= 0 else "",
+        "busiestMonth": month(busiest) if busiest >= 0 else "",
         "busiestHours": round(per_month[busiest] / 3600, 1) if busiest >= 0 else 0,
         "longest": {"title": title_of(longest[1]), "hours": round(longest[0] / 3600, 1),
                     "date": _day(longest[2]) if longest[2] else ""}

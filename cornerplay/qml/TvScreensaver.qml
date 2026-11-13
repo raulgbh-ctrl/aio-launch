@@ -82,7 +82,7 @@ Rectangle {
 
     property string clock: ""
     Timer { interval: 1000; repeat: true; triggeredOnStart: true; running: saver.visible
-            onTriggered: saver.clock = Qt.formatTime(new Date(), Qt.locale().timeFormat(Locale.ShortFormat)) }
+            onTriggered: saver.clock = Qt.formatTime(new Date(), Qt.locale(app.uiLocale).timeFormat(Locale.ShortFormat)) }
     Text {
         anchors { right: parent.right; top: parent.top; margins: saver.height * 0.06 }
         text: saver.clock

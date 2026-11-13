@@ -470,7 +470,7 @@ FocusScope {
                 property var batt: ({})
                 property string clock: ""
                 function tick() {
-                    clock = Qt.formatTime(new Date(), Qt.locale().timeFormat(Locale.ShortFormat))
+                    clock = Qt.formatTime(new Date(), Qt.locale(app.uiLocale).timeFormat(Locale.ShortFormat))
                     batt = app.battery()
                 }
                 Timer { interval: 20000; running: tv.visible; repeat: true; triggeredOnStart: true; onTriggered: topStatus.tick() }

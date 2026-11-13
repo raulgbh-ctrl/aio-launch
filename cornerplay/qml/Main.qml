@@ -1746,7 +1746,7 @@ ApplicationWindow {
                             Text { width: 90; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.playtime >= 3600 ? Math.round(trow.playtime / 360) / 10 + " h" : trow.playtime > 0 ? Math.round(trow.playtime / 60) + qsTr(" min") : "" }
                             Text { visible: table.colOn(5); width: 110; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
-                                   text: trow.lastPlayed > 0 ? new Date(trow.lastPlayed * 1000).toLocaleDateString(Qt.locale(), "d MMM yyyy") : "" }
+                                   text: trow.lastPlayed > 0 ? new Date(trow.lastPlayed * 1000).toLocaleDateString(Qt.locale(app.uiLocale), "d MMM yyyy") : "" }
                             Text { visible: table.colOn(6); width: 84; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; color: theme.onSurfaceVariant
                                    text: trow.sizeBytes > 0 ? (trow.sizeBytes / 1073741824).toFixed(1) + qsTr(" GB") : "" }
                         }
@@ -3260,7 +3260,7 @@ ApplicationWindow {
                                         id: dayName
                                         anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
                                         text: new Date(Date.now() - (days14.vals.length - 1 - dayBar.index) * 86400000)
-                                              .toLocaleDateString(Qt.locale(), "ddd").charAt(0).toUpperCase()
+                                              .toLocaleDateString(Qt.locale(app.uiLocale), "ddd").charAt(0).toUpperCase()
                                         color: dayBar.today ? theme.primary : theme.outline
                                         font.pixelSize: 11; font.weight: dayBar.today ? Font.Bold : Font.Normal
                                     }

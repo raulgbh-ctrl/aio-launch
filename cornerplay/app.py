@@ -61,9 +61,6 @@ SORTS = ("name", "recent", "playtime", "rating", "size")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
 
 
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
-
 def _t(text):
     """Interface text from Python, in the interface language (cornerplay/i18n)."""
     return QCoreApplication.translate("app", text)
@@ -82,9 +79,17 @@ def _translatable_names():
 
 
 def _short_date(stamp, with_year=False):
-    """ "21 Oct" in English whatever the system language, to match the rest of the app."""
+    """ "21 Oct" ("21 oct.") in the interface language, whatever the system's."""
     t = time.localtime(stamp)
-    return f"{t.tm_mday} {MONTHS[t.tm_mon - 1]}" + (f" {t.tm_year}" if with_year else "")
+    return f"{t.tm_mday} {statsdata.month(t.tm_mon - 1, True)}" + (f" {t.tm_year}" if with_year else "")
+
+
+def ui_language():
+    """The interface language as Cornerplay shows it: Settings > Appearance, else the system's,
+    and English when there is no translation for that ("en", "ro")."""
+    from PySide6.QtCore import QLocale
+    lang = ((settings.get("language") or "").strip() or QLocale.system().name()).split("_")[0]
+    return lang if lang in statsdata._NAMES else "en"
 
 
 STEAM_ART = re.compile(r"/steam/apps/(\d+)/")
@@ -489,6 +494,9 @@ class LibraryProxy(QSortFilterProxyModel):
 
 
 class AioLaunch(QObject):
+    # The interface's locale for dates and times in QML (Qt.locale(app.uiLocale)), so they follow
+    # the interface language and not the system's.
+    uiLocale = Property(str, lambda self: {"ro": "ro_RO"}.get(statsdata.LANG, "en_GB"), constant=True)
     storesChanged = Signal()
     refreshingChanged = Signal()
     themeChanged = Signal()
@@ -514,6 +522,7 @@ class AioLaunch(QObject):
     def __init__(self, demo=False):
         super().__init__()
         self.demo = demo
+        statsdata.LANG = ui_language()  # month names in the interface language
         self.stores = {s.id: s for s in all_stores()}
         self.model = LibraryModel(self.stores)
         self.proxy = LibraryProxy(self.model)
@@ -1131,7 +1140,7 @@ class AioLaunch(QObject):
             return
 
         def work():
-            rows = [dict(b, when=time.strftime("%d %b %Y, %H:%M", time.localtime(b["made"])),
+            rows = [dict(b, when=_short_date(b["made"], True) + time.strftime(", %H:%M", time.localtime(b["made"])),
                          sizeText=storage.nice(b["size"])) for b in savebackup.backups(g)]
             known = bool(savebackup.entry_for(g, _appid(g)))
             found = len(savebackup.paths_for(g, _appid(g))) if known else 0
@@ -1657,7 +1666,7 @@ class AioLaunch(QObject):
         for r in self._other_free:
             ends = r.get("ends") or 0
             out.append(dict(r, owned=covers.norm(r["title"]) in owned,
-                            when=(lambda t: f"{t.tm_mday} {statsdata.MONTHS[t.tm_mon - 1][:3]}")(time.localtime(ends)) if ends else ""))
+                            when=_short_date(ends) if ends else ""))
         return out
 
     otherFree = Property("QVariantList", _other_free_info, notify=otherFreeChanged)
