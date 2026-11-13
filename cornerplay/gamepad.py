@@ -6,7 +6,8 @@ only), View / Select = F4 (search), LB / RB = PageUp / PageDown (previous / next
 LT / RT = Shift+Left / Right (jump). Guide (the Xbox, PS or Home button) = F10 (the main
 menu, opened when it is let go), Guide + A or Share = F9 (quick access, Steam's "..." menu).
 Nothing is sent while Cornerplay is not the focused window, so the pad never steers the
-library while a game is running.
+library while a game is running. The one exception is Guide + Y: it opens the in-game panel
+(the overlay signal) over whatever has the focus.
 """
 import ctypes
 import ctypes.util
@@ -25,7 +26,7 @@ BUTTONS = {
     11: Qt.Key_Up, 12: Qt.Key_Down, 13: Qt.Key_Left, 14: Qt.Key_Right,
     15: Qt.Key_F9,                                                                # 15: Share / Capture: quick access
 }
-GUIDE, BUTTON_A = 5, 0
+GUIDE, BUTTON_A, BUTTON_Y = 5, 0, 3
 MAIN_MENU, QUICK_ACCESS = Qt.Key_F10, Qt.Key_F9
 REPEATING = {Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right}
 # SDL_GameControllerType -> which button glyphs to show. Unknown pads (and the Steam Deck,
@@ -34,6 +35,7 @@ STYLES = {3: "playstation", 4: "playstation", 7: "playstation",
           5: "nintendo", 11: "nintendo", 12: "nintendo", 13: "nintendo"}
 STICK_ON, STICK_OFF = 18000, 12000
 ACTIVE_MS, IDLE_MS = 16, 1000  # 60 checks a second while in use, one a second otherwise
+BACKGROUND_MS = 100           # a pad is plugged in but a game has the focus: Guide + Y stays quick
 FIRST_REPEAT = 0.38
 # Holding a direction speeds up: (held for at least, seconds between moves).
 REPEAT_STEPS = ((0.0, 0.11), (1.0, 0.06), (2.0, 0.035))
@@ -59,6 +61,7 @@ class Gamepad(QObject):
     availableChanged = Signal()
     _sdlFetched = Signal()  # from the download thread; queued to the main thread
     styleChanged = Signal()
+    overlay = Signal()   # Guide + Y: open or close the in-game panel
     activity = Signal()  # any button or stick, while Cornerplay has the focus
 
     def __init__(self, parent=None):
@@ -92,8 +95,7 @@ class Gamepad(QObject):
 
     def _pace(self):
         """Fast polling only while a controller is plugged in and this app has focus."""
-        fast = bool(self._pads) and QGuiApplication.focusWindow() is not None
-        interval = ACTIVE_MS if fast else IDLE_MS
+        interval = IDLE_MS if not self._pads else ACTIVE_MS if QGuiApplication.focusWindow() is not None else BACKGROUND_MS
         if self._timer.interval() != interval:
             self._timer.setInterval(interval)
 
@@ -238,6 +240,11 @@ class Gamepad(QObject):
                 if self._guide == "held":
                     self._send(MAIN_MENU)
                 self._guide = None
+            return
+        if button == BUTTON_Y and down and self._guide:  # the in-game panel, even while a game has the focus
+            self._guide = "chord"
+            self._swallow.add(button)
+            self.overlay.emit()
             return
         if button == BUTTON_A and down and self._guide:
             self._guide = "chord"

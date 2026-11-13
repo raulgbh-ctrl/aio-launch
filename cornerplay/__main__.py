@@ -228,6 +228,8 @@ def main():
                     help="add Cornerplay to Steam (Game Mode) with artwork; closes and reopens Steam if needed")
     ap.add_argument("--background", action="store_true",
                     help="start in the tray, without the window (used when starting with the PC)")
+    ap.add_argument("--overlay", action="store_true",
+                    help="open or close the in-game panel of the Cornerplay that is running (bind it to a key)")
     ap.add_argument("--demo", action="store_true", help="open with sample games (nothing is launched)")
     ap.add_argument("--check", action="store_true", help="compile every QML file and report errors, then exit")
     args = ap.parse_args()
@@ -313,6 +315,11 @@ def main():
     from PySide6.QtWidgets import QApplication  # QApplication, not QGuiApplication: the tray menu is a widget
     app = QApplication(["cornerplay"])
     from . import tray
+    if args.overlay and not args.demo:
+        if tray.hand_over("overlay"):
+            return 0
+        print("Cornerplay is not running", file=sys.stderr)
+        return 1
     if not args.demo and tray.hand_over("tv" if args.tv else "show"):
         return 0  # Cornerplay was already running (perhaps in the tray): it shows its window instead
     _note_screen_size(app)
@@ -342,6 +349,7 @@ def main():
     ctx.setContextProperty("tvNextLibrary", cornerplay.tvNextProxy)
     gamepad = Gamepad(app)
     ctx.setContextProperty("pad", gamepad)
+    gamepad.overlay.connect(cornerplay.overlayRequested)
     cornerplay.gamepad = gamepad  # asked at check time: SDL only loads a moment after start-up
     ctx.setContextProperty("startTv", args.tv)
     ctx.setContextProperty("startHidden", bool(args.background))
@@ -357,7 +365,12 @@ def main():
     window = engine.rootObjects()[0]
     the_tray = tray.Tray(app, window, cornerplay, start_hidden=args.background)
     if not args.demo:
-        instance = tray.Instance(lambda msg: the_tray.show_window(tv=msg == "tv"), app)  # noqa: F841 (kept alive)
+        def on_message(msg):
+            if msg == "overlay":
+                cornerplay.overlayRequested.emit()
+            else:
+                the_tray.show_window(tv=msg == "tv")
+        instance = tray.Instance(on_message, app)  # noqa: F841 (kept alive)
     elif args.background:
         window.setProperty("hiddenAtStart", False)
     app.aboutToQuit.connect(cornerplay.shutdown)

@@ -150,6 +150,14 @@ ApplicationWindow {
     Shortcut { sequence: "F1"; enabled: !win.tv; onActivated: keysBox.open() }
     Shortcut { sequences: ["Ctrl+K", "Ctrl+G"]; enabled: !win.tv; onActivated: jump.show() }
     Shortcut { sequence: "Ctrl+Shift+S"; enabled: !win.tv; onActivated: shotsPage.show() }
+    // The in-game panel: Guide + Y on a controller, `cornerplay --overlay`, or Ctrl+Shift+G here.
+    GamePanel {
+        id: gamePanel
+        theme: win.theme
+        onOpenCornerplay: { win.show(); win.raise(); win.requestActivate() }
+    }
+    Connections { target: app; function onOverlayRequested() { gamePanel.toggle() } }
+    Shortcut { sequence: "Ctrl+Shift+G"; onActivated: gamePanel.toggle() }
     Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
     // The smart list whose filters the library shows right now, if any.

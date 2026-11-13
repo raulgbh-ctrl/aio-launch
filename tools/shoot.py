@@ -74,8 +74,14 @@ def run(*_):
         if k == "wait": t += int(v); continue
         def do(k=k, v=v):
             w = [x for x in QGuiApplication.topLevelWindows() if x.isVisible()][0]
+            if k in ("key", "type"):  # keys go where the focus is (the in-game panel, when open)
+                w = QGuiApplication.focusWindow() or w
             if k == "shot":
                 w.grabWindow().save(f"{out}/{v}.png"); print("saved", v, flush=True)
+            elif k == "panel":  # the in-game panel, a window of its own
+                p = [x for x in QGuiApplication.topLevelWindows() if x.isVisible() and "panel" in x.title()]
+                if p:
+                    p[0].grabWindow().save(f"{out}/{v}.png"); print("saved", v, flush=True)
             elif k == "key":
                 code = getattr(Qt, "Key_" + v)
                 for typ in (QEvent.KeyPress, QEvent.KeyRelease):
@@ -84,6 +90,9 @@ def run(*_):
                 for ch in v:
                     for typ in (QEvent.KeyPress, QEvent.KeyRelease):
                         QGuiApplication.sendEvent(w, QKeyEvent(typ, 0, Qt.NoModifier, ch))
+            elif k == "cshift":
+                for typ in (QEvent.KeyPress, QEvent.KeyRelease):
+                    QGuiApplication.sendEvent(w, QKeyEvent(typ, ord(v.upper()), Qt.ControlModifier | Qt.ShiftModifier))
             elif k == "ctrl":
                 code = getattr(Qt, "Key_" + v) if len(v) > 1 else ord(v.upper())
                 for typ in (QEvent.KeyPress, QEvent.KeyRelease):

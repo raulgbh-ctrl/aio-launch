@@ -35,7 +35,7 @@ def _socket_path():
 
 
 def hand_over(message: str) -> bool:
-    """True when another Cornerplay is running and took the message ("show", "tv")."""
+    """True when another Cornerplay is running and took the message ("show", "tv", "overlay")."""
     s = QLocalSocket()
     s.connectToServer(_socket_path())
     if not s.waitForConnected(500):
@@ -68,7 +68,7 @@ class Instance(QObject):
 
     def _read(self, conn):
         for line in bytes(conn.readAll()).decode("utf-8", "replace").splitlines():
-            if line.strip() in ("show", "tv"):
+            if line.strip() in ("show", "tv", "overlay"):
                 self._on_message(line.strip())
         conn.disconnectFromServer()
 

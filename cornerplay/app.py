@@ -509,6 +509,18 @@ class LibraryProxy(QSortFilterProxyModel):
         return model.rep(model.groups[idx.row()]).key if idx.isValid() else ""
 
 
+def _battery():
+    """The battery's charge (0-100) and whether it charges, or {} on a desktop PC."""
+    for d in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+        try:
+            cap = int((d / "capacity").read_text().strip())
+            state = (d / "status").read_text().strip()
+        except (OSError, ValueError):
+            continue
+        return {"percent": cap, "charging": state in ("Charging", "Full")}
+    return {}
+
+
 class AioLaunch(QObject):
     # The interface's locale for dates and times in QML (Qt.locale(app.uiLocale)), so they follow
     # the interface language and not the system's.
@@ -3468,6 +3480,35 @@ class AioLaunch(QObject):
     # how long it was, the total, and quick ways to rate it, mark it finished or leave a note.
     sessionRecap = Signal(str, "QVariantMap")
     RECAP_MIN_SECONDS = 180
+
+    # --- the in-game panel (Guide + Y on a controller, or `cornerplay --overlay`) ------------
+    overlayRequested = Signal()
+
+    @Slot(result="QVariantMap")
+    def overlayInfo(self):
+        """What the in-game panel shows: the game being played, how long, its note, the
+        screenshots taken this session and the PC's battery. Empty game when nothing runs."""
+        playing = self._now_playing()
+        if self.demo and not playing:
+            playing = [{"key": "steam:1245620", "title": "Elden Ring", "since": time.time() - 47 * 60}]
+        out = {"battery": _battery()}
+        if not playing:
+            return out
+        p = max(playing, key=lambda v: v.get("since") or 0)
+        g = self.game(p["key"]) or {}
+        since = float(p.get("since") or time.time())
+        shots = 0
+        if not self.demo:
+            from . import screenshots
+            for folder in screenshots.folders():
+                shots += sum(1 for _path, t in screenshots._images(folder) if t >= since)
+        else:
+            shots = 3
+        out.update(key=p["key"], title=g.get("title") or p.get("title") or "", since=since,
+                   minutes=int((time.time() - since) // 60), total=float(g.get("playtime") or 0) / 3600,
+                   note=g.get("note") or "", covers=g.get("covers") or [], heroes=g.get("heroes") or [],
+                   shots=shots, steam=bool(p.get("steam")))
+        return out
 
     def _recap(self, key, seconds):
         if not key or seconds < self.RECAP_MIN_SECONDS:
