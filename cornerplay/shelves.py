@@ -96,6 +96,16 @@ def is_recent(group):
     return added(group) > time.time() - RECENT_DAYS * 86400
 
 
+NEW_DAYS = 7  # the "New" ribbon on a cover: bought or claimed in the last week
+
+
+def is_new(group):
+    """Bought or claimed in the last week (not merely installed): the cover gets a New ribbon
+    until the game is played. Games already owned when a store was first connected never count."""
+    keys = _load()["keys"]
+    return max((keys.get(g.key, 0) for g in group), default=0) > time.time() - NEW_DAYS * 86400
+
+
 # --- backlog status, your rating, your note --------------------------------------
 # Kept on every copy of a game, like collections. Status: "playing", "want", "finished", "dropped".
 STATUSES = [("playing", "Playing"), ("want", "Want to play"), ("finished", "Finished"), ("dropped", "Dropped")]

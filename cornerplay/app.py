@@ -55,8 +55,8 @@ def job_detail(job):
 ROLES = ["key", "store", "storeName", "storeColor", "title", "cover", "coverFallback",
          "installed", "job", "progress", "external", "installPath", "copies",
          "update", "playtime", "lastPlayed", "covers", "heroes", "logos", "protondb", "favourite",
-         "status", "rating", "sizeBytes", "achieved"]
-GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite", "status", "rating")
+         "status", "rating", "sizeBytes", "achieved", "isNew"]
+GROUP_ROLES = ("copies", "playtime", "lastPlayed", "favourite", "status", "rating", "isNew")
 SORTS = ("name", "recent", "playtime", "rating", "size")
 RECENT_ROW = 8  # games in the "Continue playing" row  # worked out over every store's copy of a game
 
@@ -145,6 +145,7 @@ def _job(m, g):
 
 
 _FIELDS = {
+    "isNew": lambda m, g: m.group_value([g], "isNew"),
     "key": lambda m, g: g.key,
     "store": lambda m, g: g.store,
     "storeName": lambda m, g: m.stores[g.store].name,
@@ -263,6 +264,8 @@ class LibraryModel(QAbstractListModel):
             return shelves.meta(group, "status")
         if role == "rating":
             return int(shelves.meta(group, "rating") or 0)
+        if role == "isNew":
+            return shelves.is_new(group) and not any(playtime.of(g, self.played)[0] for g in group)
         times = [playtime.of(g, self.played) for g in group]
         return sum(t[0] for t in times) if role == "playtime" else max(t[1] for t in times)
 

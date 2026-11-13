@@ -24,6 +24,7 @@ Item {
     required property string protondb
     required property bool favourite
     required property real achieved   // 0..1 of the game's achievements earned; -1 when unknown
+    required property bool isNew      // bought or claimed this week and not played yet
     required property var heroes
     required property var logos
     // "cover" (the box art), "logo" (wide art with the game's logo: the logo wall) or "box"
@@ -435,6 +436,19 @@ Item {
             border.width: 1; border.color: Qt.alpha("white", 0.14)
             StoreIcon { x: 7; anchors.verticalCenter: parent.verticalCenter; size: 12; store: card.store; color: card.storeColor }
             Text { id: chip; x: 23; anchors.verticalCenter: parent.verticalCenter; text: card.storeName + (card.copies > 1 ? "  +" + (card.copies - 1) : ""); color: "white"; font.pixelSize: 11 }
+        }
+
+        // New: bought or claimed this week, not played yet. Gives way to the store chip when pointed at.
+        Rectangle {
+            visible: card.isNew && opacity > 0
+            opacity: card.lit ? 0 : 1
+            Behavior on opacity { enabled: !app.light; NumberAnimation { duration: 140 } }
+            x: 10; y: 10
+            height: 20; radius: 10
+            width: newText.implicitWidth + 18
+            color: card.theme.primary
+            Text { id: newText; anchors.centerIn: parent; text: qsTr("NEW"); color: card.theme.onPrimary
+                   font.pixelSize: 10; font.weight: Font.Black; font.letterSpacing: 1.0 }
         }
 
         // Not-installed marker.

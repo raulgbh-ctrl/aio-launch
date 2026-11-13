@@ -71,7 +71,7 @@ ApplicationWindow {
     Connections { target: app; function onGameColourReady(key, colour) { if (key === win.hoverKey) win.hoverAccent = colour } }
     Timer {
         id: previewTimer
-        interval: 700
+        interval: 1200  // only when you linger: passing over the grid shows nothing extra
         onTriggered: {
             const card = grid.itemAtIndex(grid.hoverIndex)
             if (!card || popupOpen || !win.cardsLive) return
