@@ -5641,7 +5641,7 @@ ApplicationWindow {
         RoundedArt {
             anchors.fill: parent
             radius: 16
-            Rectangle { anchors.fill: parent; color: Qt.alpha(theme.surfaceContainerHigh, 0.97) }
+            Rectangle { anchors.fill: parent; color: theme.surfaceContainerHigh }
             // The game's wide art along the top, fading into the card.
             ArtImage {
                 id: previewArt

@@ -14,6 +14,18 @@ Item {
     implicitWidth: hasLogo ? Math.min(maxWidth, logo.paintedWidth) : Math.min(maxWidth, text.implicitWidth)
     implicitHeight: hasLogo ? logoHeight : text.implicitHeight
 
+    // Light themes: a soft dark cloud behind the logo, so white logos read on pale art and
+    // coloured ones still keep their colours.
+    RectangularShadow {
+        visible: lt.hasLogo && app.theme.dark === false && GraphicsInfo.api !== GraphicsInfo.Software
+        x: -logo.paintedWidth * 0.04
+        anchors.verticalCenter: logo.verticalCenter
+        width: logo.paintedWidth * 1.08
+        height: logo.paintedHeight * 0.86
+        radius: height / 2
+        blur: Math.max(24, height * 0.6)
+        color: Qt.alpha("black", 0.55)
+    }
     ArtImage {
         id: logo
         anchors { left: parent.left; verticalCenter: parent.verticalCenter }
