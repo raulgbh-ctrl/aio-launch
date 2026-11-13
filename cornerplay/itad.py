@@ -60,6 +60,50 @@ def _ids(items, key, cache):
     return {f"{i['store']}:{i['id']}": known.get(f"{i['store']}:{i['id']}", "") for i in items}
 
 
+def _overview(ids, key, country):
+    """ITAD's overview (current best deal, lowest ever) per game id, 200 at a time."""
+    wanted = sorted({v for v in ids.values() if v})
+    overview = {}
+    for at in range(0, len(wanted), 200):
+        got = _post("/games/overview/v2", key, wanted[at:at + 200], {"country": country}) or {}
+        for row in got.get("prices") or []:
+            if isinstance(row, dict) and row.get("id"):
+                overview[row["id"]] = row
+    return overview
+
+
+def prices(titles, key, country):
+    """Today's best price on any store for games by title: ({title: {amount, currency, price,
+    shop, url, cut, lowPrice}}, error text). Games ITAD doesn't know or nobody sells are left out.
+    Nothing is announced (unlike the wishlist)."""
+    if not key or not titles:
+        return {}, ""
+    cache = read_json(FILE) or {}
+    items = [{"store": "title", "id": t, "title": t} for t in titles]
+    try:
+        ids = _ids(items, key, cache)
+        overview = _overview(ids, key, country)
+    except requests.HTTPError as e:
+        code = getattr(e.response, "status_code", 0)
+        write_json(FILE, cache)
+        return {}, ("IsThereAnyDeal: the API key was not accepted" if code in (401, 403) else f"IsThereAnyDeal: HTTP {code}")
+    except (requests.RequestException, ValueError) as e:
+        write_json(FILE, cache)
+        return {}, f"IsThereAnyDeal: {type(e).__name__}"
+    write_json(FILE, cache)
+    out = {}
+    for t in titles:
+        row = overview.get(ids.get(f"title:{t}") or "") or {}
+        cur = row.get("current") or {}
+        if not isinstance(cur.get("price"), dict) or cur["price"].get("amount") is None:
+            continue
+        low = row.get("lowest") or {}
+        out[t] = {"amount": float(cur["price"]["amount"]), "currency": cur["price"].get("currency") or "",
+                  "price": money(cur["price"]), "shop": (cur.get("shop") or {}).get("name", ""), "url": cur.get("url", ""),
+                  "cut": int(cur.get("cut") or 0), "lowPrice": money(low.get("price")) if low else ""}
+    return out, ""
+
+
 def enrich(items, key, country, alert_cut=50):
     """Add "best" (the cheapest deal on any store) to each wishlist item in place, and return
     (titles to announce, error text). best = {"shop", "price", "was", "cut", "url", "low",
@@ -69,13 +113,7 @@ def enrich(items, key, country, alert_cut=50):
     cache = read_json(FILE) or {}
     try:
         ids = _ids(items, key, cache)
-        wanted = sorted({v for v in ids.values() if v})
-        overview = {}
-        for at in range(0, len(wanted), 200):
-            got = _post("/games/overview/v2", key, wanted[at:at + 200], {"country": country}) or {}
-            for row in got.get("prices") or []:
-                if isinstance(row, dict) and row.get("id"):
-                    overview[row["id"]] = row
+        overview = _overview(ids, key, country)
     except requests.HTTPError as e:
         code = getattr(e.response, "status_code", 0)
         write_json(FILE, cache)

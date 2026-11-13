@@ -1838,8 +1838,8 @@ class AioLaunch(QObject):
         owned = {covers.norm(g.title) for g in self.model.games if g.store == "epic"}
         now = time.time()
         out = []
-        if now < (settings.get("epic_free_hidden_until") or 0):
-            return []  # hidden until this week's offers end
+        if now < (settings.get("epic_free_hidden_until") or 0) or settings.get("epic_free_shown") is False:
+            return []  # hidden until this week's offers end, or for good (Settings > Library)
         for g in self._epic_free:
             if g.get("end") and g["end"] < now:
                 continue  # the offer ran out since the list was fetched
@@ -1878,6 +1878,42 @@ class AioLaunch(QObject):
                 "bundlesUrl": humbleshop.BUNDLES_URL}
 
     humbleShop = Property("QVariantMap", _humble_shop_info, notify=humbleShopChanged)
+
+    bundleReady = Signal(str, "QVariantMap")  # url, its tiers priced against buying the games separately
+
+    @Slot(str)
+    def loadBundle(self, url):
+        """A Humble bundle's tiers, each game marked when you own it and priced with today's best
+        deal on any store (IsThereAnyDeal, with its key), and each tier's sums: what its games
+        cost separately, and what the ones you don't own cost."""
+        from . import itad
+        key = str(settings.get("itad_key") or "").strip()
+        owned = {covers.norm(g.title) for g in self.model.games}
+
+        def work():
+            b = humbleshop.bundle(url)
+            tiers = b.get("tiers") or []
+            titles = sorted({i["title"] for t in tiers for i in t["items"]})
+            best, err = itad.prices(titles, key, wishlist.country()) if key and titles else ({}, "")
+            out = []
+            for t in tiers:
+                items = [dict(i, owned=covers.norm(i["title"]) in owned, best=best.get(i["title"]) or {}) for i in t["items"]]
+                priced = [i for i in items if i["best"] and i["best"]["currency"] == t["currency"]]
+                fresh = [i for i in priced if not i["owned"]]
+                sep = sum(i["best"]["amount"] for i in priced)
+                sep_new = sum(i["best"]["amount"] for i in fresh)
+                whole = len(priced) == len(items)  # every game has a price to compare with
+
+                def fmt(x, cur=t["currency"]):
+                    return itad.money({"amount": x, "currency": cur}) if x else ""
+                out.append({"price": t["price"], "count": len(items), "items": items, "priced": len(priced),
+                            "complete": whole, "separately": fmt(sep), "separatelyNew": fmt(sep_new),
+                            "newCount": len([i for i in items if not i["owned"]]),
+                            "saving": round(100 * (1 - t["amount"] / sep)) if sep > 0 else -999,
+                            "savingNew": round(100 * (1 - t["amount"] / sep_new)) if sep_new > 0 else -999})
+            data = {"url": url, "tiers": out, "itad": bool(key), "error": err, "read": bool(tiers)}
+            return lambda: self.bundleReady.emit(url, data)
+        self._bg(work)
 
     # --- mods (mods.py): Thunderstore and Nexus Mods, profiles, on and off ----------
     modsReady = Signal(str, "QVariantMap")         # key, everything the Mods page shows
@@ -2234,12 +2270,41 @@ class AioLaunch(QObject):
         if shutil.which("notify-send"):
             QProcess.startDetached("notify-send", ["--app-name=Cornerplay", "--icon=cornerplay", title, body])
 
+    @staticmethod
+    def _sale_tag(w):
+        best = w.get("best") or {}
+        return f"{w.get('title', '')}:{best.get('price') or w.get('price') or ''}"
+
     def _wishlist_sales(self):
         owned = {covers.norm(g.title) for g in self.model.games}
-        return [w for w in self._wishlist
-                if (w.get("discount") or (w.get("best") or {}).get("cut")) and covers.norm(w["title"]) not in owned]
+        sales = [w for w in self._wishlist
+                 if (w.get("discount") or (w.get("best") or {}).get("cut")) and covers.norm(w["title"]) not in owned]
+        hidden = set(settings.get("sales_hidden") or [])
+        if hidden and all(self._sale_tag(w) in hidden for w in sales):
+            return []  # hidden for now: back when a new sale (or a new price) comes
+        return sales
 
     wishlistSales = Property("QVariantList", _wishlist_sales, notify=wishlistChanged)
+
+    @Slot(str, bool)
+    def hideHomeSection(self, which, always):
+        """The x on Free on Epic and on wishlist sales: hide for now (until new offers or sales),
+        or always (both come back in Settings > Library)."""
+        if which == "free":
+            if always:
+                settings.set("epic_free_shown", False)
+            else:
+                return self.hideEpicFreeForNow()
+            self.epicFreeChanged.emit()
+        elif which == "sales":
+            if always:
+                settings.set("wishlist_sales", False)
+            else:
+                settings.set("sales_hidden", [self._sale_tag(w) for w in self._wishlist_sales()])
+            self.wishlistChanged.emit()
+        self.settingsChanged.emit()
+        if always:
+            self.toast.emit("Hidden: turn it back on in Settings \u203a Library")
 
     @Slot()
     def hideEpicFreeForNow(self):
@@ -4694,6 +4759,14 @@ class AioLaunch(QObject):
             if key == "merge_duplicates":
                 self.model.set_games(self.model.games)
                 self.storesChanged.emit()
+            if key == "epic_free_shown":  # back from "always hide": show it again at once
+                settings.set("epic_free_hidden_until", 0)
+                self.epicFreeChanged.emit()
+            if key == "wishlist_sales":
+                settings.set("sales_hidden", [])
+                if value:
+                    self._load_wishlist(True)
+                self.wishlistChanged.emit()
 
     SAFE_SCHEMES = ("https", "http", "steam")
 

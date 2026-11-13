@@ -1433,8 +1433,7 @@ ApplicationWindow {
                                     sid: "free"; icon: "gift"
                                     readonly property int nowFree: app.epicFree.filter(g => g.now && !g.owned).length
                                     title: qsTr("Free on Epic") + (nowFree ? "  \u00B7  " + nowFree + qsTr(" this week") : "")
-                                    extra: qsTr("Hide until next week")
-                                    onExtraPicked: app.hideEpicFreeForNow()
+                                    hideNow: qsTr("Hide until next week")
                                 }
                                 ListView {
                                     visible: !win.homeFolded("free")
@@ -1571,6 +1570,7 @@ ApplicationWindow {
                                 SectionHead {
                                     sid: "sales"; icon: "tag"
                                     title: qsTr("On sale from your wishlist  \u00B7  ") + app.wishlistSales.length
+                                    hideNow: qsTr("Hide until there are new sales")
                                 }
                                 ListView {
                                     visible: !win.homeFolded("sales")
@@ -5582,6 +5582,7 @@ ApplicationWindow {
         property string icon: ""
         property string extra: ""
         property string folded: ""  // shown next to the title while the section is folded away ("4 games")
+        property string hideNow: ""  // set: an x offers "hide for now" (this text) and "always hide"
         signal extraPicked()
         width: parent ? parent.width : 0
         spacing: 8
@@ -5607,11 +5608,44 @@ ApplicationWindow {
                 }
             }
         }
-        Text {  // an extra, quiet action (Free on Epic: hide until the offers change)
+        Text {  // an extra, quiet action
             visible: sh.extra !== "" && shHover.hovered
             text: sh.extra; color: app.theme.primary; font.pixelSize: 12
             TapHandler { onTapped: sh.extraPicked() }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
+        // Always there on sections you may not want (Free on Epic, wishlist sales): an x that
+        // offers to hide them for now or for good.
+        Rectangle {
+            visible: sh.hideNow !== ""
+            width: 28; height: 28; radius: 14
+            color: xHover.hovered || hideMenu.visible ? app.theme.surfaceContainerHigh : "transparent"
+            Icon { anchors.centerIn: parent; name: "x"; size: 15; color: xHover.hovered ? app.theme.onSurface : app.theme.outline }
+            HoverHandler { id: xHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: hideMenu.open() }
+            ToolTip.visible: xHover.hovered && !hideMenu.visible; ToolTip.text: qsTr("Hide this"); ToolTip.delay: 300
+            Popup {
+                id: hideMenu
+                y: parent.height + 4
+                x: parent.width - width
+                padding: 6
+                background: Rectangle { radius: 12; color: app.theme.surfaceContainerHigh; border.width: 1; border.color: app.theme.outlineVariant }
+                contentItem: Column {
+                    spacing: 2
+                    Repeater {
+                        model: [{ t: sh.hideNow, always: false }, { t: qsTr("Always hide (back in Settings \u203a Library)"), always: true }]
+                        Rectangle {
+                            required property var modelData
+                            width: Math.max(hmText.implicitWidth + 24, 260); height: 34; radius: 8
+                            color: hmHover.hovered ? app.theme.surfaceContainerHighest : "transparent"
+                            Text { id: hmText; anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                                   text: modelData.t; color: app.theme.onSurface; font.pixelSize: 13 }
+                            HoverHandler { id: hmHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: { hideMenu.close(); app.hideHomeSection(sh.sid, modelData.always) } }
+                        }
+                    }
+                }
+            }
         }
         HoverHandler { id: shHover }
         TapHandler { onTapped: win.toggleHome(sh.sid) }
@@ -6021,6 +6055,7 @@ ApplicationWindow {
                                           onClicked: { app.setSetting("rom_dirs", []); app.refresh("retro") } }
                             }
                         }
+                        Toggle { label: qsTr("Show this week's free Epic games on the home page"); settingKey: "epic_free_shown" }
                         Toggle { label: qsTr("Show games from my Steam and GOG wishlists that are on sale"); settingKey: "wishlist_sales" }
                         Row2 {
                             visible: !!app.settingsMap.wishlist_sales

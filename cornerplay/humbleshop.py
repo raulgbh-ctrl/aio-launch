@@ -111,6 +111,86 @@ def parse_bundles(html, category="games"):
     return out
 
 
+BUNDLES_FILE = CACHE_DIR / "humble_bundles.json"
+_TIER_REF = re.compile(r":tiers:(\d+):bundleItems:(\d+)$")
+
+
+def _amount(amount, code):
+    """8.95, "EUR" -> "€8.95"."""
+    return money({"centAmount": round(float(amount) * 100), "currencyCode": code, "fractionDigits": 2})
+
+
+def parse_bundle(html):
+    """{"tiers": [{price, amount, currency, items: [{title, image, msrp, store, platforms, new}]}]}:
+    each tier with every game it gives (tiers add up: a higher one includes the lower ones'),
+    "new" marking the games that tier adds. The page names a game again by reference
+    ("$e:...:tiers:0:bundleItems:0"); those are followed."""
+    text = payload(html)
+    at = text.find('"tiers":[')
+    if at < 0:
+        return {"tiers": []}
+    try:
+        raw = json.JSONDecoder().raw_decode(text, at + len('"tiers":'))[0]
+    except ValueError:
+        return {"tiers": []}
+    resolved, tiers = [], []
+    for t in raw if isinstance(raw, list) else []:
+        if not isinstance(t, dict):
+            continue
+        row = []
+        for b in t.get("bundleItems") or []:
+            if isinstance(b, str):
+                m = _TIER_REF.search(b)
+                b = None
+                if m and int(m.group(1)) < len(resolved) and int(m.group(2)) < len(resolved[int(m.group(1))]):
+                    b = resolved[int(m.group(1))][int(m.group(2))]
+            row.append(b if isinstance(b, dict) else None)
+        resolved.append(row)
+        price = t.get("price") or {}
+        if price.get("amount") is None:
+            continue
+        items, here = [], set()
+        for b in row:
+            if not b or not b.get("title") or b["title"] in here:
+                continue
+            here.add(b["title"])
+            msrp = b.get("msrp") or {}
+            items.append({"title": b["title"].strip(), "image": _image(b.get("thumbnailImageUrl"), 300),
+                          "msrp": _amount(msrp["amount"], msrp.get("currencyCode") or "USD") if msrp.get("amount") else "",
+                          "store": (_strings(b.get("deliveryMethods")) or [""])[0],
+                          "platforms": _strings(b.get("platforms"))})
+        tiers.append({"price": _amount(price["amount"], price.get("currencyCode") or ""), "amount": float(price["amount"]),
+                      "currency": price.get("currencyCode") or "", "items": items})
+    # The page doesn't list tiers cheapest first: sort them, then mark what each one adds.
+    tiers.sort(key=lambda t: (t["amount"], len(t["items"])))
+    seen = set()
+    for t in tiers:
+        for i in t["items"]:
+            i["new"] = i["title"] not in seen
+        seen |= {i["title"] for i in t["items"]}
+        t["items"].sort(key=lambda i: not i["new"])
+    return {"tiers": tiers}
+
+
+def bundle(url, force=False):
+    """A bundle's tiers (parse_bundle), cached for 3 hours; {} when it can't be read."""
+    cache = read_json(BUNDLES_FILE) or {}
+    entry = cache.get(url) or {}
+    if not force and time.time() - entry.get("t", 0) < TTL and entry.get("b"):
+        return entry["b"]
+    try:
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        b = parse_bundle(r.text)
+    except Exception:
+        return entry.get("b") or {}
+    if b["tiers"]:
+        cache = {k: v for k, v in cache.items() if time.time() - v.get("t", 0) < 7 * 86400}
+        cache[url] = {"t": time.time(), "b": b}
+        write_json(BUNDLES_FILE, cache)
+    return b
+
+
 def fetch():
     """Both lists, read now. Raises on network errors."""
     choice = requests.get(CHOICE_URL, timeout=30)
