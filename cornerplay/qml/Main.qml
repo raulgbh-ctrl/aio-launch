@@ -151,6 +151,22 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+K", "Ctrl+G"]; enabled: !win.tv; onActivated: jump.show() }
     Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
+    // The smart list whose filters the library shows right now, if any.
+    readonly property var smartActive: {
+        const t = ((library && library.tags) || []).slice().sort().join("|")
+        if (!library || library.shelf !== "" || library.showHidden) return null
+        for (const f of app.smartLists)
+            if ((f.store || "") === library.storeFilter && !!f.installed === library.installedOnly
+                    && (f.tags || []).slice().sort().join("|") === t)
+                return f
+        return null
+    }
+    function applySmart(f) {
+        library.showHidden = false; library.shelf = ""
+        library.storeFilter = f.store || ""; library.installedOnly = !!f.installed; library.tags = f.tags || []
+        win.showFilters = true
+    }
+
     // A narrow window folds the sidebar into a rail of icons (names show as tooltips).
     readonly property bool rail: width < 980
 
@@ -487,7 +503,7 @@ ApplicationWindow {
                     label: qsTr("All games")
                     icon: "library"
                     count: app.totalCount
-                    active: library.storeFilter === "" && !library.showHidden && library.shelf === ""
+                    active: library.storeFilter === "" && !library.showHidden && library.shelf === "" && !win.smartActive
                     onPicked: { library.showHidden = false; library.storeFilter = ""; library.shelf = "" }
                 }
                 Repeater {
@@ -500,7 +516,7 @@ ApplicationWindow {
                         store: modelData.id
                         dim: !modelData.loggedIn && modelData.count === 0
                         count: modelData.refreshing ? "…" : modelData.count
-                        active: library.storeFilter === modelData.id && !library.showHidden && library.shelf === ""
+                        active: library.storeFilter === modelData.id && !library.showHidden && library.shelf === "" && !win.smartActive
                         onPicked: { library.showHidden = false; library.shelf = ""; library.storeFilter = modelData.id }
                     }
                 }
@@ -508,7 +524,7 @@ ApplicationWindow {
                 // Your lists: favourites, collections, and backlog statuses that have games.
                 RowLayout {
                     // Shown once there is a list (make the first one from a game's More > Add to a collection).
-                    visible: !win.rail && (app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0)
+                    visible: !win.rail && (app.sidebarShelves.some(x => x.count > 0 || x.id !== "fav") || app.sidebarStatuses.length > 0 || app.smartLists.length > 0)
                     Layout.fillWidth: true
                     Layout.topMargin: 14; Layout.leftMargin: 14; Layout.rightMargin: 6; Layout.bottomMargin: 2
                     Text { Layout.fillWidth: true; text: qsTr("YOUR LISTS"); color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2 }
@@ -519,6 +535,20 @@ ApplicationWindow {
                         HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: newColl.ask("") }
                         ToolTip.visible: addHover.hovered; ToolTip.text: "New collection"; ToolTip.delay: 400
+                    }
+                }
+                // Smart lists: saved filters, with how many games they find right now.
+                Repeater {
+                    model: app.smartLists
+                    NavItem {
+                        required property var modelData
+                        label: modelData.name
+                        icon: "filter"
+                        count: modelData.count
+                        removable: true
+                        active: win.smartActive && win.smartActive.name === modelData.name
+                        onPicked: win.applySmart(modelData)
+                        onRemove: app.removeSmartList(modelData.name)
                     }
                 }
                 Repeater {
@@ -782,6 +812,8 @@ ApplicationWindow {
                             on: ((library && library.tags) || []).indexOf("genre:" + modelData) !== -1; onPicked: chips.toggle("genre:" + modelData) }
                 }
                 Chip2 { visible: ((library && library.tags) || []).length > 0; label: qsTr("Clear filters"); icon: "x"; onPicked: library.tags = [] }
+                Chip2 { visible: ((library && library.tags) || []).length > 0 && !win.smartActive; label: qsTr("Save as a list"); icon: "bookmark"
+                        onPicked: smartName.ask() }
             }
             Text {
                 Layout.leftMargin: 22; Layout.bottomMargin: 6
@@ -1543,7 +1575,7 @@ ApplicationWindow {
                         Text {
                             x: 8
                             textFormat: Text.StyledText
-                            text: (library.shelf === "" ? qsTr("Library") + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
+                            text: (library.shelf === "" ? (win.smartActive ? win.smartActive.name : qsTr("Library")) + qsTr("  <font color='") + theme.outline + "'>\u00B7  " + grid.count + qsTr(" games</font>")
                                   : library.shelf === "fav" ? "Favourites"
                                   : library.shelf.startsWith("s:") ? ((app.statusNames.find(s => "s:" + s.id === library.shelf) || {}).name || "")
                                   : library.shelf.replace(/^c:/, ""))
@@ -1852,7 +1884,8 @@ ApplicationWindow {
             const qw = fold(q).split(" ").filter(w => w)
             const stores = app.storesInfo.filter(x => x.count > 0).map(x => ({ t: qsTr("Show ") + x.name, store: x.id, color: x.color,
                 run: () => { library.showHidden = false; library.shelf = ""; library.storeFilter = x.id } }))
-            const all = jump.actions.concat(stores)
+            const smart = app.smartLists.map(f => ({ t: f.name, i: "filter", k: "", run: () => win.applySmart(f) }))
+            const all = jump.actions.concat(stores, smart)
             if (!qw.length) return all.slice(0, 6)
             return all.filter(a => { const aw = fold(a.t).split(" "); return qw.every(w => aw.some(x => x.startsWith(w))) }).slice(0, 6)
         }
@@ -3840,6 +3873,33 @@ ApplicationWindow {
                 iconName: "plus"
                 onClicked: { const k = collPick.key; collPick.close(); newColl.ask(k) }
             }
+        }
+    }
+    KDialog {
+        id: smartName
+        theme: win.theme
+        heading: qsTr("Save these filters as a list")
+        headingIcon: "filter"
+        width: Math.min(win.width - 60, 440)
+        function ask() { smartField.text = ""; open() }
+        onOpened: smartField.forceActiveFocus()
+        function save() { if (app.saveSmartList(smartField.text)) close() }
+        contentItem: ColumnLayout {
+            spacing: 14
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: theme.onSurfaceVariant; font.pixelSize: 13
+                text: qsTr("The list sits in the sidebar and always shows the games these filters find, new ones included.")
+            }
+            KField {
+                id: smartField
+                theme: win.theme
+                Layout.fillWidth: true
+                placeholderText: qsTr("Name, e.g. Short and unplayed")
+                Keys.onReturnPressed: smartName.save()
+                Keys.onEnterPressed: smartName.save()
+            }
+            KButton { theme: win.theme; primary: true; Layout.fillWidth: true; text: qsTr("Save"); enabled: smartField.text.trim() !== ""; onClicked: smartName.save() }
         }
     }
     KDialog {

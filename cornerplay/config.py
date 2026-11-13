@@ -59,6 +59,7 @@ DEFAULTS = {
     "home_collapsed": ["free"],  # home sections folded away: "banner", "continue", "free" (Free on Epic starts as one line)
     "epic_free_hidden_until": 0,  # Free on Epic hidden until the current offers end
     "home_order": ["continue", "free"],
+    "smart_lists": [],         # saved filters shown as lists in the sidebar: [{"name", "store", "installed", "tags"}]
     "ui_scale": 0.0,           # interface size: 0 = automatic, else 1.0 / 1.15 / 1.3 / 1.5 / 2.0 (after a restart)
     "save_backups": True,    # zip a game's saves before each start (savebackup.py)
     "backup_keep": 5,        # backups kept per game

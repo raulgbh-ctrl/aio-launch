@@ -2417,6 +2417,48 @@ class AioLaunch(QObject):
 
     sidebarStatuses = Property("QVariantList", lambda s: s._once_per_change("statuses", s._sidebar_statuses), notify=storesChanged)
 
+    # --- smart lists: a set of filters saved under a name, in the sidebar with a live count --------
+    def _count_filter(self, f):
+        p = LibraryProxy(self.model)
+        p._store, p._installed, p._tags = f.get("store") or "", bool(f.get("installed")), list(f.get("tags") or [])
+        p.invalidateFilter()
+        return p.rowCount()
+
+    def _smart_lists(self):
+        return [dict(f, count=self._count_filter(f)) for f in settings.get("smart_lists") or [] if f.get("name")]
+
+    smartLists = Property("QVariantList", lambda s: s._once_per_change("smart", s._smart_lists), notify=storesChanged)
+
+    def _store_smart(self, lists):
+        settings.set("smart_lists", lists)
+        self._per_change.pop("smart", None)
+        self.storesChanged.emit()
+
+    @Slot(str, result=bool)
+    def saveSmartList(self, name):
+        """Save the library's current filters (store, installed only, filter chips) under a name."""
+        name = (name or "").strip()[:40]
+        f = {"name": name, "store": self.proxy.storeFilter, "installed": self.proxy.installedOnly,
+             "tags": list(self.proxy.tags)}
+        if not name or not (f["store"] or f["installed"] or f["tags"]):
+            return False
+        lists = [x for x in settings.get("smart_lists") or [] if x.get("name") != name] + [f]
+        self._store_smart(lists)
+        self.toast.emit(_t("Saved the list ") + name)
+        return True
+
+    @Slot(str)
+    def removeSmartList(self, name):
+        self._store_smart([x for x in settings.get("smart_lists") or [] if x.get("name") != name])
+
+    @Slot(str, str)
+    def renameSmartList(self, old, new):
+        new = (new or "").strip()[:40]
+        if not new:
+            return
+        self._store_smart([dict(x, name=new) if x.get("name") == old else x
+                           for x in settings.get("smart_lists") or [] if x.get("name") != new or old == new])
+
     @Slot(str, str)
     def setStatus(self, key, status):
         group = self.model.group_of(key)
