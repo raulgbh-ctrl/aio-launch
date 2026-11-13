@@ -40,7 +40,10 @@ Item {
     property string trailer: ""   // a trailer to play inside the cover (the main window sets it while pointed at)
     signal opened()
     signal activated()
-    signal menuRequested(point at)  // right-click, or a long press on a touchscreen (in the card's coordinates)
+    signal menuRequested(point at)
+    signal pickRequested(bool range)  // Ctrl+click (one) or Shift+click (a range): several games at once
+    property bool picked: false       // one of the games picked for an action
+    property bool picking: false      // some game is picked: a plain click picks too  // right-click, or a long press on a touchscreen (in the card's coordinates)
 
     readonly property bool hovered: hover.hovered
     readonly property bool lit: hover.hovered || current
@@ -510,9 +513,26 @@ Item {
     HoverHandler { id: hover; enabled: card.interactive; cursorShape: Qt.PointingHandCursor }
     TapHandler {
         enabled: card.interactive
-        onSingleTapped: if (card.interactive) card.opened()
-        onDoubleTapped: if (card.interactive) card.activated()
+        acceptedModifiers: Qt.NoModifier
+        onSingleTapped: if (card.interactive) { if (card.picking) card.pickRequested(false); else card.opened() }
+        onDoubleTapped: if (card.interactive && !card.picking) card.activated()
         onLongPressed: if (card.interactive) card.menuRequested(point.position)
+    }
+    TapHandler { enabled: card.interactive; acceptedModifiers: Qt.ControlModifier; onTapped: card.pickRequested(false) }
+    TapHandler { enabled: card.interactive; acceptedModifiers: Qt.ShiftModifier; onTapped: card.pickRequested(true) }
+    // Picked: a ring in the accent colour and a tick in the corner.
+    Rectangle {
+        visible: card.picked
+        anchors.fill: parent; anchors.margins: card.gap / 2 - 2
+        radius: card.cornerRadius + 2
+        color: Qt.alpha(card.theme.primary, 0.12)
+        border.width: 3; border.color: card.theme.primary
+        z: 50
+        Rectangle {
+            x: 10; y: 10; width: 26; height: 26; radius: 13
+            color: card.theme.primary
+            Icon { anchors.centerIn: parent; name: "check"; size: 16; color: card.theme.onPrimary }
+        }
     }
     TapHandler {
         enabled: card.interactive

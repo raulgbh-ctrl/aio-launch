@@ -1674,6 +1674,9 @@ ApplicationWindow {
                         onOpened: { grid.currentIndex = index; flyer.from(key, gridCard); win.select(key) }
                         onActivated: { grid.currentIndex = index; win.activate(key) }
                         onMenuRequested: at => { grid.currentIndex = index; gameMenu.showFor(key, gridCard, at) }
+                        picked: !!win.picked[key]
+                        picking: win.pickCount > 0
+                        onPickRequested: range => win.pick(index, range)
                         required property int index
                     }
                     Keys.onReturnPressed: {
@@ -1681,6 +1684,47 @@ ApplicationWindow {
                         if (key) win.activate(key)
                     }
                     Keys.onSpacePressed: { const key = library.keyAt(currentIndex); if (key) win.select(key) }
+                }
+
+                // Several games picked (Ctrl / Shift + click, Ctrl+A): one action for all of them.
+                Rectangle {
+                    id: pickBar
+                    readonly property bool roomy: parent.width > 900
+                    visible: win.pickCount > 0 && grid.visible
+                    z: 20
+                    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 18 }
+                    width: Math.min(parent.width - 32, pickRow.implicitWidth + 28)
+                    height: 58; radius: 29
+                    color: theme.surfaceContainerHigh
+                    border.width: 1; border.color: Qt.alpha(theme.primary, 0.45)
+                    layer.enabled: !app.light
+                    layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "black"; shadowOpacity: 0.45; shadowBlur: 0.8; shadowVerticalOffset: 6 }
+                    Flickable {
+                        anchors.fill: parent; anchors.margins: 10
+                        contentWidth: pickRow.implicitWidth; clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        Row {
+                            id: pickRow
+                            height: parent.height
+                            spacing: 6
+                            Text { anchors.verticalCenter: parent.verticalCenter; leftPadding: 8; rightPadding: 6
+                                   text: qsTr("%1 picked").arg(win.pickCount); color: theme.onSurface; font.pixelSize: 14; font.weight: Font.DemiBold }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "star"; text: pickBar.roomy ? qsTr("Favourite") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Favourite")
+                                      onClicked: win.pickDo("fav") }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "bookmark"; text: pickBar.roomy ? qsTr("Collection") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Collection")
+                                      onClicked: pickMenu.showFor("collection", this) }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "tag"; text: pickBar.roomy ? qsTr("Status") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Status")
+                                      onClicked: pickMenu.showFor("status", this) }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "download"; text: pickBar.roomy ? qsTr("Install") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Install")
+                                      onClicked: win.pickDo("install") }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "arrow-up"; text: pickBar.roomy ? qsTr("Update") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Update")
+                                      onClicked: win.pickDo("update") }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "eye-off"; text: pickBar.roomy ? qsTr("Hide") : ""; ToolTip.visible: !pickBar.roomy && hovered; ToolTip.text: qsTr("Hide")
+                                      onClicked: win.pickDo("hide") }
+                            KButton { anchors.verticalCenter: parent.verticalCenter; theme: win.theme; implicitHeight: 36; iconName: "x"; text: ""
+                                      ToolTip.visible: hovered; ToolTip.text: qsTr("Clear (Esc)"); onClicked: win.picked = ({}) }
+                        }
+                    }
                 }
 
                 // Shelves: rows like TV mode's (Continue playing, your lists, Play together, your
@@ -3496,6 +3540,73 @@ ApplicationWindow {
         id: moveDest
         title: qsTr("Move to which folder?")
         onAccepted: app.moveGame(storage.moveKey, selectedFolder.toString())
+    }
+
+    // Picking several games: Ctrl+click one, Shift+click a range, Ctrl+A all; Esc lets go.
+    property var picked: ({})
+    property int pickAnchor: -1
+    readonly property int pickCount: Object.keys(picked).length
+    function pick(index, range) {
+        const p = Object.assign({}, picked)
+        if (range && pickAnchor >= 0) {
+            for (let i = Math.min(pickAnchor, index); i <= Math.max(pickAnchor, index); i++) {
+                const k = library.keyAt(i); if (k) p[k] = true
+            }
+        } else {
+            const k = library.keyAt(index)
+            if (!k) return
+            if (p[k]) delete p[k]; else p[k] = true
+            pickAnchor = index
+        }
+        picked = p
+    }
+    function pickDo(action, arg) {
+        app.bulk(Object.keys(picked), action, arg || "")
+        picked = ({})
+    }
+    Shortcut { sequence: "Escape"; enabled: win.pickCount > 0; onActivated: win.picked = ({}) }
+    Shortcut {
+        sequence: "Ctrl+A"; enabled: !win.tv && grid.visible && !(activeFocusItem instanceof TextInput)
+        onActivated: { const p = {}; for (let i = 0; i < grid.count; i++) { const k = library.keyAt(i); if (k) p[k] = true } win.picked = p }
+    }
+    property string pickShelf: ""
+    Connections { target: library; function onFilterChanged() { if (library.shelf !== win.pickShelf) { win.pickShelf = library.shelf; win.picked = ({}) } } }
+    Popup {
+        id: pickMenu
+        property string kind: ""
+        function showFor(k, item) {
+            kind = k
+            const p = item.mapToItem(win.contentItem, 0, 0)
+            x = Math.max(8, Math.min(p.x, win.width - width - 8))
+            y = Math.max(8, p.y - implicitHeight - 8)
+            open()
+        }
+        parent: win.contentItem
+        z: 900
+        width: 240
+        padding: 6
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle { radius: 12; color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant }
+        contentItem: Column {
+            spacing: 2
+            Repeater {
+                model: pickMenu.kind === "status" ? app.statusNames.concat([{ id: "", name: qsTr("No status") }])
+                       : app.collections.map(c => ({ id: c, name: c }))
+                MenuRow {
+                    required property var modelData
+                    icon: pickMenu.kind === "status" ? "tag" : "bookmark"
+                    text: modelData.name
+                    onPicked: { pickMenu.close(); win.pickDo(pickMenu.kind, modelData.id) }
+                }
+            }
+            Text {
+                visible: pickMenu.kind === "collection" && app.collections.length === 0
+                width: parent.width; padding: 12; wrapMode: Text.WordWrap
+                text: qsTr("No collections yet: make one with the + next to Your lists in the sidebar.")
+                color: theme.onSurfaceVariant; font.pixelSize: 12
+            }
+        }
     }
 
     // -------------------------------------------------------------------- right-click menu

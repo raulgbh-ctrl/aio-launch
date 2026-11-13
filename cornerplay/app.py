@@ -72,6 +72,14 @@ def _translatable_names():
     return (QCoreApplication.translate("app", "Playing"),
             QCoreApplication.translate("app", "Your package manager keeps Cornerplay up to date"),
             QCoreApplication.translate("app", "You have the newest Cornerplay"),
+            QCoreApplication.translate("app", "Games"),
+            QCoreApplication.translate("app", "added to Favourites"),
+            QCoreApplication.translate("app", "removed from Favourites"),
+            QCoreApplication.translate("app", "marked"),
+            QCoreApplication.translate("app", "hidden"),
+            QCoreApplication.translate("app", "back in the library"),
+            QCoreApplication.translate("app", "queued to install"),
+            QCoreApplication.translate("app", "queued to update"),
             QCoreApplication.translate("app", "Graphics driver updated: getting games' shaders ready in the background"),
             QCoreApplication.translate("app", "Shaders are ready again for games:"),
             QCoreApplication.translate("app", "Could not reach GitHub to check for a new Cornerplay"),
@@ -2611,6 +2619,48 @@ class AioLaunch(QObject):
             return
         self._store_smart([dict(x, name=new) if x.get("name") == old else x
                            for x in settings.get("smart_lists") or [] if x.get("name") != new or old == new])
+
+    @Slot("QVariantList", str, str)
+    def bulk(self, keys, action, arg=""):
+        """One action for several games picked in the library (Ctrl / Shift + click)."""
+        keys = [k for k in dict.fromkeys(keys or []) if self.model.find(k)]
+        if not keys:
+            return
+        n = 0
+        for k in keys:
+            g = self.model.find(k)
+            group = self.model.group_of(k) or [g]
+            if action in ("fav", "unfav"):
+                shelves.set_member(group, shelves.FAV, action == "fav")
+            elif action == "collection" and arg:
+                shelves.set_member(group, arg, True)
+            elif action == "status":
+                shelves.set_meta(group, "status", arg if arg in shelves.STATUS_NAMES else "")
+            elif action in ("hide", "unhide"):
+                for x in group:
+                    game_options.set(x.key, "hidden", True if action == "hide" else (False if x.extra.get("steam_hidden") else None))
+            elif action == "install":
+                if g.installed or k in self.procs:
+                    continue
+                self.install(k)
+            elif action == "update":
+                if not (g.installed and g.extra.get("update")) or k in self.procs:
+                    continue
+                self.update(k)
+            else:
+                continue
+            n += 1
+        self._refilter_all()
+        self.storesChanged.emit()
+        for k in keys:
+            self.gameChanged.emit(k)
+        if action == "collection":
+            self.toast.emit(_t("Games") + f": {n} \u2192 {arg}")
+            return
+        done = {"fav": "added to Favourites", "unfav": "removed from Favourites", "status": "marked",
+                "hide": "hidden", "unhide": "back in the library", "install": "queued to install",
+                "update": "queued to update"}.get(action, "")
+        self.toast.emit(_t("Games") + f": {n} " + _t(done))
 
     @Slot(str, str)
     def setStatus(self, key, status):
