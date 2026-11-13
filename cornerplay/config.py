@@ -76,6 +76,7 @@ DEFAULTS = {
     "shader_cache": True,  # keep each game's shader cache (DXVK, VKD3D, Mesa, NVIDIA) and let it grow
     "perf": "",            # default performance profile: "", "battery", "balanced", "quality"
     "show_fps": False,
+    "perf_log": False,     # MangoHud logs each session; a game's page shows FPS, stutters and temperatures (perf.py)
     "games_dir": str(HOME / "Games" / APP),
     "proton": "GE-Proton",  # umu PROTONPATH: "GE-Proton", a path, or "" for UMU-Proton
     "mangohud": False,

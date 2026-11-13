@@ -118,6 +118,9 @@ def perf_env(store: str, game_id: str) -> dict:
         hud += ["fps_only=1"]
     if prof and prof["fps"]:
         hud += [f"fps_limit={prof['fps']}"]
+    if opt("perf_log") and shutil.which("mangohud"):
+        from . import perf
+        hud += perf.hud_options(store, game_id, visible=bool(opt("mangohud") or opt("show_fps")))
     if hud:
         env["MANGOHUD_CONFIG"] = ",".join(hud)
     if settings.get("shader_cache"):
@@ -240,7 +243,8 @@ def gamescope_argv(mangoapp: bool = False) -> list:
 
 
 def _wants_hud() -> bool:
-    return bool(opt("mangohud") or opt("show_fps") or (PROFILES.get(opt("perf") or "") or {}).get("fps"))
+    return bool(opt("mangohud") or opt("show_fps") or (opt("perf_log") and shutil.which("mangohud"))
+                or (PROFILES.get(opt("perf") or "") or {}).get("fps"))
 
 
 def extras(gamescope: bool = True) -> list:

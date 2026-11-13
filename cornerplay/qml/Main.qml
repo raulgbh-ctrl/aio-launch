@@ -2301,6 +2301,7 @@ ApplicationWindow {
             similar = app.similarGames(win.selectedKey)
             plays = app.gameSessions(win.selectedKey)
             fit = ({}); app.loadCompat(win.selectedKey)
+            ran = app.perfHistory(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -2318,6 +2319,7 @@ ApplicationWindow {
         property var similar: []
         property var plays: ({})
         property var fit: ({})
+        property var ran: ({})
         Connections { target: app; function onCompatReady(key, v) { if (key === win.selectedKey) detail.fit = v } }
         Connections { target: app; function onDetailsGrew() { if (detail.opened) detail.similar = app.similarGames(win.selectedKey) } }
         // Opening grows out of the middle, like the cover it came from.
@@ -2952,6 +2954,56 @@ ApplicationWindow {
                             width: (parent.width - 20) * modelData.minutes / parent.peak
                             color: theme.primary
                         }
+                    }
+                }
+            }
+        }
+        // How it ran: the sessions MangoHud recorded, and Proton versions side by side.
+        ColumnLayout {
+            visible: (detail.ran.runs || []).length > 0
+            Layout.fillWidth: true
+            spacing: 10
+            Text { text: qsTr("How it ran"); color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                Repeater {
+                    model: detail.ran.runs || []
+                    Rectangle {
+                        required property var modelData
+                        width: 168; height: 84; radius: 12
+                        color: theme.surfaceContainerHigh
+                        Column {
+                            x: 12; y: 10; spacing: 2
+                            Row {
+                                spacing: 6
+                                Text { text: Math.round(modelData.avgFps) + " fps"; color: theme.onSurface; font.pixelSize: 17; font.weight: Font.Bold }
+                                Text { anchors.baseline: parent.children[0].baseline; text: qsTr("1% low ") + Math.round(modelData.low1)
+                                       color: theme.onSurfaceVariant; font.pixelSize: 11 }
+                            }
+                            Text { text: modelData.when + "  \u00B7  " + modelData.minutes + " min  \u00B7  " + modelData.proton
+                                   color: theme.outline; font.pixelSize: 11; width: 150; elide: Text.ElideRight }
+                            Text { text: (modelData.stutters ? modelData.stutters + qsTr(" stutters") : qsTr("smooth"))
+                                         + (modelData.gpuTemp ? "  \u00B7  GPU " + modelData.gpuTemp + "\u00B0" : "")
+                                         + (modelData.cpuTemp ? "  \u00B7  CPU " + modelData.cpuTemp + "\u00B0" : "")
+                                   color: modelData.stutters > 20 ? "#ffcc66" : theme.onSurfaceVariant; font.pixelSize: 11 }
+                        }
+                    }
+                }
+            }
+            // Two or more Proton versions: which ran it better.
+            Column {
+                visible: (detail.ran.compare || []).length > 1
+                spacing: 4
+                Text { text: qsTr("By Proton version"); color: theme.outline; font.pixelSize: 12 }
+                Repeater {
+                    model: detail.ran.compare || []
+                    Text {
+                        required property var modelData
+                        required property int index
+                        text: (index === 0 ? "\u2605 " : "   ") + modelData.proton + "  \u2014  " + Math.round(modelData.avgFps) + " fps, 1% low "
+                              + Math.round(modelData.low1) + ", " + modelData.stutters + qsTr(" stutters a session") + "  (" + modelData.sessions + ")"
+                        color: index === 0 ? theme.primary : theme.onSurfaceVariant; font.pixelSize: 12
                     }
                 }
             }
@@ -5552,6 +5604,7 @@ ApplicationWindow {
                             Toggle { label: qsTr("MangoHud overlay"); settingKey: "mangohud" }
                             Toggle { label: qsTr("Feral GameMode"); settingKey: "gamemode" }
                             Toggle { label: qsTr("FPS counter in games"); settingKey: "show_fps" }
+                            Toggle { label: qsTr("Record how games run (FPS, stutters, temperatures; needs MangoHud). A game's page shows it, by Proton version too"); settingKey: "perf_log" }
                             Row2 {
                                 label: qsTr("Gamescope for every game")
                                 hint: app.hasGamescope

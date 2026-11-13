@@ -16,7 +16,7 @@ import shlex
 
 import sys
 
-from . import achievements, backup, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
+from . import achievements, backup, perf, search, couch, host, hostimport, statsdata, steamrun, wishlist, health, savebackup, importer, personal, problems, storage, updates, covers, details, epicfree, shelves, gamecolour, playtime, protondb, steamcompat, proton, runner, saves, session, steamgames, steamshortcut, theme as themes
 from .config import CACHE_DIR, DEFAULTS, LANGUAGES, LOG_DIR, game_options, read_json, settings, write_json
 from .net import redact
 from .runner import StoreError
@@ -2650,6 +2650,14 @@ class AioLaunch(QObject):
             return lambda: self.screenshotsReady.emit(key, out)
         self._bg(work)
 
+    @Slot(str, result="QVariantMap")
+    def perfHistory(self, key):
+        """A game's page: how its recorded sessions ran (perf.py)."""
+        h = perf.history(key)
+        for r in h["runs"]:
+            r["when"] = _short_date(r.get("t", 0))
+        return h
+
     # --- will it run on this PC? (compat.py) ---------------------------------------------
     compatReady = Signal(str, "QVariantMap")
 
@@ -3458,6 +3466,11 @@ class AioLaunch(QObject):
                 self._reload_playtime()
                 self._after_session(data)
                 done_game = self.model.find(data.get("key", ""))
+                if done_game and (game_options.get(done_game.key).get("perf_log", settings.get("perf_log"))):
+                    started, ended = data.get("started") or 0, data.get("since") or time.time()
+                    proton_used = game_options.get(done_game.key).get("proton") or settings.get("proton") or ""
+                    self._bg(lambda gg=done_game, s0=started, s1=ended, pr=proton_used:
+                             (perf.record(gg.key, gg.store, gg.id, s0, s1, os.path.basename(pr.rstrip("/"))), None)[1])
                 if done_game and self._shares_saves(done_game):
                     self._bg(lambda gg=done_game: (savebackup.share(gg, _appid(gg)), None)[1])
                 self._recap(data.get("key", ""), (data.get("since") or 0) - (data.get("started") or data.get("since") or 0))
