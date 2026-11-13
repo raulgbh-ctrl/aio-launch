@@ -148,6 +148,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+I"; enabled: !win.tv; onActivated: statsBox.show() }
     Shortcut { sequence: "Ctrl+N"; enabled: !win.tv; onActivated: addBox.show() }
     Shortcut { sequence: "F1"; enabled: !win.tv; onActivated: keysBox.open() }
+    Shortcut { sequences: ["Ctrl+K", "Ctrl+G"]; enabled: !win.tv; onActivated: jump.show() }
     Shortcut { sequence: "?"; enabled: !win.tv && !search.activeFocus && !win.popupOpen; onActivated: keysBox.open() }
 
     // A narrow window folds the sidebar into a rail of icons (names show as tooltips).
@@ -1818,6 +1819,144 @@ ApplicationWindow {
     }
 
     // -------------------------------------------------------------------- game detail
+    // Ctrl+K: type a few letters, jump to a game (Enter: its page, Shift+Enter: play) or an action.
+    KDialog {
+        id: jump
+        theme: win.theme
+        heading: ""
+        topPadding: 18; padding: 14
+        width: Math.min(win.width - 60, 640)
+        y: Math.round(win.height * 0.12)
+        property string q: ""
+        readonly property var actions: [
+            { t: qsTr("Settings"), i: "sliders-horizontal", k: "Ctrl+,", run: () => prefs.open() },
+            { t: qsTr("Stats"), i: "trophy", k: "Ctrl+I", run: () => statsBox.show() },
+            { t: qsTr("What should I play?"), i: "gamepad-2", k: "Ctrl+P", run: () => picker.show() },
+            { t: qsTr("Add a game"), i: "plus", k: "Ctrl+N", run: () => addBox.show() },
+            { t: qsTr("Storage"), i: "folder-open", k: "", run: () => storage.show() },
+            { t: qsTr("Health check"), i: "check", k: "", run: () => healthBox.show() },
+            { t: qsTr("Accounts"), i: "user-round", k: "", run: () => accounts.open() },
+            { t: qsTr("TV mode"), i: "tv", k: "F11", run: () => { win.tv = true } },
+            { t: qsTr("Refresh every store"), i: "refresh-cw", k: "Ctrl+R", run: () => app.refresh("", true) },
+            { t: qsTr("Installed games only"), i: "download", k: "", run: () => { library.installedOnly = !library.installedOnly } },
+            { t: qsTr("All games"), i: "library", k: "", run: () => { library.showHidden = false; library.storeFilter = ""; library.shelf = "" } },
+            { t: qsTr("View: Covers"), i: "layout-grid", k: "", run: () => app.setSetting("view", "grid") },
+            { t: qsTr("View: List"), i: "list", k: "", run: () => app.setSetting("view", "list") },
+            { t: qsTr("View: Logos"), i: "tv", k: "", run: () => app.setSetting("view", "logos") },
+            { t: qsTr("View: Shelves"), i: "bookmark", k: "", run: () => app.setSetting("view", "shelves") },
+            { t: qsTr("Keyboard shortcuts"), i: "keyboard", k: "F1", run: () => keysBox.open() }
+        ]
+        // Actions whose words all start with what was typed ("set" -> Settings, "v li" -> View: List).
+        function fold(t) { return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim() }
+        function actionHits(q) {
+            const qw = fold(q).split(" ").filter(w => w)
+            const stores = app.storesInfo.filter(x => x.count > 0).map(x => ({ t: qsTr("Show ") + x.name, store: x.id, color: x.color,
+                run: () => { library.showHidden = false; library.shelf = ""; library.storeFilter = x.id } }))
+            const all = jump.actions.concat(stores)
+            if (!qw.length) return all.slice(0, 6)
+            return all.filter(a => { const aw = fold(a.t).split(" "); return qw.every(w => aw.some(x => x.startsWith(w))) }).slice(0, 6)
+        }
+        readonly property var rows: {
+            const games = q ? app.quickFind(q, 7)
+                            : app.recentGames.slice(0, 5).map(g => ({ key: g.key, title: g.title, store: g.store, storeName: g.storeName, covers: g.covers, installed: true, recent: true }))
+            return games.map(g => Object.assign({ kind: "game" }, g)).concat(actionHits(q).map(a => Object.assign({ kind: "action" }, a)))
+        }
+        function show() { q = ""; jumpField.text = ""; jumpList.currentIndex = 0; open(); jumpField.forceActiveFocus() }
+        function run(row, play) {
+            if (!row) return
+            close()
+            if (row.kind === "game") { if (play) win.activate(row.key); else win.select(row.key) }
+            else row.run()
+        }
+        onRowsChanged: jumpList.currentIndex = 0
+        contentItem: ColumnLayout {
+            spacing: 10
+            KField {
+                id: jumpField
+                theme: win.theme
+                Layout.fillWidth: true
+                implicitHeight: 46
+                font.pixelSize: 16
+                iconName: "search"
+                placeholderText: qsTr("Jump to a game or an action\u2026")
+                onTextChanged: jump.q = text
+                Keys.onDownPressed: jumpList.currentIndex = Math.min(jumpList.count - 1, jumpList.currentIndex + 1)
+                Keys.onUpPressed: jumpList.currentIndex = Math.max(0, jumpList.currentIndex - 1)
+                Keys.onReturnPressed: (e) => jump.run(jump.rows[jumpList.currentIndex], e.modifiers & Qt.ShiftModifier)
+                Keys.onEnterPressed: (e) => jump.run(jump.rows[jumpList.currentIndex], e.modifiers & Qt.ShiftModifier)
+            }
+            ListView {
+                id: jumpList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight, win.height * 0.6)
+                clip: true
+                interactive: contentHeight > height
+                model: jump.rows
+                highlightMoveDuration: 0
+                section.property: "kind"
+                section.delegate: Text {
+                    required property string section
+                    width: jumpList.width; height: 26
+                    verticalAlignment: Text.AlignBottom; leftPadding: 10
+                    text: section === "game" ? (jump.q ? qsTr("GAMES") : qsTr("RECENT")) : qsTr("ACTIONS")
+                    color: theme.outline; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.2
+                }
+                delegate: Rectangle {
+                    id: jr
+                    required property var modelData
+                    required property int index
+                    readonly property bool cur: ListView.isCurrentItem
+                    width: jumpList.width; height: modelData.kind === "game" ? 52 : 40
+                    radius: 10
+                    color: cur ? Qt.alpha(theme.primary, 0.16) : jrHover.hovered ? theme.surfaceContainerHigh : "transparent"
+                    border.width: cur ? 1 : 0; border.color: Qt.alpha(theme.primary, 0.3)
+                    RoundedArt {
+                        visible: jr.modelData.kind === "game"
+                        x: 10; anchors.verticalCenter: parent.verticalCenter
+                        width: 28; height: 40; radius: 5
+                        Rectangle { anchors.fill: parent; color: theme.surfaceContainerHighest }
+                        ArtImage { anchors.fill: parent; sources: jr.modelData.covers || []; sourceSize.width: 56 }
+                    }
+                    StoreTile { visible: jr.modelData.kind === "action" && !!jr.modelData.store; x: 13; anchors.verticalCenter: parent.verticalCenter
+                                size: 20; store: jr.modelData.store || "" }
+                    Icon { visible: jr.modelData.kind === "action" && !jr.modelData.store; x: 15; anchors.verticalCenter: parent.verticalCenter
+                           name: jr.modelData.i || ""; size: 17; color: jr.cur ? theme.primary : theme.onSurfaceVariant }
+                    Column {
+                        x: jr.modelData.kind === "game" ? 50 : 46
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - x - 130
+                        Text { width: parent.width; text: jr.modelData.title || jr.modelData.t; color: theme.onSurface; elide: Text.ElideRight
+                               font.pixelSize: 14; font.weight: jr.cur ? Font.DemiBold : Font.Normal }
+                        Text { visible: jr.modelData.kind === "game"; width: parent.width; elide: Text.ElideRight
+                               text: (jr.modelData.storeName || "") + (jr.modelData.installed ? "" : qsTr(" \u00B7 not installed"))
+                               color: theme.onSurfaceVariant; font.pixelSize: 12 }
+                    }
+                    Row {
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        spacing: 6
+                        Text { visible: jr.cur && jr.modelData.kind === "game"; anchors.verticalCenter: parent.verticalCenter
+                               text: qsTr("Enter page  \u00B7  Shift+Enter play"); color: theme.outline; font.pixelSize: 11 }
+                        Rectangle {
+                            visible: jr.modelData.kind === "action" && !!jr.modelData.k
+                            height: 22; width: kText.implicitWidth + 12; radius: 6
+                            color: theme.surfaceContainerHigh; border.width: 1; border.color: theme.outlineVariant
+                            Text { id: kText; anchors.centerIn: parent; text: jr.modelData.k || ""; color: theme.onSurfaceVariant; font.pixelSize: 11 }
+                        }
+                    }
+                    HoverHandler { id: jrHover; cursorShape: Qt.PointingHandCursor; onHoveredChanged: if (hovered) jumpList.currentIndex = jr.index }
+                    TapHandler { onTapped: jump.run(jr.modelData, false) }
+                    TapHandler { onDoubleTapped: jump.run(jr.modelData, true) }
+                }
+            }
+            Text {
+                visible: jump.rows.length === 0
+                Layout.fillWidth: true; Layout.margins: 10
+                text: qsTr("Nothing found for \u201c") + jump.q + "\u201d"
+                color: theme.onSurfaceVariant; font.pixelSize: 13
+            }
+        }
+    }
+
     // Every keyboard shortcut on one card: F1, ? or the keyboard icon in the sidebar.
     KDialog {
         id: keysBox
@@ -1834,6 +1973,7 @@ ApplicationWindow {
                 ["Ctrl+N", qsTr("Add a game")],
                 ["Esc", qsTr("Close a page or pop-up")] ] },
             { title: qsTr("Tools"), keys: [
+                ["Ctrl+K", qsTr("Jump to a game or an action")],
                 ["Ctrl+P", qsTr("What should I play?")],
                 ["Ctrl+I", qsTr("Stats")],
                 ["Ctrl+,", qsTr("Settings")],
@@ -1920,6 +2060,7 @@ ApplicationWindow {
             app.loadScreenshots(win.selectedKey)
             if (win.selected.hasDlc) app.loadDlcs(win.selectedKey)
             similar = app.similarGames(win.selectedKey)
+            plays = app.gameSessions(win.selectedKey)
             detailFlick.contentY = 0
         }
         // A full page over the library (the sidebar stays): Back or Esc returns to where you were.
@@ -1935,6 +2076,7 @@ ApplicationWindow {
         topPadding: bannerH - 150
         bottomPadding: 0
         property var similar: []
+        property var plays: ({})
         Connections { target: app; function onDetailsGrew() { if (detail.opened) detail.similar = app.similarGames(win.selectedKey) } }
         // Opening grows out of the middle, like the cover it came from.
         enter: Transition {
@@ -2442,6 +2584,44 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
+            }
+        }
+        // Your sessions: the last few times you played, and the hours of the last 30 days.
+        ColumnLayout {
+            visible: (detail.plays.recent || []).length > 0
+            Layout.fillWidth: true
+            spacing: 10
+            Row {
+                spacing: 10
+                Text { text: qsTr("Your sessions"); color: theme.onSurfaceVariant; font.pixelSize: 14; font.weight: Font.DemiBold }
+                Text { anchors.baseline: parent.children[0].baseline; color: theme.outline; font.pixelSize: 12
+                       text: detail.plays.count + qsTr(" in all") + ((detail.plays.monthHours || 0) > 0 ? qsTr("  \u00B7  ") + detail.plays.monthHours + qsTr(" h in the last 30 days") : "") }
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                Repeater {
+                    model: detail.plays.recent || []
+                    Rectangle {
+                        required property var modelData
+                        readonly property real peak: Math.max(...(detail.plays.recent || [{ minutes: 1 }]).map(r => r.minutes))
+                        width: 132; height: 64; radius: 12
+                        color: theme.surfaceContainerHigh
+                        Column {
+                            x: 12; y: 10; spacing: 2
+                            Text { text: modelData.minutes >= 60 ? Math.floor(modelData.minutes / 60) + " h " + (modelData.minutes % 60 ? modelData.minutes % 60 + " min" : "") : modelData.minutes + " min"
+                                   color: theme.onSurface; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Text { text: modelData.when + "  \u00B7  " + modelData.hour; color: theme.onSurfaceVariant; font.pixelSize: 11 }
+                        }
+                        // How long, against the longest of these sessions.
+                        Rectangle {
+                            anchors { left: parent.left; bottom: parent.bottom; margins: 10 }
+                            height: 3; radius: 2
+                            width: (parent.width - 20) * modelData.minutes / parent.peak
+                            color: theme.primary
+                        }
+                    }
+                }
             }
         }
         // More like this in your library (shared genres, the same developer).

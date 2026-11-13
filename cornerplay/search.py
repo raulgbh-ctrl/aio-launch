@@ -62,3 +62,24 @@ def matches(query: str, title: str, extra=()) -> bool:
         if ew and all(any(t.startswith(w) for t in ew) for w in q):
             return True
     return False
+
+
+def score(query: str, title: str) -> int:
+    """How well the query finds this title, for ranking (0 = not at all): the title starting
+    with the query first, then words starting in order, then initials, then anywhere."""
+    if not matches(query, title):
+        return 0
+    q, tw = _query_words(query), words(title)
+    joined, qj = " ".join(tw), " ".join(q)
+    if joined == qj:
+        return 100
+    if joined.startswith(qj):
+        return 90
+    if len(q) <= len(tw) and all(tw[i].startswith(w) for i, w in enumerate(q)):
+        return 80
+    raw = re.sub(r"\s+", "", query.lower())
+    if any(i.startswith(raw) for i in _initials(title)):
+        return 70
+    if all(any(t.startswith(w) for t in tw) for w in q):
+        return 60
+    return 40

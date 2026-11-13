@@ -39,3 +39,9 @@ def test_extra_texts():
 def test_words_fold():
     assert words("Baldur's Gate III") == ("baldurs", "gate", "3")
     assert words("I Am Bread") == ("i", "am", "bread")
+
+
+def test_score_ranks_title_starts_first():
+    from cornerplay.search import score
+    assert score("dead cells", "Dead Cells") > score("dead", "Dead Cells") > score("dc", "Dead Cells") > score("cells", "Dead Cells") > 0
+    assert score("xyz", "Dead Cells") == 0

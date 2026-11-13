@@ -196,6 +196,8 @@ To remove it:
 - **What should I play?** (sidebar): a pick from your backlog, by how long you have; never finished or dropped games.
 - **Small windows**: under about 980 px wide the sidebar folds into a rail of icons (names as tooltips), so half a screen or a small laptop still has room for the covers and a game's page.
 - **New games**: a game bought or claimed in the last week wears a small NEW ribbon on its cover until you play it (games you already owned when a store was connected never do).
+- **Jump anywhere (Ctrl+K)**: type a few letters to jump to a game (Enter opens its page, Shift+Enter plays it) or an action: Settings, Stats, a store, a view, TV mode and more. With nothing typed it lists your recent games.
+- **Your sessions** on a game's page: the last few times you played it (date, time, how long) and its hours in the last 30 days.
 - **Forgiving search**: words in any order, accents and punctuation ignored, roman numerals read as numbers, and a game's initials: "witcher 3", "baldurs gate", "gta 5", "rdr2" and "hk" all find their game (`search.py`).
 - **After a session**: when a game you played for a few minutes closes, a small card says how long you played and your total, with stars to rate it, I finished it and a note (where you got to), so your backlog and ratings fill in as you go.
 - **Keyboard shortcuts**: F1, ? or the keyboard icon in the sidebar shows every key on one card. Ctrl+F search, Ctrl+R refresh, Ctrl+N add a game, Ctrl+P What should I play?, Ctrl+I Stats, Ctrl+, Settings, F11 TV mode, Ctrl+Q quit.

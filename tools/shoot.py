@@ -10,7 +10,8 @@ Actions run one after another, 0.6 s apart after a 2.5 s start:
     tv            start in TV mode
 Environment: SHOT_CFG='{"view": "list"}' runs with these settings in a throwaway copy of your
 config; SHOT_SEEN=key1,key2 marks demo games as bought an hour ago (the NEW ribbon);
-SHOT_BACKEND=software renders without a GPU.
+SHOT_SESSIONS='epic:504230=95,40,130' gives a demo game play sessions (minutes, newest first)
+in a throwaway data folder; SHOT_BACKEND=software renders without a GPU.
 """
 import os, sys
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -32,6 +33,21 @@ if cfg is not None:
     st.update(json.loads(cfg or "{}"))
     json.dump(st, open(d + "/cornerplay/settings.json", "w"))
     os.environ["XDG_CONFIG_HOME"] = d
+    if os.environ.get("SHOT_SESSIONS"):
+        import time
+        dd = tempfile.mkdtemp(prefix="cpdata")
+        real = os.path.expanduser("~/.local/share/cornerplay/people")
+        names = os.listdir(real) if os.path.isdir(real) else []
+        log, t = [], time.time() - 3600
+        for spec in os.environ["SHOT_SESSIONS"].split(";"):
+            key, _, mins = spec.partition("=")
+            for i, m in enumerate(int(x) for x in mins.split(",")):
+                end = t - i * 2 * 86400
+                log.append([key, int(end - m * 60), int(end)])
+        for n in set(names + ["me"]):
+            os.makedirs(f"{dd}/cornerplay/people/{n}", exist_ok=True)
+            json.dump(log, open(f"{dd}/cornerplay/people/{n}/sessions-shot.json", "w"))
+        os.environ["XDG_DATA_HOME"] = dd
     if os.environ.get("SHOT_SEEN"):
         import time
         seen = {"stores": ["steam", "epic", "gog", "amazon", "battlenet"], "keys": {k: int(time.time()) - 3600 for k in os.environ["SHOT_SEEN"].split(",")}}

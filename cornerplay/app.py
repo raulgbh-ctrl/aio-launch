@@ -1990,6 +1990,38 @@ class AioLaunch(QObject):
     def game(self, key):
         return self.model.as_dict(key)
 
+    @Slot(str, int, result="QVariantList")
+    def quickFind(self, query, limit):
+        """Ctrl+K: the games the query finds best, best first (recently played breaks ties)."""
+        query = (query or "").strip()
+        if not query:
+            return []
+        found = []
+        for group in self.model.groups:
+            if self.model.is_hidden(group):
+                continue
+            g = self.model.rep(group)
+            sc = max(search.score(query, c.title) for c in group)
+            if sc:
+                found.append((sc, self.model.group_value(group, "lastPlayed"), g))
+        found.sort(key=lambda x: (-x[0], -x[1], x[2].title.lower()))
+        return [{"key": g.key, "title": g.title, "store": g.store, "storeName": self.stores[g.store].name,
+                 "covers": self.model.value(g, "covers"), "installed": g.installed}
+                for _, _, g in found[:max(1, limit)]]
+
+    @Slot(str, result="QVariantMap")
+    def gameSessions(self, key):
+        """A game's page: its last sessions (newest first) and the hours of the last 30 days,
+        from the sessions Cornerplay saw (playtime.sessions())."""
+        group = self.model.group_of(key) or ([self.model.find(key)] if self.model.find(key) else [])
+        keys = {g.key for g in group}
+        log = sorted((s for s in playtime.sessions() if s[0] in keys), key=lambda s: -s[1])
+        month_ago = time.time() - 30 * 86400
+        recent = [{"when": _short_date(s[1]), "minutes": max(1, int((s[2] - s[1]) // 60)),
+                   "hour": time.strftime("%H:%M", time.localtime(s[1]))} for s in log[:6]]
+        month = sum(max(0, s[2] - max(s[1], month_ago)) for s in log if s[2] > month_ago)
+        return {"recent": recent, "count": len(log), "monthHours": round(month / 3600, 1)}
+
     @Slot(result="QVariantList")
     def jobList(self):
         """Installs, updates and the like under way or waiting, for TV mode's quick access."""
